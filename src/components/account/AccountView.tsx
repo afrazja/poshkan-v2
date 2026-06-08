@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import type { Account, Position, WatchlistItem } from "@/lib/types";
@@ -13,7 +13,7 @@ import {
 } from "@/lib/format";
 import SymbolSearch from "@/components/SymbolSearch";
 import SymbolPanel from "./SymbolPanel";
-import AccountValueChart from "./AccountValueChart";
+import Sparkline from "./Sparkline";
 import HoldingsTable from "./HoldingsTable";
 import WatchlistTable from "./WatchlistTable";
 import TradeModal from "./TradeModal";
@@ -88,6 +88,32 @@ export default function AccountView({
   const selectedQuote = selected ? quotes[selected.symbol.toUpperCase()] : undefined;
   const tradePrice = trade ? quotes[trade.symbol.toUpperCase()]?.price ?? 0 : 0;
 
+  // Mini sparkline history for the Holdings value and Total P&L metrics.
+  // Refetches when the set of holdings changes (e.g. after a trade).
+  const [spark, setSpark] = useState<{ holdings: number[]; pnl: number[] }>({ holdings: [], pnl: [] });
+  const posSig = positions.map((p) => `${p.symbol}:${p.quantity}`).join(",");
+  useEffect(() => {
+    if (positions.length === 0) {
+      setSpark({ holdings: [], pnl: [] });
+      return;
+    }
+    let active = true;
+    fetch(`/api/holdings-history?accountId=${account.id}&range=1M`)
+      .then((r) => r.json())
+      .then((j) => {
+        if (!active || j.error) return;
+        setSpark({
+          holdings: (j.holdings ?? []).map((p: { value: number }) => p.value),
+          pnl: (j.pnl ?? []).map((p: { value: number }) => p.value),
+        });
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [account.id, posSig]);
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -124,7 +150,15 @@ export default function AccountView({
         </div>
         <div className="mt-5 grid grid-cols-2 gap-4 sm:grid-cols-4">
           <Stat label="Buying power" value={formatCurrency(cash)} />
-          <Stat label="Holdings value" value={formatCurrency(holdingsValue)} />
+          <Stat
+            label="Holdings value"
+            value={formatCurrency(holdingsValue)}
+            sparkline={
+              spark.holdings.length >= 2 ? (
+                <Sparkline points={spark.holdings} colorMode="trend" />
+              ) : undefined
+            }
+          />
           <Stat
             label="Today's P&L"
             value={formatSignedCurrency(todayPnl)}
@@ -134,12 +168,12 @@ export default function AccountView({
             label="Total P&L"
             value={`${formatSignedCurrency(totalPnl)} (${formatPercent(totalPnlPct)})`}
             colorClass={changeColor(totalPnl)}
+            sparkline={
+              spark.pnl.length >= 2 ? <Sparkline points={spark.pnl} colorMode="pnl" /> : undefined
+            }
           />
         </div>
       </div>
-
-      {/* Portfolio value over time */}
-      <AccountValueChart accountId={account.id} />
 
       {/* Search */}
       <div>
@@ -203,15 +237,20 @@ function Stat({
   label,
   value,
   colorClass,
+  sparkline,
 }: {
   label: string;
   value: string;
   colorClass?: string;
+  sparkline?: React.ReactNode;
 }) {
   return (
     <div>
       <div className="text-xs text-muted">{label}</div>
-      <div className={`mt-0.5 font-semibold ${colorClass ?? ""}`}>{value}</div>
+      <div className="mt-0.5 flex items-center gap-2">
+        {sparkline}
+        <span className={`font-semibold ${colorClass ?? ""}`}>{value}</span>
+      </div>
     </div>
   );
 }
