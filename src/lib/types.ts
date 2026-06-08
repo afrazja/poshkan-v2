@@ -1,0 +1,70 @@
+export type AccountType = "stocks" | "crypto" | "forex";
+
+export type TransactionSide =
+  | "BUY"
+  | "SELL"
+  | "OPENING_BALANCE"
+  | "DEPOSIT"
+  | "RESET";
+
+export interface Profile {
+  id: string;
+  username: string;
+  avatar_url: string | null;
+  theme: "light" | "dark";
+  created_at: string;
+}
+
+export interface Account {
+  id: string;
+  user_id: string;
+  name: string;
+  type: AccountType;
+  cash_balance: number;
+  created_at: string;
+}
+
+export interface Position {
+  id: string;
+  account_id: string;
+  symbol: string;
+  quantity: number;
+  avg_cost: number;
+}
+
+export interface Transaction {
+  id: string;
+  account_id: string;
+  symbol: string | null;
+  side: TransactionSide;
+  quantity: number;
+  price: number;
+  cash_delta: number;
+  created_at: string;
+}
+
+export interface WatchlistItem {
+  id: string;
+  account_id: string;
+  symbol: string;
+}
+
+// Shape returned by our /api/quote proxy (normalized subset of Twelve Data).
+export interface Quote {
+  symbol: string;
+  name: string;
+  price: number;
+  previousClose: number;
+  change: number;
+  percentChange: number;
+  currency: string;
+  isMarketOpen: boolean;
+}
+
+export interface SymbolSearchResult {
+  symbol: string;
+  name: string;
+  exchange: string;
+  currency: string;
+  instrumentType: string;
+}

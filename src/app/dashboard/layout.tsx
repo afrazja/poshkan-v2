@@ -1,0 +1,36 @@
+import { redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
+import Providers from "@/components/Providers";
+import TopBar from "@/components/TopBar";
+
+export default async function DashboardLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) redirect("/");
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("username")
+    .eq("id", user.id)
+    .single();
+
+  const username = profile?.username || user.email?.split("@")[0] || "trader";
+
+  return (
+    <Providers>
+      <div className="flex min-h-screen flex-col">
+        <TopBar username={username} email={user.email ?? ""} />
+        <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:px-6">
+          {children}
+        </main>
+      </div>
+    </Providers>
+  );
+}
