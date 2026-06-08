@@ -81,8 +81,11 @@ export default function MetricChartModal({
       ) : error ? (
         <div className="flex h-[240px] items-center justify-center text-sm text-muted">Chart unavailable</div>
       ) : points.length < 2 ? (
-        <div className="flex h-[240px] items-center justify-center px-6 text-center text-sm text-muted">
-          Not enough price history yet for this range.
+        <div className="flex h-[240px] flex-col items-center justify-center gap-1 px-6 text-center text-sm text-muted">
+          <span>Not enough history yet.</span>
+          <span className="text-xs">
+            This chart tracks your account from the day you created it — it will fill in as the days pass.
+          </span>
         </div>
       ) : (
         <AreaChart
