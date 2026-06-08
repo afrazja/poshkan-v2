@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import type { Quote } from "@/lib/types";
 import { formatCurrency, formatPercent, changeColor } from "@/lib/format";
+import PriceChart from "./PriceChart";
 
 export default function SymbolPanel({
   symbol,
@@ -71,6 +72,10 @@ export default function SymbolPanel({
             </>
           )}
         </div>
+      </div>
+
+      <div className="mt-4">
+        <PriceChart symbol={symbol} height={180} />
       </div>
 
       <div className="mt-5 flex flex-wrap gap-2">

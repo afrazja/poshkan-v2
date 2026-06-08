@@ -13,6 +13,7 @@ import {
 } from "@/lib/format";
 import SymbolSearch from "@/components/SymbolSearch";
 import SymbolPanel from "./SymbolPanel";
+import AccountValueChart from "./AccountValueChart";
 import HoldingsTable from "./HoldingsTable";
 import WatchlistTable from "./WatchlistTable";
 import TradeModal from "./TradeModal";
@@ -136,6 +137,9 @@ export default function AccountView({
           />
         </div>
       </div>
+
+      {/* Portfolio value over time */}
+      <AccountValueChart accountId={account.id} />
 
       {/* Search */}
       <div>
