@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Modal from "@/components/Modal";
 import { formatCurrency } from "@/lib/format";
 import { executeTradeAction } from "@/app/dashboard/[accountId]/actions";
+import PriceChart from "./PriceChart";
 
 export default function TradeModal({
   accountId,
@@ -97,6 +98,8 @@ export default function TradeModal({
             <span className="text-muted">Market price</span>
             <span className="font-semibold">{formatCurrency(price)}</span>
           </div>
+
+          <PriceChart symbol={symbol} />
 
           <div>
             <label className="mb-1 block text-sm font-medium">Quantity (shares)</label>

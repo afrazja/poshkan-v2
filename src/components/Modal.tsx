@@ -31,7 +31,7 @@ export default function Modal({
       onClick={onClose}
     >
       <div
-        className={`w-full ${wide ? "max-w-2xl" : "max-w-md"} rounded-2xl border border-border bg-card p-6 shadow-xl`}
+        className={`max-h-[90vh] w-full overflow-y-auto ${wide ? "max-w-2xl" : "max-w-md"} rounded-2xl border border-border bg-card p-6 shadow-xl`}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-center justify-between">

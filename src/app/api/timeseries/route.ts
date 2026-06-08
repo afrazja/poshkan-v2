@@ -9,12 +9,13 @@ export async function GET(request: Request) {
   const params = new URL(request.url).searchParams;
   const symbol = params.get("symbol")?.trim();
   const interval = params.get("interval")?.trim() || "1day";
+  const outputsize = Math.min(Number(params.get("outputsize")) || 90, 500);
   if (!symbol) {
     return NextResponse.json({ error: "Missing symbol" }, { status: 400 });
   }
 
   try {
-    const candles = await getTimeSeries(symbol, interval);
+    const candles = await getTimeSeries(symbol, interval, outputsize);
     return NextResponse.json({ candles });
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 502 });
