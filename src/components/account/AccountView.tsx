@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import type { Account, Position, WatchlistItem } from "@/lib/types";
@@ -13,7 +13,7 @@ import {
 } from "@/lib/format";
 import SymbolSearch from "@/components/SymbolSearch";
 import SymbolPanel from "./SymbolPanel";
-import Sparkline from "./Sparkline";
+import MetricChartModal from "./MetricChartModal";
 import HoldingsTable from "./HoldingsTable";
 import WatchlistTable from "./WatchlistTable";
 import TradeModal from "./TradeModal";
@@ -36,6 +36,7 @@ export default function AccountView({
   const [selected, setSelected] = useState<{ symbol: string; name: string } | null>(null);
   const [trade, setTrade] = useState<{ side: "BUY" | "SELL"; symbol: string } | null>(null);
   const [cashModal, setCashModal] = useState<"DEPOSIT" | "RESET" | null>(null);
+  const [metricChart, setMetricChart] = useState<"holdings" | "pnl" | null>(null);
 
   const positions = initialPositions;
   const watchlist = initialWatchlist;
@@ -88,32 +89,6 @@ export default function AccountView({
   const selectedQuote = selected ? quotes[selected.symbol.toUpperCase()] : undefined;
   const tradePrice = trade ? quotes[trade.symbol.toUpperCase()]?.price ?? 0 : 0;
 
-  // Mini sparkline history for the Holdings value and Total P&L metrics.
-  // Refetches when the set of holdings changes (e.g. after a trade).
-  const [spark, setSpark] = useState<{ holdings: number[]; pnl: number[] }>({ holdings: [], pnl: [] });
-  const posSig = positions.map((p) => `${p.symbol}:${p.quantity}`).join(",");
-  useEffect(() => {
-    if (positions.length === 0) {
-      setSpark({ holdings: [], pnl: [] });
-      return;
-    }
-    let active = true;
-    fetch(`/api/holdings-history?accountId=${account.id}&range=1M`)
-      .then((r) => r.json())
-      .then((j) => {
-        if (!active || j.error) return;
-        setSpark({
-          holdings: (j.holdings ?? []).map((p: { value: number }) => p.value),
-          pnl: (j.pnl ?? []).map((p: { value: number }) => p.value),
-        });
-      })
-      .catch(() => {});
-    return () => {
-      active = false;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [account.id, posSig]);
-
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -153,11 +128,7 @@ export default function AccountView({
           <Stat
             label="Holdings value"
             value={formatCurrency(holdingsValue)}
-            sparkline={
-              spark.holdings.length >= 2 ? (
-                <Sparkline points={spark.holdings} colorMode="trend" />
-              ) : undefined
-            }
+            onChart={positions.length ? () => setMetricChart("holdings") : undefined}
           />
           <Stat
             label="Today's P&L"
@@ -168,9 +139,7 @@ export default function AccountView({
             label="Total P&L"
             value={`${formatSignedCurrency(totalPnl)} (${formatPercent(totalPnlPct)})`}
             colorClass={changeColor(totalPnl)}
-            sparkline={
-              spark.pnl.length >= 2 ? <Sparkline points={spark.pnl} colorMode="pnl" /> : undefined
-            }
+            onChart={positions.length ? () => setMetricChart("pnl") : undefined}
           />
         </div>
       </div>
@@ -229,6 +198,14 @@ export default function AccountView({
       {cashModal && (
         <CashModal accountId={account.id} mode={cashModal} onClose={() => setCashModal(null)} />
       )}
+      {metricChart && (
+        <MetricChartModal
+          accountId={account.id}
+          metric={metricChart}
+          title={metricChart === "holdings" ? "Holdings value over time" : "Total profit / loss over time"}
+          onClose={() => setMetricChart(null)}
+        />
+      )}
     </div>
   );
 }
@@ -237,20 +214,38 @@ function Stat({
   label,
   value,
   colorClass,
-  sparkline,
+  onChart,
 }: {
   label: string;
   value: string;
   colorClass?: string;
-  sparkline?: React.ReactNode;
+  onChart?: () => void;
 }) {
   return (
     <div>
       <div className="text-xs text-muted">{label}</div>
-      <div className="mt-0.5 flex items-center gap-2">
-        {sparkline}
+      <div className="mt-0.5 flex items-center gap-1.5">
+        {onChart && (
+          <button
+            onClick={onChart}
+            aria-label={`Show ${label} chart`}
+            title={`Show ${label} chart`}
+            className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-muted transition hover:bg-background hover:text-primary"
+          >
+            <ChartGlyph />
+          </button>
+        )}
         <span className={`font-semibold ${colorClass ?? ""}`}>{value}</span>
       </div>
     </div>
+  );
+}
+
+function ChartGlyph() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M2 2v12h12" opacity="0.5" />
+      <path d="M4.5 10.5l3-3 2.5 2 3.5-4.5" />
+    </svg>
   );
 }
