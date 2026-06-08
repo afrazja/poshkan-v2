@@ -85,7 +85,13 @@ export default function MetricChartModal({
           Not enough price history yet for this range.
         </div>
       ) : (
-        <AreaChart points={points} height={240} formatValue={fmtValue} formatAxisValue={axisCurrency} />
+        <AreaChart
+          points={points}
+          height={240}
+          formatValue={fmtValue}
+          formatAxisValue={axisCurrency}
+          baseline={metric === "pnl" ? 0 : undefined}
+        />
       )}
     </Modal>
   );
