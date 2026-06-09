@@ -44,6 +44,7 @@ export default function AccountView({
   const [cashModal, setCashModal] = useState<"DEPOSIT" | "RESET" | null>(null);
   const [metricChart, setMetricChart] = useState<"holdings" | "pnl" | null>(null);
   const [tab, setTab] = useState<Tab>("holdings");
+  const [filter, setFilter] = useState("");
 
   const positions = initialPositions;
   const watchlist = initialWatchlist;
@@ -192,41 +193,74 @@ export default function AccountView({
 
       {/* Holdings / Watchlist / History tabs */}
       <section>
-        <div className="mb-3 flex flex-wrap gap-1 rounded-lg border border-border bg-card p-1">
-          {(
-            [
-              { key: "holdings", label: "Holdings", count: positions.length },
-              { key: "watchlist", label: "Watchlist", count: watchlist.length },
-              { key: "history", label: "History", count: transactions.length },
-            ] as { key: Tab; label: string; count?: number }[]
-          ).map((t) => (
-            <button
-              key={t.key}
-              onClick={() => setTab(t.key)}
-              className={`rounded-md px-4 py-1.5 text-sm font-medium transition ${
-                tab === t.key ? "bg-background text-foreground shadow-sm" : "text-muted hover:text-foreground"
-              }`}
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap gap-1 rounded-lg border border-border bg-card p-1">
+            {(
+              [
+                { key: "holdings", label: "Holdings", count: positions.length },
+                { key: "watchlist", label: "Watchlist", count: watchlist.length },
+                { key: "history", label: "History", count: transactions.length },
+              ] as { key: Tab; label: string; count?: number }[]
+            ).map((t) => (
+              <button
+                key={t.key}
+                onClick={() => setTab(t.key)}
+                className={`rounded-md px-4 py-1.5 text-sm font-medium transition ${
+                  tab === t.key ? "bg-background text-foreground shadow-sm" : "text-muted hover:text-foreground"
+                }`}
+              >
+                {t.label}
+                {t.count ? ` (${t.count})` : ""}
+              </button>
+            ))}
+          </div>
+
+          {/* Small filter for the current table */}
+          <div className="relative">
+            <svg
+              className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-primary"
+              viewBox="0 0 20 20"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
             >
-              {t.label}
-              {t.count ? ` (${t.count})` : ""}
-            </button>
-          ))}
+              <circle cx="9" cy="9" r="6" />
+              <path d="M14 14l4 4" />
+            </svg>
+            <input
+              value={filter}
+              onChange={(e) => setFilter(e.target.value)}
+              placeholder="Filter symbol…"
+              className="w-40 rounded-lg border border-border bg-input py-1.5 pl-8 pr-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+            />
+          </div>
         </div>
 
         {tab === "holdings" && (
-          <HoldingsTable positions={positions} quotes={quotes} onSelect={selectSymbol} />
+          <HoldingsTable
+            positions={positions.filter((p) => p.symbol.toLowerCase().includes(filter.toLowerCase()))}
+            quotes={quotes}
+            onSelect={selectSymbol}
+          />
         )}
 
         {tab === "watchlist" && (
           <WatchlistTable
-            items={watchlist}
+            items={watchlist.filter((w) => w.symbol.toLowerCase().includes(filter.toLowerCase()))}
             quotes={quotes}
             onSelect={selectSymbol}
             onRemove={(symbol) => toggleWatch(symbol)}
           />
         )}
 
-        {tab === "history" && <TransactionHistory transactions={transactions} />}
+        {tab === "history" && (
+          <TransactionHistory
+            transactions={transactions.filter((t) =>
+              (t.symbol ?? "").toLowerCase().includes(filter.toLowerCase())
+            )}
+          />
+        )}
       </section>
 
       {trade && (
