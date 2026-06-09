@@ -76,8 +76,7 @@ export default function TradeModal({
       {done ? (
         <div className="space-y-4">
           <p className="text-sm">
-            {side === "BUY" ? "Bought" : "Sold"} <strong>{quantity}</strong> share
-            {quantity === 1 ? "" : "s"} of <strong>{symbol}</strong> at{" "}
+            {side === "BUY" ? "Bought" : "Sold"} <strong>{quantity}</strong> {symbol} at{" "}
             <strong>{formatCurrency(done.price)}</strong>.
           </p>
           <button
@@ -102,7 +101,7 @@ export default function TradeModal({
           <PriceChart symbol={symbol} />
 
           <div>
-            <label className="mb-1 block text-sm font-medium">Quantity (shares)</label>
+            <label className="mb-1 block text-sm font-medium">Quantity</label>
             <input
               type="number"
               min="0"
@@ -111,7 +110,7 @@ export default function TradeModal({
               value={qty}
               onChange={(e) => setQty(e.target.value)}
               className={inputClass}
-              placeholder="0"
+              placeholder="0 (fractions allowed)"
             />
             {side === "SELL" && (
               <button
@@ -119,7 +118,7 @@ export default function TradeModal({
                 onClick={() => setQty(String(maxShares ?? 0))}
                 className="mt-1 text-xs text-primary hover:underline"
               >
-                Max: {maxShares} shares
+                Max: {maxShares}
               </button>
             )}
           </div>

@@ -80,12 +80,13 @@ export async function searchSymbols(query: string): Promise<SymbolSearchResult[]
       { validateResult: false }
     )) as unknown as { quotes?: YSearchQuote[] };
     const quotes = Array.isArray(r.quotes) ? r.quotes : [];
+    const allowed = new Set(["EQUITY", "ETF", "CRYPTOCURRENCY"]);
     return quotes
-      .filter((q) => q.isYahooFinance && q.symbol && (q.quoteType === "EQUITY" || q.quoteType === "ETF"))
+      .filter((q) => q.isYahooFinance && q.symbol && allowed.has(q.quoteType ?? ""))
       .map((q) => ({
         symbol: q.symbol as string,
         name: q.shortname ?? q.longname ?? (q.symbol as string),
-        exchange: q.exchDisp ?? q.exchange ?? "",
+        exchange: q.quoteType === "CRYPTOCURRENCY" ? "Crypto" : q.exchDisp ?? q.exchange ?? "",
         currency: "USD",
         instrumentType: q.quoteType ?? "EQUITY",
       }));
