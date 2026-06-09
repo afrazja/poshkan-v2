@@ -146,8 +146,18 @@ export default function AccountView({
       </div>
 
       {/* Search */}
-      <div>
-        <SymbolSearch onSelect={(r) => setSelected({ symbol: r.symbol, name: r.name })} />
+      <div className="rounded-2xl border border-border bg-card p-4">
+        <label className="mb-2 block text-sm font-semibold">
+          Search a stock to buy, sell, or add to your watchlist
+        </label>
+        <SymbolSearch
+          size="lg"
+          placeholder="Try a symbol or name — e.g. AAPL, Tesla, NVDA"
+          onSelect={(r) => setSelected({ symbol: r.symbol, name: r.name })}
+        />
+        <p className="mt-2 text-xs text-muted">
+          Start typing and pick a result to see its price, chart, and trade options.
+        </p>
       </div>
 
       {/* Selected symbol panel */}
