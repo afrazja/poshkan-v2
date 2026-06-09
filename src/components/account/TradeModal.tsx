@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Modal from "@/components/Modal";
 import { formatCurrency } from "@/lib/format";
-import { executeTradeAction } from "@/app/dashboard/[accountId]/actions";
+import { executeTradeAction, placeLimitOrderAction } from "@/app/dashboard/[accountId]/actions";
 import PriceChart from "./PriceChart";
 
 export default function TradeModal({
@@ -29,8 +29,10 @@ export default function TradeModal({
   const [price, setPrice] = useState(initialPrice);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [done, setDone] = useState<{ price: number } | null>(null);
+  const [done, setDone] = useState<{ price: number; limit?: boolean } | null>(null);
   const [review, setReview] = useState(false);
+  const [orderType, setOrderType] = useState<"MARKET" | "LIMIT">("MARKET");
+  const [limitPrice, setLimitPrice] = useState("");
 
   // If we opened without a fresh price, fetch one so the estimate is accurate.
   useEffect(() => {
@@ -49,15 +51,24 @@ export default function TradeModal({
     };
   }, [symbol, initialPrice]);
 
+  const isLimit = orderType === "LIMIT";
   const quantity = Number(qty) || 0;
-  const estimate = quantity * price;
+  const limit = Number(limitPrice) || 0;
+  const execPrice = isLimit ? limit : price;
+  const estimate = quantity * execPrice;
   const affordable = side === "BUY" ? estimate <= cash : true;
   const enoughShares = side === "SELL" ? quantity <= (maxShares ?? 0) : true;
+
+  function chooseType(t: "MARKET" | "LIMIT") {
+    setOrderType(t);
+    if (t === "LIMIT" && !limitPrice && price > 0) setLimitPrice(price.toFixed(2));
+  }
 
   function goReview(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     if (quantity <= 0) return setError("Enter a quantity.");
+    if (isLimit && limit <= 0) return setError("Enter a limit price.");
     if (!affordable) return setError("Not enough cash for this order.");
     if (!enoughShares) return setError("You don't hold that many shares.");
     setReview(true);
@@ -66,6 +77,14 @@ export default function TradeModal({
   async function confirm() {
     setError(null);
     setLoading(true);
+    if (isLimit) {
+      const res = await placeLimitOrderAction({ accountId, symbol, side, quantity, limitPrice: limit });
+      setLoading(false);
+      if (res.error) return setError(res.error);
+      setDone({ price: limit, limit: true });
+      router.refresh();
+      return;
+    }
     const result = await executeTradeAction({ accountId, symbol, side, quantity });
     setLoading(false);
     if (result.error) return setError(result.error);
@@ -81,8 +100,21 @@ export default function TradeModal({
       {done ? (
         <div className="space-y-4">
           <p className="text-sm">
-            {side === "BUY" ? "Bought" : "Sold"} <strong>{quantity}</strong> {symbol} at{" "}
-            <strong>{formatCurrency(done.price)}</strong>.
+            {done.limit ? (
+              <>
+                Limit order placed:{" "}
+                <strong>
+                  {side === "BUY" ? "Buy" : "Sell"} {quantity} {symbol}
+                </strong>{" "}
+                at <strong>{formatCurrency(done.price)}</strong> or better. It fills automatically
+                when the price is reached (while this account is open).
+              </>
+            ) : (
+              <>
+                {side === "BUY" ? "Bought" : "Sold"} <strong>{quantity}</strong> {symbol} at{" "}
+                <strong>{formatCurrency(done.price)}</strong>.
+              </>
+            )}
           </p>
           <button
             onClick={onClose}
@@ -100,9 +132,13 @@ export default function TradeModal({
           )}
           <p className="text-sm text-muted">Review your order before confirming.</p>
           <div className="space-y-2 rounded-lg border border-border bg-background p-4 text-sm">
+            <ReviewRow label="Order type" value={isLimit ? "Limit" : "Market"} />
             <ReviewRow label="Action" value={`${side === "BUY" ? "Buy" : "Sell"} ${symbol}`} />
             <ReviewRow label="Quantity" value={String(quantity)} />
-            <ReviewRow label="Market price" value={formatCurrency(price)} />
+            <ReviewRow
+              label={isLimit ? "Limit price" : "Market price"}
+              value={formatCurrency(execPrice)}
+            />
             <ReviewRow
               label={`Estimated ${side === "BUY" ? "cost" : "proceeds"}`}
               value={formatCurrency(estimate)}
@@ -126,11 +162,13 @@ export default function TradeModal({
                 side === "BUY" ? "bg-positive" : "bg-negative"
               }`}
             >
-              {loading ? "Placing…" : `Confirm ${side === "BUY" ? "Buy" : "Sell"}`}
+              {loading ? "Placing…" : isLimit ? "Place limit order" : `Confirm ${side === "BUY" ? "Buy" : "Sell"}`}
             </button>
           </div>
           <p className="text-center text-xs text-muted">
-            Order fills at the live market price at execution.
+            {isLimit
+              ? "Placed now; fills automatically when the market reaches your limit."
+              : "Order fills at the live market price at execution."}
           </p>
         </div>
       ) : (
@@ -140,6 +178,21 @@ export default function TradeModal({
               {error}
             </div>
           )}
+          <div className="flex gap-1 rounded-lg border border-border bg-background p-1">
+            {(["MARKET", "LIMIT"] as const).map((t) => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => chooseType(t)}
+                className={`flex-1 rounded-md py-1.5 text-sm font-medium transition ${
+                  orderType === t ? "bg-card text-foreground shadow-sm" : "text-muted hover:text-foreground"
+                }`}
+              >
+                {t === "MARKET" ? "Market" : "Limit"}
+              </button>
+            ))}
+          </div>
+
           <div className="flex justify-between rounded-lg bg-background px-3 py-2 text-sm">
             <span className="text-muted">Market price</span>
             <span className="font-semibold">{formatCurrency(price)}</span>
@@ -169,6 +222,26 @@ export default function TradeModal({
               </button>
             )}
           </div>
+
+          {isLimit && (
+            <div>
+              <label className="mb-1 block text-sm font-medium">Limit price</label>
+              <input
+                type="number"
+                min="0"
+                step="any"
+                value={limitPrice}
+                onChange={(e) => setLimitPrice(e.target.value)}
+                className={inputClass}
+                placeholder={price > 0 ? price.toFixed(2) : "0.00"}
+              />
+              <p className="mt-1 text-xs text-muted">
+                {side === "BUY"
+                  ? "Fills when the price drops to or below this."
+                  : "Fills when the price rises to or above this."}
+              </p>
+            </div>
+          )}
 
           <div className="flex justify-between border-t border-border pt-3 text-sm">
             <span className="text-muted">Estimated {side === "BUY" ? "cost" : "proceeds"}</span>

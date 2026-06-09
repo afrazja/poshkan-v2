@@ -1,9 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import type { Account, Position, WatchlistItem, Transaction } from "@/lib/types";
+import type { Account, Position, WatchlistItem, Transaction, Order } from "@/lib/types";
 import { useQuotes } from "@/lib/useQuotes";
 import { realizedPnl } from "@/lib/pnl";
 import {
@@ -25,7 +25,10 @@ import CashModal from "./CashModal";
 import {
   addToWatchlistAction,
   removeFromWatchlistAction,
+  cancelOrderAction,
+  fillLimitOrderAction,
 } from "@/app/dashboard/[accountId]/actions";
+import { formatNumber } from "@/lib/format";
 
 type Tab = "holdings" | "watchlist" | "history" | "insights";
 
@@ -34,11 +37,13 @@ export default function AccountView({
   initialPositions,
   initialWatchlist,
   initialTransactions,
+  initialOrders,
 }: {
   account: Account;
   initialPositions: Position[];
   initialWatchlist: WatchlistItem[];
   initialTransactions: Transaction[];
+  initialOrders: Order[];
 }) {
   const router = useRouter();
   const [selected, setSelected] = useState<{ symbol: string; name: string } | null>(null);
@@ -51,18 +56,38 @@ export default function AccountView({
   const positions = initialPositions;
   const watchlist = initialWatchlist;
   const transactions = initialTransactions;
+  const orders = initialOrders;
 
   // Symbols to keep priced live.
   const symbols = useMemo(() => {
     const s = new Set<string>();
     positions.forEach((p) => s.add(p.symbol.toUpperCase()));
     watchlist.forEach((w) => s.add(w.symbol.toUpperCase()));
+    orders.forEach((o) => s.add(o.symbol.toUpperCase()));
     if (selected) s.add(selected.symbol.toUpperCase());
     if (tab === "insights") s.add("SPY"); // benchmark
     return Array.from(s);
-  }, [positions, watchlist, selected, tab]);
+  }, [positions, watchlist, orders, selected, tab]);
 
   const { data: quotes = {} } = useQuotes(symbols);
+
+  // Auto-fill pending limit orders when the live price crosses the limit.
+  // (Runs while the account page is open; a guard prevents double-firing.)
+  const fillingRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    for (const o of orders) {
+      const q = quotes[o.symbol.toUpperCase()];
+      if (!q) continue;
+      const meets =
+        o.side === "BUY" ? q.price <= Number(o.limit_price) : q.price >= Number(o.limit_price);
+      if (meets && !fillingRef.current.has(o.id)) {
+        fillingRef.current.add(o.id);
+        fillLimitOrderAction(o.id)
+          .then(() => router.refresh())
+          .finally(() => fillingRef.current.delete(o.id));
+      }
+    }
+  }, [orders, quotes, router]);
 
   // Portfolio aggregates.
   const holdingsValue = positions.reduce((sum, p) => {
@@ -107,6 +132,11 @@ export default function AccountView({
   // Selecting a symbol (from search results or a table row) opens its detail popup.
   function selectSymbol(symbol: string, name?: string) {
     setSelected({ symbol, name: name ?? symbol });
+  }
+
+  async function cancelOrder(id: string) {
+    await cancelOrderAction(id, account.id);
+    router.refresh();
   }
 
   const selectedQuote = selected ? quotes[selected.symbol.toUpperCase()] : undefined;
@@ -193,6 +223,44 @@ export default function AccountView({
             onToggleWatch={() => toggleWatch(selected.symbol)}
           />
         </Modal>
+      )}
+
+      {/* Pending limit orders */}
+      {orders.length > 0 && (
+        <div className="rounded-2xl border border-border bg-card p-4">
+          <h2 className="mb-2 text-sm font-semibold">Pending limit orders</h2>
+          <div className="space-y-2">
+            {orders.map((o) => {
+              const q = quotes[o.symbol.toUpperCase()];
+              return (
+                <div
+                  key={o.id}
+                  className="flex items-center justify-between gap-3 rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                >
+                  <div>
+                    <span className={o.side === "BUY" ? "font-semibold text-positive" : "font-semibold text-negative"}>
+                      {o.side}
+                    </span>{" "}
+                    <span className="font-medium">
+                      {formatNumber(Number(o.quantity))} {o.symbol}
+                    </span>{" "}
+                    <span className="text-muted">@ {formatCurrency(Number(o.limit_price))} limit</span>
+                    {q && <span className="ml-2 text-xs text-muted">now {formatCurrency(q.price)}</span>}
+                  </div>
+                  <button
+                    onClick={() => cancelOrder(o.id)}
+                    className="shrink-0 text-xs text-muted hover:text-negative"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+          <p className="mt-2 text-xs text-muted">
+            Orders fill automatically while this account page is open.
+          </p>
+        </div>
       )}
 
       {/* Holdings / Watchlist / History tabs */}

@@ -43,6 +43,19 @@ export interface Transaction {
   created_at: string;
 }
 
+export interface Order {
+  id: string;
+  account_id: string;
+  symbol: string;
+  side: "BUY" | "SELL";
+  quantity: number;
+  limit_price: number;
+  status: "pending" | "filled" | "canceled";
+  created_at: string;
+  filled_at: string | null;
+  filled_price: number | null;
+}
+
 export interface WatchlistItem {
   id: string;
   account_id: string;
