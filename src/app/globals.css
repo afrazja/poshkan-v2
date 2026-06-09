@@ -7,6 +7,7 @@
   --background: #f7f8fa;
   --foreground: #0e1116;
   --card: #ffffff;
+  --input: #eceef2;
   --border: #e5e7eb;
   --muted: #6b7280;
   --primary: #2563eb;
@@ -19,6 +20,7 @@
   --background: #0b0e14;
   --foreground: #e6e8eb;
   --card: #141925;
+  --input: #05070b;
   --border: #232a3a;
   --muted: #8b94a7;
   --primary: #3b82f6;
@@ -31,6 +33,7 @@
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
+  --color-input: var(--input);
   --color-border: var(--border);
   --color-muted: var(--muted);
   --color-primary: var(--primary);

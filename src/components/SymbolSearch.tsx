@@ -64,7 +64,7 @@ export default function SymbolSearch({
         onFocus={() => results.length && setOpen(true)}
         placeholder={placeholder}
         autoFocus={autoFocus}
-        className={`w-full rounded-lg border border-border bg-background outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 ${
+        className={`w-full rounded-lg border border-border bg-input outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 ${
           lg ? "py-3.5 pl-11 pr-4 text-base" : "py-2.5 pl-9 pr-3 text-sm"
         }`}
       />
