@@ -18,6 +18,7 @@ import SymbolPanel from "./SymbolPanel";
 import MetricChartModal from "./MetricChartModal";
 import HoldingsTable from "./HoldingsTable";
 import TransactionHistory from "./TransactionHistory";
+import InsightsTab from "./InsightsTab";
 import WatchlistTable from "./WatchlistTable";
 import TradeModal from "./TradeModal";
 import CashModal from "./CashModal";
@@ -26,7 +27,7 @@ import {
   removeFromWatchlistAction,
 } from "@/app/dashboard/[accountId]/actions";
 
-type Tab = "holdings" | "watchlist" | "history";
+type Tab = "holdings" | "watchlist" | "history" | "insights";
 
 export default function AccountView({
   account,
@@ -57,8 +58,9 @@ export default function AccountView({
     positions.forEach((p) => s.add(p.symbol.toUpperCase()));
     watchlist.forEach((w) => s.add(w.symbol.toUpperCase()));
     if (selected) s.add(selected.symbol.toUpperCase());
+    if (tab === "insights") s.add("SPY"); // benchmark
     return Array.from(s);
-  }, [positions, watchlist, selected]);
+  }, [positions, watchlist, selected, tab]);
 
   const { data: quotes = {} } = useQuotes(symbols);
 
@@ -202,6 +204,7 @@ export default function AccountView({
                 { key: "holdings", label: "Holdings", count: positions.length },
                 { key: "watchlist", label: "Watchlist", count: watchlist.length },
                 { key: "history", label: "History", count: transactions.length },
+                { key: "insights", label: "Insights" },
               ] as { key: Tab; label: string; count?: number }[]
             ).map((t) => (
               <button
@@ -220,26 +223,28 @@ export default function AccountView({
             ))}
           </div>
 
-          {/* Small filter for the current table */}
-          <div className="relative">
-            <svg
-              className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-primary"
-              viewBox="0 0 20 20"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-            >
-              <circle cx="9" cy="9" r="6" />
-              <path d="M14 14l4 4" />
-            </svg>
-            <input
-              value={filter}
-              onChange={(e) => setFilter(e.target.value)}
-              placeholder="Filter symbol…"
-              className="w-40 rounded-lg border border-border bg-input py-1.5 pl-8 pr-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
-            />
-          </div>
+          {/* Small filter for the current table (not on Insights) */}
+          {tab !== "insights" && (
+            <div className="relative">
+              <svg
+                className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-primary"
+                viewBox="0 0 20 20"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+              >
+                <circle cx="9" cy="9" r="6" />
+                <path d="M14 14l4 4" />
+              </svg>
+              <input
+                value={filter}
+                onChange={(e) => setFilter(e.target.value)}
+                placeholder="Filter symbol…"
+                className="w-40 rounded-lg border border-border bg-input py-1.5 pl-8 pr-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+              />
+            </div>
+          )}
         </div>
 
         {tab === "holdings" && (
@@ -264,6 +269,16 @@ export default function AccountView({
             transactions={transactions.filter((t) =>
               (t.symbol ?? "").toLowerCase().includes(filter.toLowerCase())
             )}
+          />
+        )}
+
+        {tab === "insights" && (
+          <InsightsTab
+            positions={positions}
+            quotes={quotes}
+            cash={cash}
+            todayPnlPct={todayPnlPct}
+            onSelect={(symbol) => selectSymbol(symbol)}
           />
         )}
       </section>
