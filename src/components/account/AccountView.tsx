@@ -24,7 +24,7 @@ import {
   removeFromWatchlistAction,
 } from "@/app/dashboard/[accountId]/actions";
 
-type Tab = "summary" | "holdings" | "watchlist" | "history" | "search";
+type Tab = "holdings" | "watchlist" | "history";
 
 export default function AccountView({
   account,
@@ -42,7 +42,7 @@ export default function AccountView({
   const [trade, setTrade] = useState<{ side: "BUY" | "SELL"; symbol: string } | null>(null);
   const [cashModal, setCashModal] = useState<"DEPOSIT" | "RESET" | null>(null);
   const [metricChart, setMetricChart] = useState<"holdings" | "pnl" | null>(null);
-  const [tab, setTab] = useState<Tab>("summary");
+  const [tab, setTab] = useState<Tab>("holdings");
 
   const positions = initialPositions;
   const watchlist = initialWatchlist;
@@ -78,6 +78,11 @@ export default function AccountView({
     if (!q) return sum;
     return sum + Number(p.quantity) * (q.price - q.previousClose);
   }, 0);
+  const prevHoldingsValue = positions.reduce((sum, p) => {
+    const q = quotes[p.symbol.toUpperCase()];
+    return sum + Number(p.quantity) * (q?.previousClose ?? Number(p.avg_cost));
+  }, 0);
+  const todayPnlPct = prevHoldingsValue > 0 ? (todayPnl / prevHoldingsValue) * 100 : 0;
 
   const heldFor = (symbol: string) =>
     Number(positions.find((p) => p.symbol.toUpperCase() === symbol.toUpperCase())?.quantity ?? 0);
@@ -94,10 +99,10 @@ export default function AccountView({
   }
 
   // Selecting a symbol (from search results or a table row) opens it in the
-  // Search tab's symbol panel.
+  // persistent symbol panel near the top.
   function selectSymbol(symbol: string, name?: string) {
     setSelected({ symbol, name: name ?? symbol });
-    setTab("search");
+    if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   const selectedQuote = selected ? quotes[selected.symbol.toUpperCase()] : undefined;
@@ -129,103 +134,99 @@ export default function AccountView({
         </div>
       </div>
 
-      {/* Tab menu (top) */}
-      <div className="flex flex-wrap gap-1 rounded-lg border border-border bg-card p-1">
-        {(
-          [
-            { key: "summary", label: "Summary" },
-            { key: "holdings", label: "Holdings", count: positions.length },
-            { key: "watchlist", label: "Watchlist", count: watchlist.length },
-            { key: "history", label: "History", count: transactions.length },
-            { key: "search", label: "Search Stock" },
-          ] as { key: Tab; label: string; count?: number }[]
-        ).map((t) => (
-          <button
-            key={t.key}
-            onClick={() => setTab(t.key)}
-            className={`rounded-md px-4 py-1.5 text-sm font-medium transition ${
-              tab === t.key ? "bg-background text-foreground shadow-sm" : "text-muted hover:text-foreground"
-            }`}
-          >
-            {t.label}
-            {t.count ? ` (${t.count})` : ""}
-          </button>
-        ))}
-      </div>
-
-      {/* Tab content */}
-      {tab === "summary" && (
-        <div className="rounded-2xl border border-border bg-card p-5">
-          <div className="mb-5 flex flex-wrap items-baseline justify-between gap-2 border-b border-border pb-4">
-            <span className="text-xs capitalize text-muted">{account.type} account</span>
-            <div className="text-right">
-              <div className="text-3xl font-bold">{formatCurrency(totalValue)}</div>
-              <div className="text-xs text-muted">total account value</div>
-            </div>
+      {/* Portfolio summary (always visible) */}
+      <div className="rounded-2xl border border-border bg-card p-5">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <div>
+            <div className="text-3xl font-bold">{formatCurrency(totalValue)}</div>
+            <div className="text-xs capitalize text-muted">{account.type} account · total value</div>
           </div>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-            <Stat label="Buying power" value={formatCurrency(cash)} />
-            <Stat
-              label="Holdings value"
-              value={formatCurrency(holdingsValue)}
-              onChart={positions.length ? () => setMetricChart("holdings") : undefined}
-            />
-            <Stat
-              label="Today's P&L"
-              value={formatSignedCurrency(todayPnl)}
-              colorClass={changeColor(todayPnl)}
-            />
-            <Stat
-              label="Total P&L"
-              value={`${formatSignedCurrency(totalPnl)} (${formatPercent(totalPnlPct)})`}
-              colorClass={changeColor(totalPnl)}
-              onChart={positions.length ? () => setMetricChart("pnl") : undefined}
-            />
+          <div className={`text-sm font-medium ${changeColor(todayPnl)}`}>
+            {formatSignedCurrency(todayPnl)} ({formatPercent(todayPnlPct)}) today
           </div>
         </div>
-      )}
+        <div className="mt-5 grid grid-cols-2 gap-4 sm:grid-cols-4">
+          <Stat label="Buying power" value={formatCurrency(cash)} />
+          <Stat
+            label="Holdings value"
+            value={formatCurrency(holdingsValue)}
+            onChart={positions.length ? () => setMetricChart("holdings") : undefined}
+          />
+          <Stat
+            label="Today's P&L"
+            value={formatSignedCurrency(todayPnl)}
+            colorClass={changeColor(todayPnl)}
+          />
+          <Stat
+            label="Total P&L"
+            value={`${formatSignedCurrency(totalPnl)} (${formatPercent(totalPnlPct)})`}
+            colorClass={changeColor(totalPnl)}
+            onChart={positions.length ? () => setMetricChart("pnl") : undefined}
+          />
+        </div>
+      </div>
 
-      {tab === "holdings" && (
-        <HoldingsTable positions={positions} quotes={quotes} onSelect={selectSymbol} />
-      )}
+      {/* Search (always available) */}
+      <div className="rounded-2xl border border-border bg-card p-4">
+        <SymbolSearch
+          size="lg"
+          placeholder="Search a stock to buy, sell, or watch — e.g. AAPL, Tesla, NVDA"
+          onSelect={(r) => selectSymbol(r.symbol, r.name)}
+        />
+      </div>
 
-      {tab === "watchlist" && (
-        <WatchlistTable
-          items={watchlist}
-          quotes={quotes}
-          onSelect={selectSymbol}
-          onRemove={(symbol) => toggleWatch(symbol)}
+      {/* Selected symbol panel */}
+      {selected && (
+        <SymbolPanel
+          symbol={selected.symbol}
+          name={selected.name}
+          liveQuote={selectedQuote}
+          heldShares={heldFor(selected.symbol)}
+          inWatchlist={inWatchlist(selected.symbol)}
+          onBuy={() => setTrade({ side: "BUY", symbol: selected.symbol })}
+          onSell={() => setTrade({ side: "SELL", symbol: selected.symbol })}
+          onToggleWatch={() => toggleWatch(selected.symbol)}
         />
       )}
 
-      {tab === "history" && <TransactionHistory transactions={transactions} />}
-
-      {tab === "search" && (
-        <div className="space-y-6">
-          <div className="rounded-2xl border border-border bg-card p-4">
-            <label className="mb-2 block text-sm font-semibold">
-              Search a stock to buy, sell, or add to your watchlist
-            </label>
-            <SymbolSearch
-              size="lg"
-              placeholder="Try a symbol or name — e.g. AAPL, Tesla, NVDA"
-              onSelect={(r) => setSelected({ symbol: r.symbol, name: r.name })}
-            />
-          </div>
-          {selected && (
-            <SymbolPanel
-              symbol={selected.symbol}
-              name={selected.name}
-              liveQuote={selectedQuote}
-              heldShares={heldFor(selected.symbol)}
-              inWatchlist={inWatchlist(selected.symbol)}
-              onBuy={() => setTrade({ side: "BUY", symbol: selected.symbol })}
-              onSell={() => setTrade({ side: "SELL", symbol: selected.symbol })}
-              onToggleWatch={() => toggleWatch(selected.symbol)}
-            />
-          )}
+      {/* Holdings / Watchlist / History tabs */}
+      <section>
+        <div className="mb-3 flex flex-wrap gap-1 rounded-lg border border-border bg-card p-1">
+          {(
+            [
+              { key: "holdings", label: "Holdings", count: positions.length },
+              { key: "watchlist", label: "Watchlist", count: watchlist.length },
+              { key: "history", label: "History", count: transactions.length },
+            ] as { key: Tab; label: string; count?: number }[]
+          ).map((t) => (
+            <button
+              key={t.key}
+              onClick={() => setTab(t.key)}
+              className={`rounded-md px-4 py-1.5 text-sm font-medium transition ${
+                tab === t.key ? "bg-background text-foreground shadow-sm" : "text-muted hover:text-foreground"
+              }`}
+            >
+              {t.label}
+              {t.count ? ` (${t.count})` : ""}
+            </button>
+          ))}
         </div>
-      )}
+
+        {tab === "holdings" && (
+          <HoldingsTable positions={positions} quotes={quotes} onSelect={selectSymbol} />
+        )}
+
+        {tab === "watchlist" && (
+          <WatchlistTable
+            items={watchlist}
+            quotes={quotes}
+            onSelect={selectSymbol}
+            onRemove={(symbol) => toggleWatch(symbol)}
+          />
+        )}
+
+        {tab === "history" && <TransactionHistory transactions={transactions} />}
+      </section>
 
       {trade && (
         <TradeModal
