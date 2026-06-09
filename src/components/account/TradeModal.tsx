@@ -30,6 +30,7 @@ export default function TradeModal({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<{ price: number } | null>(null);
+  const [review, setReview] = useState(false);
 
   // If we opened without a fresh price, fetch one so the estimate is accurate.
   useEffect(() => {
@@ -53,13 +54,17 @@ export default function TradeModal({
   const affordable = side === "BUY" ? estimate <= cash : true;
   const enoughShares = side === "SELL" ? quantity <= (maxShares ?? 0) : true;
 
-  async function submit(e: React.FormEvent) {
+  function goReview(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     if (quantity <= 0) return setError("Enter a quantity.");
     if (!affordable) return setError("Not enough cash for this order.");
     if (!enoughShares) return setError("You don't hold that many shares.");
+    setReview(true);
+  }
 
+  async function confirm() {
+    setError(null);
     setLoading(true);
     const result = await executeTradeAction({ accountId, symbol, side, quantity });
     setLoading(false);
@@ -86,8 +91,50 @@ export default function TradeModal({
             Done
           </button>
         </div>
+      ) : review ? (
+        <div className="space-y-4">
+          {error && (
+            <div className="rounded-lg border border-negative/30 bg-negative/10 px-3 py-2 text-sm text-negative">
+              {error}
+            </div>
+          )}
+          <p className="text-sm text-muted">Review your order before confirming.</p>
+          <div className="space-y-2 rounded-lg border border-border bg-background p-4 text-sm">
+            <ReviewRow label="Action" value={`${side === "BUY" ? "Buy" : "Sell"} ${symbol}`} />
+            <ReviewRow label="Quantity" value={String(quantity)} />
+            <ReviewRow label="Market price" value={formatCurrency(price)} />
+            <ReviewRow
+              label={`Estimated ${side === "BUY" ? "cost" : "proceeds"}`}
+              value={formatCurrency(estimate)}
+              bold
+            />
+            {side === "BUY" && <ReviewRow label="Cash after" value={formatCurrency(cash - estimate)} />}
+          </div>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setReview(false)}
+              className="flex-1 rounded-lg border border-border py-2.5 text-sm font-medium hover:bg-background"
+            >
+              Back
+            </button>
+            <button
+              type="button"
+              onClick={confirm}
+              disabled={loading}
+              className={`flex-1 rounded-lg py-2.5 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-50 ${
+                side === "BUY" ? "bg-positive" : "bg-negative"
+              }`}
+            >
+              {loading ? "Placing…" : `Confirm ${side === "BUY" ? "Buy" : "Sell"}`}
+            </button>
+          </div>
+          <p className="text-center text-xs text-muted">
+            Order fills at the live market price at execution.
+          </p>
+        </div>
       ) : (
-        <form onSubmit={submit} className="space-y-4">
+        <form onSubmit={goReview} className="space-y-4">
           {error && (
             <div className="rounded-lg border border-negative/30 bg-negative/10 px-3 py-2 text-sm text-negative">
               {error}
@@ -136,18 +183,24 @@ export default function TradeModal({
 
           <button
             type="submit"
-            disabled={loading || quantity <= 0 || !affordable || !enoughShares}
+            disabled={quantity <= 0 || !affordable || !enoughShares}
             className={`w-full rounded-lg py-2.5 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-50 ${
               side === "BUY" ? "bg-positive" : "bg-negative"
             }`}
           >
-            {loading ? "Placing…" : `${side === "BUY" ? "Buy" : "Sell"} ${symbol}`}
+            Review order
           </button>
-          <p className="text-center text-xs text-muted">
-            Order fills at the live market price at execution.
-          </p>
         </form>
       )}
     </Modal>
+  );
+}
+
+function ReviewRow({ label, value, bold }: { label: string; value: string; bold?: boolean }) {
+  return (
+    <div className="flex justify-between">
+      <span className="text-muted">{label}</span>
+      <span className={bold ? "font-semibold" : ""}>{value}</span>
+    </div>
   );
 }
