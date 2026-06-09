@@ -106,9 +106,13 @@ export default function AccountView({
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <Link href="/dashboard" className="text-sm text-muted hover:text-foreground">
-          ← All accounts
-        </Link>
+        <nav className="flex items-center gap-2 text-sm">
+          <Link href="/dashboard" className="text-muted hover:text-foreground hover:underline">
+            All accounts
+          </Link>
+          <span className="text-muted">/</span>
+          <span className="font-semibold text-foreground">{account.name}</span>
+        </nav>
         <div className="flex gap-2">
           <button
             onClick={() => setCashModal("DEPOSIT")}
@@ -133,7 +137,7 @@ export default function AccountView({
             { key: "holdings", label: "Holdings", count: positions.length },
             { key: "watchlist", label: "Watchlist", count: watchlist.length },
             { key: "history", label: "History", count: transactions.length },
-            { key: "search", label: "Search" },
+            { key: "search", label: "Search Stock" },
           ] as { key: Tab; label: string; count?: number }[]
         ).map((t) => (
           <button
@@ -149,21 +153,16 @@ export default function AccountView({
         ))}
       </div>
 
-      {/* Account header */}
-      <div className="flex flex-wrap items-baseline justify-between gap-2 rounded-2xl border border-border bg-card p-5">
-        <div>
-          <h1 className="text-xl font-bold">{account.name}</h1>
-          <span className="text-xs capitalize text-muted">{account.type} account</span>
-        </div>
-        <div className="text-right">
-          <div className="text-3xl font-bold">{formatCurrency(totalValue)}</div>
-          <div className="text-xs text-muted">total account value</div>
-        </div>
-      </div>
-
       {/* Tab content */}
       {tab === "summary" && (
         <div className="rounded-2xl border border-border bg-card p-5">
+          <div className="mb-5 flex flex-wrap items-baseline justify-between gap-2 border-b border-border pb-4">
+            <span className="text-xs capitalize text-muted">{account.type} account</span>
+            <div className="text-right">
+              <div className="text-3xl font-bold">{formatCurrency(totalValue)}</div>
+              <div className="text-xs text-muted">total account value</div>
+            </div>
+          </div>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             <Stat label="Buying power" value={formatCurrency(cash)} />
             <Stat
