@@ -37,6 +37,7 @@ export default function AccountView({
   const [trade, setTrade] = useState<{ side: "BUY" | "SELL"; symbol: string } | null>(null);
   const [cashModal, setCashModal] = useState<"DEPOSIT" | "RESET" | null>(null);
   const [metricChart, setMetricChart] = useState<"holdings" | "pnl" | null>(null);
+  const [tab, setTab] = useState<"holdings" | "watchlist">("holdings");
 
   const positions = initialPositions;
   const watchlist = initialWatchlist;
@@ -163,25 +164,41 @@ export default function AccountView({
         />
       )}
 
-      {/* Holdings */}
+      {/* Holdings / Watchlist tabs */}
       <section>
-        <h2 className="mb-3 text-lg font-semibold">Holdings</h2>
-        <HoldingsTable
-          positions={positions}
-          quotes={quotes}
-          onSelect={(symbol) => setSelected({ symbol, name: symbol })}
-        />
-      </section>
+        <div className="mb-3 inline-flex rounded-lg border border-border bg-card p-1">
+          <button
+            onClick={() => setTab("holdings")}
+            className={`rounded-md px-4 py-1.5 text-sm font-medium transition ${
+              tab === "holdings" ? "bg-background text-foreground shadow-sm" : "text-muted hover:text-foreground"
+            }`}
+          >
+            Holdings{positions.length > 0 ? ` (${positions.length})` : ""}
+          </button>
+          <button
+            onClick={() => setTab("watchlist")}
+            className={`rounded-md px-4 py-1.5 text-sm font-medium transition ${
+              tab === "watchlist" ? "bg-background text-foreground shadow-sm" : "text-muted hover:text-foreground"
+            }`}
+          >
+            Watchlist{watchlist.length > 0 ? ` (${watchlist.length})` : ""}
+          </button>
+        </div>
 
-      {/* Watchlist */}
-      <section>
-        <h2 className="mb-3 text-lg font-semibold">Watchlist</h2>
-        <WatchlistTable
-          items={watchlist}
-          quotes={quotes}
-          onSelect={(symbol) => setSelected({ symbol, name: symbol })}
-          onRemove={(symbol) => toggleWatch(symbol)}
-        />
+        {tab === "holdings" ? (
+          <HoldingsTable
+            positions={positions}
+            quotes={quotes}
+            onSelect={(symbol) => setSelected({ symbol, name: symbol })}
+          />
+        ) : (
+          <WatchlistTable
+            items={watchlist}
+            quotes={quotes}
+            onSelect={(symbol) => setSelected({ symbol, name: symbol })}
+            onRemove={(symbol) => toggleWatch(symbol)}
+          />
+        )}
       </section>
 
       {trade && (
