@@ -155,9 +155,6 @@ export default function AccountView({
           placeholder="Try a symbol or name — e.g. AAPL, Tesla, NVDA"
           onSelect={(r) => setSelected({ symbol: r.symbol, name: r.name })}
         />
-        <p className="mt-2 text-xs text-muted">
-          Start typing and pick a result to see its price, chart, and trade options.
-        </p>
       </div>
 
       {/* Selected symbol panel */}
