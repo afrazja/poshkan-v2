@@ -80,8 +80,10 @@ export default function PriceChart({ symbol, height = 220 }: { symbol: string; h
           Loading chart…
         </div>
       ) : error ? (
-        <div className="flex items-center justify-center text-xs text-muted" style={{ height }}>
-          Chart unavailable
+        <div className="flex items-center justify-center px-6 text-center text-xs text-muted" style={{ height }}>
+          {/credit|limit|run out/i.test(error)
+            ? "Daily market-data limit reached. Charts will be available again tomorrow."
+            : "Chart unavailable."}
         </div>
       ) : (
         <AreaChart points={points} height={height} formatValue={formatCurrency} formatAxisValue={axisPrice} />

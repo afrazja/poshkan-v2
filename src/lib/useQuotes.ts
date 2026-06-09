@@ -11,13 +11,17 @@ async function fetchQuotes(symbols: string[]): Promise<Record<string, Quote>> {
   return json.quotes ?? {};
 }
 
-// Polls quotes for the given symbols every ~15s. Returns a symbol->Quote map.
+// Polls quotes for the given symbols every 60s while the tab is focused.
+// Kept deliberately infrequent + paused in the background to stay well under
+// the market-data provider's free-tier daily limit.
 export function useQuotes(symbols: string[]) {
   const key = Array.from(new Set(symbols.map((s) => s.toUpperCase()))).sort();
   return useQuery({
     queryKey: ["quotes", key],
     queryFn: () => fetchQuotes(key),
-    refetchInterval: 15_000,
+    refetchInterval: 60_000,
+    refetchIntervalInBackground: false, // stop polling when the tab isn't focused
+    staleTime: 45_000,
     enabled: key.length > 0,
   });
 }
