@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getQuotes } from "@/lib/twelvedata";
+import { getQuotes } from "@/lib/marketdata";
 import { requireUser } from "../_auth";
 
 export async function GET(request: Request) {

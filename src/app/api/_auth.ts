@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 
 // Returns the logged-in user or null. Used to gate the market-data proxy routes
-// so the Twelve Data key can't be abused by anonymous traffic.
+// so they can't be abused by anonymous traffic.
 export async function requireUser() {
   const supabase = await createClient();
   const {

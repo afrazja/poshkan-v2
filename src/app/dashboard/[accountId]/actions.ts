@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { getQuote } from "@/lib/twelvedata";
+import { getQuote } from "@/lib/marketdata";
 
 // Execute a BUY or SELL. Price is fetched LIVE on the server — never trusted
 // from the client — then passed to the atomic execute_trade RPC.

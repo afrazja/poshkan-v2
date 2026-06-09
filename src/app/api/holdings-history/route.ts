@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { getTimeSeries, type Candle } from "@/lib/twelvedata";
+import { getTimeSeries, type Candle } from "@/lib/marketdata";
 
 const RANGES: Record<string, { interval: string; outputsize: number }> = {
   "1M": { interval: "1day", outputsize: 22 },

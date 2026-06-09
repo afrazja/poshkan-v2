@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getTimeSeries } from "@/lib/twelvedata";
+import { getTimeSeries } from "@/lib/marketdata";
 import { requireUser } from "../_auth";
 
 export async function GET(request: Request) {

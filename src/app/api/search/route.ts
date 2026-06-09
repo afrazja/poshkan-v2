@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { searchSymbols } from "@/lib/twelvedata";
+import { searchSymbols } from "@/lib/marketdata";
 import { requireUser } from "../_auth";
 
 export async function GET(request: Request) {
