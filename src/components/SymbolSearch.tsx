@@ -56,7 +56,7 @@ export default function SymbolSearch({
   return (
     <div ref={ref} className="relative">
       <SearchIcon
-        className={`pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted ${lg ? "h-5 w-5" : "h-4 w-4"}`}
+        className={`pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-primary ${lg ? "h-5 w-5" : "h-4 w-4"}`}
       />
       <input
         value={query}
