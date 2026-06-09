@@ -10,6 +10,7 @@ interface Candle {
 }
 
 const RANGES = [
+  { label: "1D", interval: "5min", outputsize: 78 },
   { label: "1M", interval: "1day", outputsize: 22 },
   { label: "3M", interval: "1day", outputsize: 66 },
   { label: "6M", interval: "1day", outputsize: 130 },
@@ -21,8 +22,15 @@ function axisPrice(v: number): string {
   return `$${v.toFixed(2)}`;
 }
 
+// Time-of-day labels for the intraday (1D) view.
+function formatTime(s: string): string {
+  const d = new Date(s);
+  if (isNaN(d.getTime())) return s;
+  return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+}
+
 export default function PriceChart({ symbol, height = 220 }: { symbol: string; height?: number }) {
-  const [rangeIdx, setRangeIdx] = useState(1); // default 3M
+  const [rangeIdx, setRangeIdx] = useState(2); // default 3M
   const [candles, setCandles] = useState<Candle[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -86,7 +94,13 @@ export default function PriceChart({ symbol, height = 220 }: { symbol: string; h
             : "Chart unavailable."}
         </div>
       ) : (
-        <AreaChart points={points} height={height} formatValue={formatCurrency} formatAxisValue={axisPrice} />
+        <AreaChart
+          points={points}
+          height={height}
+          formatValue={formatCurrency}
+          formatAxisValue={axisPrice}
+          formatLabel={RANGES[rangeIdx].label === "1D" ? formatTime : undefined}
+        />
       )}
     </div>
   );

@@ -165,28 +165,44 @@ export interface Candle {
 }
 
 const TIMESERIES_TTL = 600_000;
+const INTRADAY_TTL = 60_000;
 
 export async function getTimeSeries(
   symbol: string,
   interval = "1day",
   outputsize = 90
 ): Promise<Candle[]> {
+  const weekly = interval === "1week" || interval.startsWith("1w");
+  // Intraday: e.g. "5min", "15min", "1h" — used for the 1-day view.
+  const intraday = !weekly && interval !== "1day" && /\d+(min|m|h)$/i.test(interval);
   const key = `ts:${symbol.toUpperCase()}:${interval}:${outputsize}`;
-  return cached(key, TIMESERIES_TTL, async () => {
-    const weekly = interval.startsWith("1w") || interval === "1week";
-    const yInterval: "1d" | "1wk" = weekly ? "1wk" : "1d";
-    // Request a slightly wider window (weekends/holidays) then keep the last N.
-    const days = weekly ? outputsize * 7 + 14 : Math.ceil(outputsize * 1.6) + 7;
+  return cached(key, intraday ? INTRADAY_TTL : TIMESERIES_TTL, async () => {
+    let yInterval: string;
+    let days: number;
+    if (intraday) {
+      yInterval = interval.replace("min", "m"); // "5min" -> "5m", "1h" stays
+      days = 5; // span a few days so we always catch the latest full session
+    } else if (weekly) {
+      yInterval = "1wk";
+      days = outputsize * 7 + 14;
+    } else {
+      yInterval = "1d";
+      days = Math.ceil(outputsize * 1.6) + 7;
+    }
     const period1 = new Date(Date.now() - days * 86_400_000);
     const chart = (await yf.chart(
       symbol,
-      { period1, interval: yInterval },
+      { period1, interval: yInterval as "1d" },
       { validateResult: false }
     )) as unknown as { quotes?: YCandle[] };
     const rows = Array.isArray(chart.quotes) ? chart.quotes : [];
     const candles = rows
       .filter((c) => c.close != null && c.date)
-      .map((c) => ({ datetime: new Date(c.date as Date | string).toISOString().slice(0, 10), close: Number(c.close) }));
+      .map((c) => {
+        const iso = new Date(c.date as Date | string).toISOString();
+        // Keep full timestamp for intraday (so the x-axis can show times); date only for daily/weekly.
+        return { datetime: intraday ? iso : iso.slice(0, 10), close: Number(c.close) };
+      });
     return candles.slice(-outputsize);
   });
 }
