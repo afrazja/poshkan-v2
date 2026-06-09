@@ -203,6 +203,14 @@ export async function getTimeSeries(
         // Keep full timestamp for intraday (so the x-axis can show times); date only for daily/weekly.
         return { datetime: intraday ? iso : iso.slice(0, 10), close: Number(c.close) };
       });
+
+    if (intraday) {
+      // 1D = just the latest session (today's live session while open, else the
+      // most recent trading day) — don't bleed the previous day's tail in.
+      if (candles.length === 0) return candles;
+      const lastDay = candles[candles.length - 1].datetime.slice(0, 10);
+      return candles.filter((c) => c.datetime.slice(0, 10) === lastDay);
+    }
     return candles.slice(-outputsize);
   });
 }
