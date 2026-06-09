@@ -204,7 +204,10 @@ export default function AccountView({
             ).map((t) => (
               <button
                 key={t.key}
-                onClick={() => setTab(t.key)}
+                onClick={() => {
+                  setTab(t.key);
+                  setFilter("");
+                }}
                 className={`rounded-md px-4 py-1.5 text-sm font-medium transition ${
                   tab === t.key ? "bg-background text-foreground shadow-sm" : "text-muted hover:text-foreground"
                 }`}
