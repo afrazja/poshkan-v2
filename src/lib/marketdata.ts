@@ -57,6 +57,15 @@ interface YQuote {
   regularMarketChangePercent?: number;
   currency?: string;
   marketState?: string;
+  regularMarketOpen?: number;
+  regularMarketDayHigh?: number;
+  regularMarketDayLow?: number;
+  marketCap?: number;
+  trailingPE?: number;
+  fiftyTwoWeekHigh?: number;
+  fiftyTwoWeekLow?: number;
+  dividendRate?: number;
+  trailingAnnualDividendRate?: number;
 }
 interface YCandle {
   date?: Date | string;
@@ -96,6 +105,14 @@ function toQuote(q: YQuote): Quote {
     percentChange: Number(q.regularMarketChangePercent ?? 0),
     currency: q.currency ?? "USD",
     isMarketOpen: q.marketState === "REGULAR",
+    open: q.regularMarketOpen,
+    dayHigh: q.regularMarketDayHigh,
+    dayLow: q.regularMarketDayLow,
+    marketCap: q.marketCap,
+    peRatio: q.trailingPE,
+    fiftyTwoWeekHigh: q.fiftyTwoWeekHigh,
+    fiftyTwoWeekLow: q.fiftyTwoWeekLow,
+    dividendRate: q.dividendRate ?? q.trailingAnnualDividendRate,
   };
 }
 

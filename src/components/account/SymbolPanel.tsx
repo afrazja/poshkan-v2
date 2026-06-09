@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { Quote } from "@/lib/types";
-import { formatCurrency, formatPercent, changeColor } from "@/lib/format";
+import { formatCurrency, formatPercent, formatCompactUSD, changeColor } from "@/lib/format";
 import PriceChart from "./PriceChart";
 
 export default function SymbolPanel({
@@ -75,6 +75,18 @@ export default function SymbolPanel({
         <PriceChart symbol={symbol} height={180} />
       </div>
 
+      {/* Key stats */}
+      <div className="mt-5 grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-4">
+        <KV label="Open" value={fmtPrice(quote?.open)} />
+        <KV label="High" value={fmtPrice(quote?.dayHigh)} />
+        <KV label="Low" value={fmtPrice(quote?.dayLow)} />
+        <KV label="Mkt cap" value={formatCompactUSD(quote?.marketCap)} />
+        <KV label="P/E ratio" value={fmtNum(quote?.peRatio)} />
+        <KV label="52-wk high" value={fmtPrice(quote?.fiftyTwoWeekHigh)} />
+        <KV label="Dividend" value={fmtDividend(quote?.dividendRate, quote?.price)} />
+        <KV label="52-wk low" value={fmtPrice(quote?.fiftyTwoWeekLow)} />
+      </div>
+
       <div className="mt-5 flex flex-wrap gap-2">
         <button
           onClick={onBuy}
@@ -98,4 +110,25 @@ export default function SymbolPanel({
       </div>
     </div>
   );
+}
+
+function KV({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex flex-col">
+      <span className="text-xs text-muted">{label}</span>
+      <span className="font-medium">{value}</span>
+    </div>
+  );
+}
+
+function fmtPrice(v?: number): string {
+  return v != null && Number.isFinite(v) ? formatCurrency(v) : "—";
+}
+function fmtNum(v?: number): string {
+  return v != null && Number.isFinite(v) ? v.toFixed(2) : "—";
+}
+function fmtDividend(rate?: number, price?: number): string {
+  if (!rate || !Number.isFinite(rate) || rate <= 0) return "—";
+  const yld = price && price > 0 ? ` (${((rate / price) * 100).toFixed(2)}%)` : "";
+  return `${formatCurrency(rate)}${yld}`;
 }

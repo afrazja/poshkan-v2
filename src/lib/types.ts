@@ -59,6 +59,15 @@ export interface Quote {
   percentChange: number;
   currency: string;
   isMarketOpen: boolean;
+  // Extended stats (optional — shown in the stock detail popup).
+  open?: number;
+  dayHigh?: number;
+  dayLow?: number;
+  marketCap?: number;
+  peRatio?: number;
+  fiftyTwoWeekHigh?: number;
+  fiftyTwoWeekLow?: number;
+  dividendRate?: number;
 }
 
 export interface SymbolSearchResult {
