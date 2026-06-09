@@ -130,32 +130,6 @@ export default function AccountView({
         </div>
       </div>
 
-      {/* Search (always available) */}
-      <div className="rounded-2xl border border-border bg-card p-4">
-        <label className="mb-2 block text-sm font-semibold">
-          Search a stock to buy, sell, or add to your watchlist
-        </label>
-        <SymbolSearch
-          size="lg"
-          placeholder="Try a symbol or name — e.g. AAPL, Tesla, NVDA"
-          onSelect={(r) => setSelected({ symbol: r.symbol, name: r.name })}
-        />
-      </div>
-
-      {/* Selected symbol panel */}
-      {selected && (
-        <SymbolPanel
-          symbol={selected.symbol}
-          name={selected.name}
-          liveQuote={selectedQuote}
-          heldShares={heldFor(selected.symbol)}
-          inWatchlist={inWatchlist(selected.symbol)}
-          onBuy={() => setTrade({ side: "BUY", symbol: selected.symbol })}
-          onSell={() => setTrade({ side: "SELL", symbol: selected.symbol })}
-          onToggleWatch={() => toggleWatch(selected.symbol)}
-        />
-      )}
-
       {/* Summary / Holdings / Watchlist / History tabs */}
       <section>
         <div className="mb-3 flex flex-wrap gap-1 rounded-lg border border-border bg-card p-1">
@@ -223,6 +197,31 @@ export default function AccountView({
 
         {tab === "history" && <TransactionHistory transactions={transactions} />}
       </section>
+
+      {/* Search + selected symbol panel (below the tabs) */}
+      <div className="rounded-2xl border border-border bg-card p-4">
+        <label className="mb-2 block text-sm font-semibold">
+          Search a stock to buy, sell, or add to your watchlist
+        </label>
+        <SymbolSearch
+          size="lg"
+          placeholder="Try a symbol or name — e.g. AAPL, Tesla, NVDA"
+          onSelect={(r) => setSelected({ symbol: r.symbol, name: r.name })}
+        />
+      </div>
+
+      {selected && (
+        <SymbolPanel
+          symbol={selected.symbol}
+          name={selected.name}
+          liveQuote={selectedQuote}
+          heldShares={heldFor(selected.symbol)}
+          inWatchlist={inWatchlist(selected.symbol)}
+          onBuy={() => setTrade({ side: "BUY", symbol: selected.symbol })}
+          onSell={() => setTrade({ side: "SELL", symbol: selected.symbol })}
+          onToggleWatch={() => toggleWatch(selected.symbol)}
+        />
+      )}
 
       {trade && (
         <TradeModal
