@@ -47,18 +47,15 @@ export default function SymbolPanel({
   }, [symbol, liveQuote]);
 
   return (
-    <div className="rounded-2xl border border-border bg-card p-5">
+    <div>
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2">
-            <h3 className="text-xl font-bold">{symbol}</h3>
-            {heldShares > 0 && (
-              <span className="rounded-full bg-background px-2 py-0.5 text-xs text-muted">
-                You hold {heldShares}
-              </span>
-            )}
-          </div>
           <p className="text-sm text-muted">{name}</p>
+          {heldShares > 0 && (
+            <span className="mt-1 inline-block rounded-full bg-background px-2 py-0.5 text-xs text-muted">
+              You hold {heldShares} {heldShares === 1 ? "share" : "shares"}
+            </span>
+          )}
         </div>
         <div className="text-right">
           {loading || !quote ? (
@@ -81,20 +78,20 @@ export default function SymbolPanel({
       <div className="mt-5 flex flex-wrap gap-2">
         <button
           onClick={onBuy}
-          className="rounded-lg bg-positive px-5 py-2 text-sm font-semibold text-white hover:opacity-90"
+          className="flex-1 rounded-lg bg-positive px-5 py-2.5 text-sm font-semibold text-white hover:opacity-90"
         >
           Buy
         </button>
         <button
           onClick={onSell}
           disabled={heldShares <= 0}
-          className="rounded-lg bg-negative px-5 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+          className="flex-1 rounded-lg bg-negative px-5 py-2.5 text-sm font-semibold text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
         >
           Sell
         </button>
         <button
           onClick={onToggleWatch}
-          className="rounded-lg border border-border px-5 py-2 text-sm font-medium hover:bg-background"
+          className="rounded-lg border border-border px-5 py-2.5 text-sm font-medium hover:bg-background"
         >
           {inWatchlist ? "★ In watchlist" : "☆ Add to watchlist"}
         </button>

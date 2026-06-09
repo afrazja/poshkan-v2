@@ -12,6 +12,7 @@ import {
   changeColor,
 } from "@/lib/format";
 import SymbolSearch from "@/components/SymbolSearch";
+import Modal from "@/components/Modal";
 import SymbolPanel from "./SymbolPanel";
 import MetricChartModal from "./MetricChartModal";
 import HoldingsTable from "./HoldingsTable";
@@ -98,11 +99,9 @@ export default function AccountView({
     router.refresh();
   }
 
-  // Selecting a symbol (from search results or a table row) opens it in the
-  // persistent symbol panel near the top.
+  // Selecting a symbol (from search results or a table row) opens its detail popup.
   function selectSymbol(symbol: string, name?: string) {
     setSelected({ symbol, name: name ?? symbol });
-    if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   const selectedQuote = selected ? quotes[selected.symbol.toUpperCase()] : undefined;
@@ -175,18 +174,20 @@ export default function AccountView({
         />
       </div>
 
-      {/* Selected symbol panel */}
+      {/* Selected symbol detail popup */}
       {selected && (
-        <SymbolPanel
-          symbol={selected.symbol}
-          name={selected.name}
-          liveQuote={selectedQuote}
-          heldShares={heldFor(selected.symbol)}
-          inWatchlist={inWatchlist(selected.symbol)}
-          onBuy={() => setTrade({ side: "BUY", symbol: selected.symbol })}
-          onSell={() => setTrade({ side: "SELL", symbol: selected.symbol })}
-          onToggleWatch={() => toggleWatch(selected.symbol)}
-        />
+        <Modal title={selected.symbol} onClose={() => setSelected(null)} wide>
+          <SymbolPanel
+            symbol={selected.symbol}
+            name={selected.name}
+            liveQuote={selectedQuote}
+            heldShares={heldFor(selected.symbol)}
+            inWatchlist={inWatchlist(selected.symbol)}
+            onBuy={() => setTrade({ side: "BUY", symbol: selected.symbol })}
+            onSell={() => setTrade({ side: "SELL", symbol: selected.symbol })}
+            onToggleWatch={() => toggleWatch(selected.symbol)}
+          />
+        </Modal>
       )}
 
       {/* Holdings / Watchlist / History tabs */}
