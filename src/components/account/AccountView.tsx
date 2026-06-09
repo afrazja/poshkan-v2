@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import type { Account, Position, WatchlistItem, Transaction } from "@/lib/types";
 import { useQuotes } from "@/lib/useQuotes";
+import { realizedPnl } from "@/lib/pnl";
 import {
   formatCurrency,
   formatPercent,
@@ -74,6 +75,7 @@ export default function AccountView({
   const totalValue = cash + holdingsValue;
   const totalPnl = holdingsValue - costBasis;
   const totalPnlPct = costBasis > 0 ? (totalPnl / costBasis) * 100 : 0;
+  const realized = useMemo(() => realizedPnl(transactions), [transactions]);
 
   const todayPnl = positions.reduce((sum, p) => {
     const q = quotes[p.symbol.toUpperCase()];
@@ -153,15 +155,15 @@ export default function AccountView({
             onChart={positions.length ? () => setMetricChart("holdings") : undefined}
           />
           <Stat
-            label="Today's P&L"
-            value={formatSignedCurrency(todayPnl)}
-            colorClass={changeColor(todayPnl)}
-          />
-          <Stat
-            label="Total P&L"
+            label="Unrealized P&L"
             value={`${formatSignedCurrency(totalPnl)} (${formatPercent(totalPnlPct)})`}
             colorClass={changeColor(totalPnl)}
             onChart={positions.length ? () => setMetricChart("pnl") : undefined}
+          />
+          <Stat
+            label="Realized P&L"
+            value={formatSignedCurrency(realized)}
+            colorClass={changeColor(realized)}
           />
         </div>
       </div>
