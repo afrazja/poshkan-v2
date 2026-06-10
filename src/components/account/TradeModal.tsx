@@ -33,6 +33,7 @@ export default function TradeModal({
   const [review, setReview] = useState(false);
   const [orderType, setOrderType] = useState<"MARKET" | "LIMIT">("MARKET");
   const [limitPrice, setLimitPrice] = useState("");
+  const [tif, setTif] = useState<"DAY" | "GTC">("GTC");
 
   // If we opened without a fresh price, fetch one so the estimate is accurate.
   useEffect(() => {
@@ -78,7 +79,14 @@ export default function TradeModal({
     setError(null);
     setLoading(true);
     if (isLimit) {
-      const res = await placeLimitOrderAction({ accountId, symbol, side, quantity, limitPrice: limit });
+      const res = await placeLimitOrderAction({
+        accountId,
+        symbol,
+        side,
+        quantity,
+        limitPrice: limit,
+        timeInForce: tif,
+      });
       setLoading(false);
       if (res.error) return setError(res.error);
       setDone({ price: limit, limit: true });
@@ -133,6 +141,9 @@ export default function TradeModal({
           <p className="text-sm text-muted">Review your order before confirming.</p>
           <div className="space-y-2 rounded-lg border border-border bg-background p-4 text-sm">
             <ReviewRow label="Order type" value={isLimit ? "Limit" : "Market"} />
+            {isLimit && (
+              <ReviewRow label="Time in force" value={tif === "DAY" ? "Day (expires tonight)" : "Good til canceled"} />
+            )}
             <ReviewRow label="Action" value={`${side === "BUY" ? "Buy" : "Sell"} ${symbol}`} />
             <ReviewRow label="Quantity" value={String(quantity)} />
             <ReviewRow
@@ -240,6 +251,28 @@ export default function TradeModal({
                   ? "Fills when the price drops to or below this."
                   : "Fills when the price rises to or above this."}
               </p>
+              <div className="mt-3">
+                <label className="mb-1 block text-sm font-medium">Time in force</label>
+                <div className="flex gap-1 rounded-lg border border-border bg-background p-1">
+                  {(
+                    [
+                      { key: "GTC", label: "GTC", hint: "until canceled" },
+                      { key: "DAY", label: "Day", hint: "expires tonight" },
+                    ] as const
+                  ).map((t) => (
+                    <button
+                      key={t.key}
+                      type="button"
+                      onClick={() => setTif(t.key)}
+                      className={`flex-1 rounded-md py-1.5 text-xs font-medium transition ${
+                        tif === t.key ? "bg-card text-foreground shadow-sm" : "text-muted hover:text-foreground"
+                      }`}
+                    >
+                      {t.label} <span className="opacity-70">· {t.hint}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
           )}
 

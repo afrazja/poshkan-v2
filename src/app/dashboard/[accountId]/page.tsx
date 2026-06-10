@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import AccountView from "@/components/account/AccountView";
-import type { Account, Position, WatchlistItem, Transaction, Order, FxPosition } from "@/lib/types";
+import type { Account, Position, WatchlistItem, Transaction, Order, FxPosition, FxOrder } from "@/lib/types";
 
 export default async function AccountPage({
   params,
@@ -51,6 +51,13 @@ export default async function AccountPage({
     .eq("account_id", accountId)
     .order("opened_at", { ascending: false });
 
+  const { data: fxOrders } = await supabase
+    .from("fx_orders")
+    .select("*")
+    .eq("account_id", accountId)
+    .eq("status", "pending")
+    .order("created_at", { ascending: false });
+
   return (
     <AccountView
       account={account as Account}
@@ -59,6 +66,7 @@ export default async function AccountPage({
       initialTransactions={(transactions ?? []) as Transaction[]}
       initialOrders={(orders ?? []) as Order[]}
       initialFxPositions={(fxPositions ?? []) as FxPosition[]}
+      initialFxOrders={(fxOrders ?? []) as FxOrder[]}
     />
   );
 }

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import type { Account, Position, WatchlistItem, Transaction, Order, FxPosition } from "@/lib/types";
+import type { Account, Position, WatchlistItem, Transaction, Order, FxPosition, FxOrder } from "@/lib/types";
 import { FX_PAIRS, floatingPnl } from "@/lib/forex";
 import ForexPanel from "./ForexPanel";
 import { useQuotes } from "@/lib/useQuotes";
@@ -43,6 +43,7 @@ export default function AccountView({
   initialTransactions,
   initialOrders,
   initialFxPositions = [],
+  initialFxOrders = [],
 }: {
   account: Account;
   initialPositions: Position[];
@@ -50,6 +51,7 @@ export default function AccountView({
   initialTransactions: Transaction[];
   initialOrders: Order[];
   initialFxPositions?: FxPosition[];
+  initialFxOrders?: FxOrder[];
 }) {
   const router = useRouter();
   const [selected, setSelected] = useState<{ symbol: string; name: string } | null>(null);
@@ -351,7 +353,13 @@ export default function AccountView({
 
       {/* Forex accounts: pair picker + leveraged positions instead of search/tabs */}
       {isForex && (
-        <ForexPanel accountId={account.id} cash={cash} positions={fxPositions} quotes={quotes} />
+        <ForexPanel
+          accountId={account.id}
+          cash={cash}
+          positions={fxPositions}
+          quotes={quotes}
+          orders={initialFxOrders}
+        />
       )}
 
       {/* Search (always available) */}

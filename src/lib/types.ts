@@ -50,10 +50,28 @@ export interface Order {
   side: "BUY" | "SELL";
   quantity: number;
   limit_price: number;
-  status: "pending" | "filled" | "canceled";
+  time_in_force: "DAY" | "GTC";
+  status: "pending" | "filled" | "canceled" | "expired";
   created_at: string;
   filled_at: string | null;
   filled_price: number | null;
+}
+
+export interface FxOrder {
+  id: string;
+  account_id: string;
+  symbol: string;
+  direction: "LONG" | "SHORT";
+  units: number;
+  entry_rate: number;
+  trigger_when: "AT_OR_BELOW" | "AT_OR_ABOVE";
+  stop_loss: number | null;
+  take_profit: number | null;
+  expires_at: string | null;
+  status: "pending" | "filled" | "canceled" | "expired";
+  created_at: string;
+  filled_at: string | null;
+  filled_rate: number | null;
 }
 
 export interface WatchlistItem {

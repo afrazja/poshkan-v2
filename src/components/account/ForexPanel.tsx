@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import type { FxPosition, Quote } from "@/lib/types";
+import type { FxPosition, FxOrder, Quote } from "@/lib/types";
 import { formatCurrency, formatSignedCurrency, formatPercent, changeColor } from "@/lib/format";
 import {
   FX_PAIRS,
@@ -22,6 +22,9 @@ import {
   closeFxPositionAction,
   setFxSlTpAction,
   autoCloseFxPositionAction,
+  placeFxOrderAction,
+  cancelFxOrderAction,
+  fillFxOrderAction,
 } from "@/app/dashboard/[accountId]/actions";
 import Modal from "@/components/Modal";
 import PriceChart from "./PriceChart";
@@ -31,11 +34,13 @@ export default function ForexPanel({
   cash,
   positions,
   quotes,
+  orders = [],
 }: {
   accountId: string;
   cash: number;
   positions: FxPosition[];
   quotes: Record<string, Quote>;
+  orders?: FxOrder[];
 }) {
   const router = useRouter();
   const [trade, setTrade] = useState<string | null>(null); // pair symbol
@@ -44,6 +49,7 @@ export default function ForexPanel({
 
   const open = positions.filter((p) => p.status === "open");
   const closed = positions.filter((p) => p.status !== "open").slice(0, 10);
+  const pendingOrders = orders.filter((o) => o.status === "pending");
 
   // Live auto-close while the page is open (cron covers the rest of the time).
   // The server re-verifies with a fresh rate, so a stale quote can't force a close.
@@ -64,6 +70,28 @@ export default function ForexPanel({
     setClosing(id);
     await closeFxPositionAction(id, accountId);
     setClosing(null);
+    router.refresh();
+  }
+
+  // Live entry-order fills while the page is open (cron covers the rest).
+  const fillRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    for (const o of pendingOrders) {
+      const q = quotes[o.symbol.toUpperCase()];
+      if (!q?.price || fillRef.current.has(o.id)) continue;
+      const expired = o.expires_at && new Date(o.expires_at).getTime() <= Date.now();
+      const meets =
+        o.trigger_when === "AT_OR_BELOW" ? q.price <= Number(o.entry_rate) : q.price >= Number(o.entry_rate);
+      if (!expired && !meets) continue;
+      fillRef.current.add(o.id);
+      fillFxOrderAction(o.id, accountId)
+        .then(() => router.refresh())
+        .finally(() => fillRef.current.delete(o.id));
+    }
+  }, [pendingOrders, quotes, accountId, router]);
+
+  async function cancelOrder(id: string) {
+    await cancelFxOrderAction(id, accountId);
     router.refresh();
   }
 
@@ -94,6 +122,46 @@ export default function ForexPanel({
           Tap a pair to go long (buy) or short (sell) with {FX_LEVERAGE}:1 leverage.
         </p>
       </div>
+
+      {/* Pending entry orders */}
+      {pendingOrders.length > 0 && (
+        <div className="rounded-2xl border border-border bg-card p-4">
+          <h2 className="mb-2 text-sm font-semibold">Pending entry orders</h2>
+          <div className="space-y-2">
+            {pendingOrders.map((o) => {
+              const q = quotes[o.symbol.toUpperCase()];
+              return (
+                <div
+                  key={o.id}
+                  className="flex items-center justify-between gap-3 rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                >
+                  <div>
+                    <span className={o.direction === "LONG" ? "font-semibold text-positive" : "font-semibold text-negative"}>
+                      {o.direction === "LONG" ? "Long" : "Short"}
+                    </span>{" "}
+                    <span className="font-medium">
+                      {Number(o.units).toLocaleString("en-US")} {pairName(o.symbol)}
+                    </span>{" "}
+                    <span className="text-muted">@ {formatRate(Number(o.entry_rate))} entry</span>
+                    {q && <span className="ml-2 text-xs text-muted">now {formatRate(q.price)}</span>}
+                    {o.expires_at && (
+                      <span className="ml-2 text-xs text-muted">
+                        · expires {new Date(o.expires_at).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
+                      </span>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => cancelOrder(o.id)}
+                    className="shrink-0 text-xs text-muted hover:text-negative"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Open positions */}
       <section>
@@ -364,9 +432,12 @@ function FxTradeModal({
   const [custom, setCustom] = useState("");
   const [sl, setSl] = useState("");
   const [tp, setTp] = useState("");
+  const [execMode, setExecMode] = useState<"MARKET" | "PENDING">("MARKET");
+  const [entryRate, setEntryRate] = useState("");
+  const [expiry, setExpiry] = useState<number | null>(null); // hours; null = GTC
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [done, setDone] = useState<{ rate: number; margin: number } | null>(null);
+  const [done, setDone] = useState<{ rate: number; margin: number; pending?: boolean } | null>(null);
 
   const rate = quote?.price ?? 0;
   const effUnits = custom ? Number(custom) || 0 : units;
@@ -380,6 +451,30 @@ function FxTradeModal({
     if (!affordable) return setError("Not enough free cash for the required margin.");
     const slNum = sl.trim() ? Number(sl) : null;
     const tpNum = tp.trim() ? Number(tp) : null;
+
+    if (execMode === "PENDING") {
+      const entry = Number(entryRate) || 0;
+      if (entry <= 0) return setError("Enter an entry rate.");
+      const pendErr = sltpError(direction, entry, slNum, tpNum);
+      if (pendErr) return setError(pendErr.replace("current rate", "entry rate"));
+      setLoading(true);
+      const res = await placeFxOrderAction({
+        accountId,
+        symbol,
+        direction,
+        units: effUnits,
+        entryRate: entry,
+        stopLoss: slNum,
+        takeProfit: tpNum,
+        expiresHours: expiry,
+      });
+      setLoading(false);
+      if (res.error) return setError(res.error);
+      setDone({ rate: entry, margin: marginFor(effUnits, entry), pending: true });
+      router.refresh();
+      return;
+    }
+
     if (rate) {
       const sltpErr = sltpError(direction, rate, slNum, tpNum);
       if (sltpErr) return setError(sltpErr);
@@ -404,9 +499,20 @@ function FxTradeModal({
       {done ? (
         <div className="space-y-4">
           <p className="text-sm">
-            Opened <strong>{direction === "LONG" ? "Long" : "Short"}</strong>{" "}
-            <strong>{effUnits.toLocaleString("en-US")}</strong> {pairName(symbol)} at{" "}
-            <strong>{formatRate(done.rate)}</strong> — {formatCurrency(done.margin)} margin reserved.
+            {done.pending ? (
+              <>
+                Entry order placed: <strong>{direction === "LONG" ? "Long" : "Short"}</strong>{" "}
+                <strong>{effUnits.toLocaleString("en-US")}</strong> {pairName(symbol)} at{" "}
+                <strong>{formatRate(done.rate)}</strong>. It opens automatically when the rate
+                reaches your level (~{formatCurrency(done.margin)} margin at fill).
+              </>
+            ) : (
+              <>
+                Opened <strong>{direction === "LONG" ? "Long" : "Short"}</strong>{" "}
+                <strong>{effUnits.toLocaleString("en-US")}</strong> {pairName(symbol)} at{" "}
+                <strong>{formatRate(done.rate)}</strong> — {formatCurrency(done.margin)} margin reserved.
+              </>
+            )}
           </p>
           <button
             onClick={onClose}
@@ -447,10 +553,61 @@ function FxTradeModal({
             ))}
           </div>
 
+          {/* Execution: now at market, or pending at a chosen rate */}
+          <div className="flex gap-1 rounded-lg border border-border bg-background p-1">
+            {(
+              [
+                { key: "MARKET", label: "Market — now" },
+                { key: "PENDING", label: "At rate…" },
+              ] as const
+            ).map((m) => (
+              <button
+                key={m.key}
+                onClick={() => {
+                  setExecMode(m.key);
+                  if (m.key === "PENDING" && !entryRate && rate) setEntryRate(rate.toFixed(5));
+                }}
+                className={`flex-1 rounded-md py-1.5 text-xs font-medium transition ${
+                  execMode === m.key ? "bg-card text-foreground shadow-sm" : "text-muted hover:text-foreground"
+                }`}
+              >
+                {m.label}
+              </button>
+            ))}
+          </div>
+
           <div className="flex justify-between rounded-lg bg-background px-3 py-2 text-sm">
             <span className="text-muted">Live rate</span>
             <span className="font-semibold">{rate ? formatRate(rate) : "…"}</span>
           </div>
+
+          {execMode === "PENDING" && (
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="mb-1 block text-xs font-medium text-muted">Entry rate</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="any"
+                  value={entryRate}
+                  onChange={(e) => setEntryRate(e.target.value)}
+                  className="w-full rounded-lg border border-border bg-input px-3 py-2 text-sm outline-none focus:border-primary"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-muted">Expires</label>
+                <select
+                  value={expiry ?? ""}
+                  onChange={(e) => setExpiry(e.target.value ? Number(e.target.value) : null)}
+                  className="w-full rounded-lg border border-border bg-input px-3 py-2 text-sm outline-none focus:border-primary"
+                >
+                  <option value="">Never (GTC)</option>
+                  <option value="24">In 1 day</option>
+                  <option value="168">In 1 week</option>
+                </select>
+              </div>
+            </div>
+          )}
 
           <PriceChart symbol={symbol} height={150} />
 
@@ -531,8 +688,12 @@ function FxTradeModal({
             }`}
           >
             {loading
-              ? "Opening…"
-              : `Open ${direction === "LONG" ? "long" : "short"} · ${effUnits.toLocaleString("en-US")} units`}
+              ? execMode === "PENDING"
+                ? "Placing…"
+                : "Opening…"
+              : execMode === "PENDING"
+                ? `Place ${direction === "LONG" ? "long" : "short"} entry order`
+                : `Open ${direction === "LONG" ? "long" : "short"} · ${effUnits.toLocaleString("en-US")} units`}
           </button>
           <p className="text-center text-xs text-muted">
             Auto-closes (stop-out) if the loss reaches your reserved margin.

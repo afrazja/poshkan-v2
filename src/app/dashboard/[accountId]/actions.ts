@@ -69,6 +69,7 @@ export async function placeLimitOrderAction(input: {
   side: "BUY" | "SELL";
   quantity: number;
   limitPrice: number;
+  timeInForce?: "DAY" | "GTC";
 }): Promise<{ error?: string }> {
   const supabase = await createClient();
   if (!input.quantity || input.quantity <= 0) return { error: "Quantity must be positive" };
@@ -85,6 +86,7 @@ export async function placeLimitOrderAction(input: {
     side: input.side,
     quantity: input.quantity,
     limit_price: input.limitPrice,
+    time_in_force: input.timeInForce === "DAY" ? "DAY" : "GTC",
   });
   if (error) return { error: error.message };
   revalidatePath(`/dashboard/${input.accountId}`);
@@ -234,6 +236,134 @@ export async function closeFxPositionAction(
   if (error) return { error: error.message };
   revalidatePath(`/dashboard/${accountId}`);
   return { pnl: data as number };
+}
+
+// Forex: place a pending entry order — open a position when the rate reaches a
+// level. trigger_when is derived server-side from the live rate at placement
+// (limit entry vs stop/breakout entry).
+export async function placeFxOrderAction(input: {
+  accountId: string;
+  symbol: string;
+  direction: "LONG" | "SHORT";
+  units: number;
+  entryRate: number;
+  stopLoss?: number | null;
+  takeProfit?: number | null;
+  expiresHours?: number | null; // null = GTC
+}): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  if (!input.units || input.units <= 0) return { error: "Units must be positive" };
+  if (!input.entryRate || input.entryRate <= 0) return { error: "Enter a valid entry rate" };
+
+  const { data: account } = await supabase
+    .from("accounts")
+    .select("type")
+    .eq("id", input.accountId)
+    .single();
+  if (!account || account.type !== "forex") return { error: "Forex orders require a forex account" };
+
+  let rate: number;
+  try {
+    rate = (await getQuote(input.symbol)).price;
+    if (!rate || rate <= 0) return { error: "Could not get a valid rate" };
+  } catch (e) {
+    return { error: `Rate fetch failed: ${(e as Error).message}` };
+  }
+  if (Math.abs(input.entryRate - rate) / rate < 0.0001) {
+    return { error: "Entry rate is the current rate — use a market order instead." };
+  }
+
+  // SL/TP must make sense relative to the ENTRY rate (where the position opens).
+  const sl = input.stopLoss ?? null;
+  const tp = input.takeProfit ?? null;
+  const sltpErr = sltpError(input.direction, input.entryRate, sl, tp);
+  if (sltpErr) return { error: sltpErr };
+
+  const { error } = await supabase.from("fx_orders").insert({
+    account_id: input.accountId,
+    symbol: input.symbol.toUpperCase(),
+    direction: input.direction,
+    units: input.units,
+    entry_rate: input.entryRate,
+    trigger_when: input.entryRate < rate ? "AT_OR_BELOW" : "AT_OR_ABOVE",
+    stop_loss: sl,
+    take_profit: tp,
+    expires_at: input.expiresHours
+      ? new Date(Date.now() + input.expiresHours * 3_600_000).toISOString()
+      : null,
+  });
+  if (error) return { error: error.message };
+  revalidatePath(`/dashboard/${input.accountId}`);
+  return {};
+}
+
+export async function cancelFxOrderAction(orderId: string, accountId: string) {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("fx_orders")
+    .update({ status: "canceled" })
+    .eq("id", orderId)
+    .eq("status", "pending");
+  if (error) return { error: error.message };
+  revalidatePath(`/dashboard/${accountId}`);
+  return {};
+}
+
+// Forex: fill a pending entry order IF the live rate still satisfies its trigger
+// (used by the live page check; the cron does the same with the admin client).
+export async function fillFxOrderAction(
+  orderId: string,
+  accountId: string
+): Promise<{ filled: boolean; error?: string }> {
+  const supabase = await createClient();
+  const { data: o } = await supabase
+    .from("fx_orders")
+    .select("*")
+    .eq("id", orderId)
+    .eq("status", "pending")
+    .single();
+  if (!o) return { filled: false };
+
+  if (o.expires_at && new Date(o.expires_at).getTime() <= Date.now()) {
+    await supabase.from("fx_orders").update({ status: "expired" }).eq("id", orderId).eq("status", "pending");
+    revalidatePath(`/dashboard/${accountId}`);
+    return { filled: false };
+  }
+
+  let rate: number;
+  try {
+    rate = (await getQuote(o.symbol)).price;
+    if (!rate || rate <= 0) return { filled: false };
+  } catch {
+    return { filled: false };
+  }
+  const meets =
+    o.trigger_when === "AT_OR_BELOW" ? rate <= Number(o.entry_rate) : rate >= Number(o.entry_rate);
+  if (!meets) return { filled: false };
+
+  const { error } = await supabase.rpc("fx_open", {
+    p_account_id: o.account_id,
+    p_symbol: o.symbol,
+    p_direction: o.direction,
+    p_units: Number(o.units),
+    p_rate: rate,
+    p_margin: marginFor(Number(o.units), rate),
+    p_stop_loss: o.stop_loss,
+    p_take_profit: o.take_profit,
+  });
+  if (error) {
+    // Can't fill (insufficient margin, or SL/TP invalidated by a gap) — cancel.
+    await supabase.from("fx_orders").update({ status: "canceled" }).eq("id", orderId).eq("status", "pending");
+    revalidatePath(`/dashboard/${accountId}`);
+    return { filled: false, error: error.message };
+  }
+  await supabase
+    .from("fx_orders")
+    .update({ status: "filled", filled_at: new Date().toISOString(), filled_rate: rate })
+    .eq("id", orderId)
+    .eq("status", "pending");
+  revalidatePath(`/dashboard/${accountId}`);
+  return { filled: true };
 }
 
 // Forex: set or clear stop-loss / take-profit on an open position.

@@ -13,6 +13,10 @@ export async function GET(request: Request) {
   }
 
   const db = createAdminClient();
+
+  // End-of-day sweep: DAY limit orders that didn't fill this session expire.
+  await db.from("orders").update({ status: "expired" }).eq("status", "pending").eq("time_in_force", "DAY");
+
   const [{ data: accounts }, { data: positions }] = await Promise.all([
     db.from("accounts").select("id, cash_balance"),
     db.from("positions").select("account_id, symbol, quantity, avg_cost"),
