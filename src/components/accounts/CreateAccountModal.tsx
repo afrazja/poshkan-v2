@@ -120,6 +120,7 @@ export default function CreateAccountModal({ onClose }: { onClose: () => void })
             Initial holdings <span className="font-normal text-muted">(optional)</span>
           </label>
           <SymbolSearch
+            assetType={type}
             onSelect={(r) => addRow(r.symbol, r.name)}
             placeholder="Add a stock you already 'own'…"
           />

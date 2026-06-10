@@ -3,6 +3,18 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getQuote } from "@/lib/marketdata";
+import { assetTypeError } from "@/lib/assets";
+
+// Server-side guard: does this symbol belong in this account's asset class?
+async function checkAccountAsset(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  accountId: string,
+  symbol: string
+): Promise<string | null> {
+  const { data } = await supabase.from("accounts").select("type").eq("id", accountId).single();
+  if (!data) return "Account not found";
+  return assetTypeError(data.type, symbol);
+}
 
 // Execute a BUY or SELL. Price is fetched LIVE on the server — never trusted
 // from the client — then passed to the atomic execute_trade RPC.
@@ -19,6 +31,12 @@ export async function executeTradeAction(input: {
   if (!user) return { error: "Not authenticated" };
 
   if (!input.quantity || input.quantity <= 0) return { error: "Quantity must be positive" };
+
+  // Enforce the account's asset class when adding exposure (sells always allowed).
+  if (input.side === "BUY") {
+    const typeErr = await checkAccountAsset(supabase, input.accountId, input.symbol);
+    if (typeErr) return { error: typeErr };
+  }
 
   let price: number;
   try {
@@ -54,6 +72,11 @@ export async function placeLimitOrderAction(input: {
   const supabase = await createClient();
   if (!input.quantity || input.quantity <= 0) return { error: "Quantity must be positive" };
   if (!input.limitPrice || input.limitPrice <= 0) return { error: "Enter a valid limit price" };
+
+  if (input.side === "BUY") {
+    const typeErr = await checkAccountAsset(supabase, input.accountId, input.symbol);
+    if (typeErr) return { error: typeErr };
+  }
 
   const { error } = await supabase.from("orders").insert({
     account_id: input.accountId,
@@ -181,6 +204,8 @@ export async function deleteAlertAction(alertId: string): Promise<{ error?: stri
 
 export async function addToWatchlistAction(accountId: string, symbol: string) {
   const supabase = await createClient();
+  const typeErr = await checkAccountAsset(supabase, accountId, symbol);
+  if (typeErr) return { error: typeErr };
   const { error } = await supabase
     .from("watchlist")
     .insert({ account_id: accountId, symbol: symbol.toUpperCase() });

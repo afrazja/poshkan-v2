@@ -9,12 +9,14 @@ export default function SymbolSearch({
   value,
   size = "md",
   autoFocus = false,
+  assetType,
 }: {
   onSelect: (r: SymbolSearchResult) => void;
   placeholder?: string;
   value?: string;
   size?: "md" | "lg";
   autoFocus?: boolean;
+  assetType?: string; // 'stocks' | 'crypto' — restrict results to the account's asset class
 }) {
   const [query, setQuery] = useState(value ?? "");
   const [results, setResults] = useState<SymbolSearchResult[]>([]);
@@ -39,7 +41,9 @@ export default function SymbolSearch({
     setLoading(true);
     const t = setTimeout(async () => {
       try {
-        const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
+        const res = await fetch(
+          `/api/search?q=${encodeURIComponent(q)}${assetType ? `&type=${encodeURIComponent(assetType)}` : ""}`
+        );
         const json = await res.json();
         setResults(json.results ?? []);
         setOpen(true);
@@ -50,7 +54,7 @@ export default function SymbolSearch({
       }
     }, 300);
     return () => clearTimeout(t);
-  }, [query]);
+  }, [query, assetType]);
 
   const lg = size === "lg";
   return (

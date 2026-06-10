@@ -303,7 +303,12 @@ export default function AccountView({
       <div className="rounded-2xl border border-border bg-card p-4">
         <SymbolSearch
           size="lg"
-          placeholder="Search a stock to buy, sell, or watch — e.g. AAPL, Tesla, NVDA"
+          assetType={account.type}
+          placeholder={
+            account.type === "crypto"
+              ? "Search a cryptocurrency to buy, sell, or watch — e.g. BTC-USD, Ethereum"
+              : "Search a stock to buy, sell, or watch — e.g. AAPL, Tesla, NVDA"
+          }
           onSelect={(r) => selectSymbol(r.symbol, r.name)}
         />
       </div>
