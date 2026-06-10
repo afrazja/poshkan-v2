@@ -3,7 +3,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import type { Account, Position, WatchlistItem, Transaction, Order } from "@/lib/types";
+import type { Account, Position, WatchlistItem, Transaction, Order, FxPosition } from "@/lib/types";
+import { FX_PAIRS, floatingPnl } from "@/lib/forex";
+import ForexPanel from "./ForexPanel";
 import { useQuotes } from "@/lib/useQuotes";
 import { realizedPnl } from "@/lib/pnl";
 import {
@@ -40,12 +42,14 @@ export default function AccountView({
   initialWatchlist,
   initialTransactions,
   initialOrders,
+  initialFxPositions = [],
 }: {
   account: Account;
   initialPositions: Position[];
   initialWatchlist: WatchlistItem[];
   initialTransactions: Transaction[];
   initialOrders: Order[];
+  initialFxPositions?: FxPosition[];
 }) {
   const router = useRouter();
   const [selected, setSelected] = useState<{ symbol: string; name: string } | null>(null);
@@ -63,17 +67,24 @@ export default function AccountView({
   const watchlist = initialWatchlist;
   const transactions = initialTransactions;
   const orders = initialOrders;
+  const fxPositions = initialFxPositions;
+  const isForex = account.type === "forex";
 
   // Symbols to keep priced live.
   const symbols = useMemo(() => {
     const s = new Set<string>();
+    if (isForex) {
+      FX_PAIRS.forEach((p) => s.add(p.symbol));
+      fxPositions.filter((p) => p.status === "open").forEach((p) => s.add(p.symbol.toUpperCase()));
+      return Array.from(s);
+    }
     positions.forEach((p) => s.add(p.symbol.toUpperCase()));
     watchlist.forEach((w) => s.add(w.symbol.toUpperCase()));
     orders.forEach((o) => s.add(o.symbol.toUpperCase()));
     if (selected) s.add(selected.symbol.toUpperCase());
     if (tab === "insights") s.add("SPY"); // benchmark
     return Array.from(s);
-  }, [positions, watchlist, orders, selected, tab]);
+  }, [positions, watchlist, orders, selected, tab, isForex, fxPositions]);
 
   const { data: quotes = {} } = useQuotes(symbols);
 
@@ -109,6 +120,18 @@ export default function AccountView({
   const totalPnl = holdingsValue - costBasis;
   const totalPnlPct = costBasis > 0 ? (totalPnl / costBasis) * 100 : 0;
   const realized = useMemo(() => realizedPnl(transactions), [transactions]);
+
+  // Forex aggregates (equity = free cash + margin in use + floating P&L).
+  const fxOpen = fxPositions.filter((p) => p.status === "open");
+  const fxMargin = fxOpen.reduce((s, p) => s + Number(p.margin), 0);
+  const fxFloating = fxOpen.reduce((s, p) => {
+    const q = quotes[p.symbol.toUpperCase()];
+    return s + (q ? floatingPnl(p.direction, Number(p.units), Number(p.open_rate), q.price) : 0);
+  }, 0);
+  const fxRealized = fxPositions
+    .filter((p) => p.status !== "open")
+    .reduce((s, p) => s + Number(p.pnl ?? 0), 0);
+  const fxEquity = cash + fxMargin + fxFloating;
 
   const todayPnl = positions.reduce((sum, p) => {
     const q = quotes[p.symbol.toUpperCase()];
@@ -271,35 +294,68 @@ export default function AccountView({
       <div className="rounded-2xl border border-border bg-card p-5">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <div>
-            <div className="text-3xl font-bold">{formatCurrency(totalValue)}</div>
-            <div className="text-xs capitalize text-muted">{account.type} account · total value</div>
+            <div className="text-3xl font-bold">{formatCurrency(isForex ? fxEquity : totalValue)}</div>
+            <div className="text-xs capitalize text-muted">
+              {account.type} account · {isForex ? "equity" : "total value"}
+            </div>
           </div>
-          <div className={`text-sm font-medium ${changeColor(todayPnl)}`}>
-            {formatSignedCurrency(todayPnl)} ({formatPercent(todayPnlPct)}) today
-          </div>
+          {isForex ? (
+            <div className={`text-sm font-medium ${changeColor(fxFloating)}`}>
+              {formatSignedCurrency(fxFloating)} floating P&L
+            </div>
+          ) : (
+            <div className={`text-sm font-medium ${changeColor(todayPnl)}`}>
+              {formatSignedCurrency(todayPnl)} ({formatPercent(todayPnlPct)}) today
+            </div>
+          )}
         </div>
         <div className="mt-5 grid grid-cols-2 gap-4 sm:grid-cols-4">
-          <Stat label="Buying power" value={formatCurrency(cash)} />
-          <Stat
-            label="Holdings value"
-            value={formatCurrency(holdingsValue)}
-            onChart={positions.length ? () => setMetricChart("holdings") : undefined}
-          />
-          <Stat
-            label="Unrealized P&L"
-            value={`${formatSignedCurrency(totalPnl)} (${formatPercent(totalPnlPct)})`}
-            colorClass={changeColor(totalPnl)}
-            onChart={positions.length ? () => setMetricChart("pnl") : undefined}
-          />
-          <Stat
-            label="Realized P&L"
-            value={formatSignedCurrency(realized)}
-            colorClass={changeColor(realized)}
-          />
+          {isForex ? (
+            <>
+              <Stat label="Free cash" value={formatCurrency(cash)} />
+              <Stat label="Margin in use" value={formatCurrency(fxMargin)} />
+              <Stat
+                label="Floating P&L"
+                value={formatSignedCurrency(fxFloating)}
+                colorClass={changeColor(fxFloating)}
+              />
+              <Stat
+                label="Realized P&L"
+                value={formatSignedCurrency(fxRealized)}
+                colorClass={changeColor(fxRealized)}
+              />
+            </>
+          ) : (
+            <>
+              <Stat label="Buying power" value={formatCurrency(cash)} />
+              <Stat
+                label="Holdings value"
+                value={formatCurrency(holdingsValue)}
+                onChart={positions.length ? () => setMetricChart("holdings") : undefined}
+              />
+              <Stat
+                label="Unrealized P&L"
+                value={`${formatSignedCurrency(totalPnl)} (${formatPercent(totalPnlPct)})`}
+                colorClass={changeColor(totalPnl)}
+                onChart={positions.length ? () => setMetricChart("pnl") : undefined}
+              />
+              <Stat
+                label="Realized P&L"
+                value={formatSignedCurrency(realized)}
+                colorClass={changeColor(realized)}
+              />
+            </>
+          )}
         </div>
       </div>
 
+      {/* Forex accounts: pair picker + leveraged positions instead of search/tabs */}
+      {isForex && (
+        <ForexPanel accountId={account.id} cash={cash} positions={fxPositions} quotes={quotes} />
+      )}
+
       {/* Search (always available) */}
+      {!isForex && (
       <div className="rounded-2xl border border-border bg-card p-4">
         <SymbolSearch
           size="lg"
@@ -312,9 +368,10 @@ export default function AccountView({
           onSelect={(r) => selectSymbol(r.symbol, r.name)}
         />
       </div>
+      )}
 
       {/* Selected symbol detail popup */}
-      {selected && (
+      {!isForex && selected && (
         <Modal title={selected.symbol} onClose={() => setSelected(null)} wide>
           <SymbolPanel
             symbol={selected.symbol}
@@ -330,7 +387,7 @@ export default function AccountView({
       )}
 
       {/* Pending limit orders */}
-      {orders.length > 0 && (
+      {!isForex && orders.length > 0 && (
         <div className="rounded-2xl border border-border bg-card p-4">
           <h2 className="mb-2 text-sm font-semibold">Pending limit orders</h2>
           <div className="space-y-2">
@@ -368,6 +425,7 @@ export default function AccountView({
       )}
 
       {/* Holdings / Watchlist / History tabs */}
+      {!isForex && (
       <section>
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <div className="flex flex-wrap gap-1 rounded-lg border border-border bg-card p-1">
@@ -465,6 +523,7 @@ export default function AccountView({
           />
         )}
       </section>
+      )}
 
       {trade && (
         <TradeModal

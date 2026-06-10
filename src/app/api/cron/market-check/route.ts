@@ -14,19 +14,40 @@ export async function GET(request: Request) {
   }
 
   const db = createAdminClient();
-  const [{ data: orders }, { data: alerts }] = await Promise.all([
+  const [{ data: orders }, { data: alerts }, { data: fxPositions }] = await Promise.all([
     db.from("orders").select("id, symbol, side, limit_price").eq("status", "pending"),
     db.from("alerts").select("id, symbol, condition, target_price").eq("status", "active"),
+    db.from("fx_positions").select("id, symbol, direction, units, open_rate, margin").eq("status", "open"),
   ]);
 
   const symbols = Array.from(
-    new Set([...(orders ?? []), ...(alerts ?? [])].map((r) => r.symbol.toUpperCase()))
+    new Set(
+      [...(orders ?? []), ...(alerts ?? []), ...(fxPositions ?? [])].map((r) =>
+        r.symbol.toUpperCase()
+      )
+    )
   );
-  if (symbols.length === 0) return NextResponse.json({ filled: 0, triggered: 0 });
+  if (symbols.length === 0) return NextResponse.json({ filled: 0, triggered: 0, stopped: 0 });
 
   const quotes = await getQuotes(symbols);
   let filled = 0;
   let triggered = 0;
+  let stopped = 0;
+
+  // Forex stop-out: auto-close positions whose floating loss has consumed the margin.
+  for (const p of fxPositions ?? []) {
+    const q = quotes[p.symbol.toUpperCase()];
+    if (!q?.price) continue;
+    const raw = (q.price - Number(p.open_rate)) * Number(p.units);
+    const floating = p.direction === "SHORT" ? -raw : raw;
+    if (floating > -Number(p.margin)) continue;
+    const { error } = await db.rpc("fx_close", {
+      p_position_id: p.id,
+      p_rate: q.price,
+      p_stopped: true,
+    });
+    if (!error) stopped++;
+  }
 
   for (const o of orders ?? []) {
     const q = quotes[o.symbol.toUpperCase()];
@@ -52,5 +73,5 @@ export async function GET(request: Request) {
     if (!error) triggered++;
   }
 
-  return NextResponse.json({ filled, triggered, checked: symbols.length });
+  return NextResponse.json({ filled, triggered, stopped, checked: symbols.length });
 }

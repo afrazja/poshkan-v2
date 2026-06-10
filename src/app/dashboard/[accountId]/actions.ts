@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getQuote } from "@/lib/marketdata";
 import { assetTypeError } from "@/lib/assets";
+import { marginFor } from "@/lib/forex";
 
 // Server-side guard: does this symbol belong in this account's asset class?
 async function checkAccountAsset(
@@ -146,6 +147,84 @@ export async function fillLimitOrderAction(
     .eq("status", "pending");
   revalidatePath(`/dashboard/${order.account_id}`);
   return { filled: true, price };
+}
+
+// Forex: open a leveraged long/short pair position (margin reserved from cash).
+export async function openFxPositionAction(input: {
+  accountId: string;
+  symbol: string;
+  direction: "LONG" | "SHORT";
+  units: number;
+}): Promise<{ rate?: number; margin?: number; error?: string }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated" };
+  if (!input.units || input.units <= 0) return { error: "Units must be positive" };
+
+  const { data: account } = await supabase
+    .from("accounts")
+    .select("type")
+    .eq("id", input.accountId)
+    .single();
+  if (!account) return { error: "Account not found" };
+  if (account.type !== "forex") return { error: "Forex positions require a forex account" };
+  const typeErr = assetTypeError(account.type, input.symbol);
+  if (typeErr) return { error: typeErr };
+
+  let rate: number;
+  try {
+    rate = (await getQuote(input.symbol)).price;
+    if (!rate || rate <= 0) return { error: "Could not get a valid rate" };
+  } catch (e) {
+    return { error: `Rate fetch failed: ${(e as Error).message}` };
+  }
+
+  const margin = marginFor(input.units, rate);
+  const { error } = await supabase.rpc("fx_open", {
+    p_account_id: input.accountId,
+    p_symbol: input.symbol.toUpperCase(),
+    p_direction: input.direction,
+    p_units: input.units,
+    p_rate: rate,
+    p_margin: margin,
+  });
+  if (error) return { error: error.message };
+  revalidatePath(`/dashboard/${input.accountId}`);
+  return { rate, margin };
+}
+
+// Forex: close an open position at the live rate.
+export async function closeFxPositionAction(
+  positionId: string,
+  accountId: string
+): Promise<{ pnl?: number; error?: string }> {
+  const supabase = await createClient();
+  const { data: pos } = await supabase
+    .from("fx_positions")
+    .select("symbol")
+    .eq("id", positionId)
+    .eq("status", "open")
+    .single();
+  if (!pos) return { error: "Position not found" };
+
+  let rate: number;
+  try {
+    rate = (await getQuote(pos.symbol)).price;
+    if (!rate || rate <= 0) return { error: "Could not get a valid rate" };
+  } catch (e) {
+    return { error: `Rate fetch failed: ${(e as Error).message}` };
+  }
+
+  const { data, error } = await supabase.rpc("fx_close", {
+    p_position_id: positionId,
+    p_rate: rate,
+    p_stopped: false,
+  });
+  if (error) return { error: error.message };
+  revalidatePath(`/dashboard/${accountId}`);
+  return { pnl: data as number };
 }
 
 // Account management.

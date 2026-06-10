@@ -97,9 +97,7 @@ export default function CreateAccountModal({ onClose }: { onClose: () => void })
             <select value={type} onChange={(e) => setType(e.target.value)} className={inputClass}>
               <option value="stocks">Stocks</option>
               <option value="crypto">Crypto</option>
-              <option value="forex" disabled>
-                Forex (coming soon)
-              </option>
+              <option value="forex">Forex</option>
             </select>
           </div>
           <div>
@@ -115,7 +113,8 @@ export default function CreateAccountModal({ onClose }: { onClose: () => void })
           </div>
         </div>
 
-        <div>
+        {/* Forex accounts start with cash only (positions are leveraged pairs). */}
+        <div className={type === "forex" ? "hidden" : undefined}>
           <label className="mb-1 block text-sm font-medium">
             Initial holdings <span className="font-normal text-muted">(optional)</span>
           </label>

@@ -91,6 +91,21 @@ export interface NewsItem {
   publishedAt: string | null;
 }
 
+export interface FxPosition {
+  id: string;
+  account_id: string;
+  symbol: string;
+  direction: "LONG" | "SHORT";
+  units: number;
+  open_rate: number;
+  margin: number;
+  status: "open" | "closed" | "stopped";
+  opened_at: string;
+  closed_at: string | null;
+  close_rate: number | null;
+  pnl: number | null;
+}
+
 export interface Alert {
   id: string;
   user_id: string;
