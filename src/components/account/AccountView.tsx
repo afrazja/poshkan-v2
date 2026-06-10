@@ -165,23 +165,59 @@ export default function AccountView({
     router.refresh();
   }
 
-  // Download the full transaction history as a CSV file.
+  // Download the current tab's table (holdings, watchlist, or history) as CSV.
   function exportCsv() {
     const esc = (v: string | number) => {
       const s = String(v);
       return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
     };
-    const header = "date,action,symbol,quantity,price,cash_change";
-    const lines = transactions.map((t) =>
-      [t.created_at, t.side, t.symbol ?? "", t.quantity, t.price, t.cash_delta].map(esc).join(",")
-    );
+
+    let header: string;
+    let lines: string[];
+    let suffix: string;
+
+    if (tab === "holdings") {
+      header = "symbol,shares,avg_cost,current_price,day_change_pct,market_value,unrealized_pnl,unrealized_pnl_pct";
+      lines = positions.map((p) => {
+        const q = quotes[p.symbol.toUpperCase()];
+        const qty = Number(p.quantity);
+        const avg = Number(p.avg_cost);
+        const price = q?.price ?? avg;
+        const mktValue = qty * price;
+        const pnl = mktValue - qty * avg;
+        const pnlPct = avg > 0 ? ((price - avg) / avg) * 100 : 0;
+        return [
+          p.symbol, qty, avg.toFixed(4), price.toFixed(4),
+          (q?.percentChange ?? 0).toFixed(2), mktValue.toFixed(2), pnl.toFixed(2), pnlPct.toFixed(2),
+        ].map(esc).join(",");
+      });
+      suffix = "holdings";
+    } else if (tab === "watchlist") {
+      header = "symbol,current_price,day_change_pct";
+      lines = watchlist.map((w) => {
+        const q = quotes[w.symbol.toUpperCase()];
+        return [w.symbol, q ? q.price.toFixed(4) : "", (q?.percentChange ?? 0).toFixed(2)]
+          .map(esc).join(",");
+      });
+      suffix = "watchlist";
+    } else {
+      header = "date,action,symbol,quantity,price,cash_change";
+      lines = transactions.map((t) =>
+        [t.created_at, t.side, t.symbol ?? "", t.quantity, t.price, t.cash_delta].map(esc).join(",")
+      );
+      suffix = "history";
+    }
+
     const blob = new Blob([`${header}\n${lines.join("\n")}\n`], { type: "text/csv;charset=utf-8" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    a.download = `${account.name.replace(/[^a-z0-9-_ ]/gi, "")}-history.csv`;
+    a.download = `${account.name.replace(/[^a-z0-9-_ ]/gi, "")}-${suffix}.csv`;
     a.click();
     URL.revokeObjectURL(a.href);
   }
+
+  const exportableRows =
+    tab === "holdings" ? positions.length : tab === "watchlist" ? watchlist.length : tab === "history" ? transactions.length : 0;
 
   const selectedQuote = selected ? quotes[selected.symbol.toUpperCase()] : undefined;
   const tradePrice = trade ? quotes[trade.symbol.toUpperCase()]?.price ?? 0 : 0;
@@ -357,7 +393,7 @@ export default function AccountView({
           {/* Small filter for the current table (not on Insights) */}
           {tab !== "insights" && (
             <div className="flex items-center gap-2">
-              {tab === "history" && transactions.length > 0 && (
+              {exportableRows > 0 && (
                 <button
                   onClick={exportCsv}
                   className="rounded-lg border border-border px-2.5 py-1.5 text-xs font-medium text-muted hover:bg-card hover:text-foreground"
