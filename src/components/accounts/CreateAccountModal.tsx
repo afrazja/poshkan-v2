@@ -94,7 +94,14 @@ export default function CreateAccountModal({ onClose }: { onClose: () => void })
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium">Type</label>
-            <select value={type} onChange={(e) => setType(e.target.value)} className={inputClass}>
+            <select
+              value={type}
+              onChange={(e) => {
+                setType(e.target.value);
+                setRows([]); // holdings picked under the previous type no longer apply
+              }}
+              className={inputClass}
+            >
               <option value="stocks">Stocks</option>
               <option value="crypto">Crypto</option>
               <option value="forex">Forex</option>

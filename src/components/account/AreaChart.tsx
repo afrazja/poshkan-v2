@@ -64,13 +64,14 @@ export default function AreaChart({
       min = Math.min(min, baseline);
       max = Math.max(max, baseline);
     }
-    // Benchmark shares the y-domain so both lines are comparable.
-    const bench = (benchmark ?? []).filter((p) => Number.isFinite(p.value));
-    if (bench.length >= 2) {
-      for (const b of bench) {
-        if (b.value < min) min = b.value;
-        if (b.value > max) max = b.value;
-      }
+    // Benchmark shares the y-domain so both lines are comparable. Keep the array
+    // UNFILTERED so its indices stay date-aligned with the main series; only
+    // finite values participate in the domain.
+    const bench = benchmark ?? [];
+    for (const b of bench) {
+      if (!Number.isFinite(b.value)) continue;
+      if (b.value < min) min = b.value;
+      if (b.value > max) max = b.value;
     }
     const span = max - min || Math.abs(min) || 1;
     min -= span * 0.05;
@@ -83,16 +84,24 @@ export default function AreaChart({
     const xAt = (i: number) => PAD.left + (i / (n - 1)) * plotW;
     const yAt = (v: number) => PAD.top + (1 - (v - min) / range) * plotH;
 
-    // Benchmark line path (index-aligned with the main series).
-    const benchLine =
-      bench.length >= 2
-        ? bench
-            .map((p, i) => {
-              const x = PAD.left + (i / (bench.length - 1)) * plotW;
-              return `${i === 0 ? "M" : "L"}${x.toFixed(1)} ${yAt(p.value).toFixed(1)}`;
-            })
-            .join(" ")
-        : null;
+    // Benchmark line path — index-aligned with the main series; gaps (non-finite
+    // values, e.g. missing SPY data) lift the pen instead of distorting the line.
+    let benchLine: string | null = null;
+    if (bench.length >= 2) {
+      let d = "";
+      let pen = false;
+      for (let i = 0; i < bench.length; i++) {
+        const v = bench[i].value;
+        if (!Number.isFinite(v)) {
+          pen = false;
+          continue;
+        }
+        const x = PAD.left + (i / (bench.length - 1)) * plotW;
+        d += `${pen ? "L" : "M"}${x.toFixed(1)} ${yAt(v).toFixed(1)} `;
+        pen = true;
+      }
+      benchLine = d.trim() || null;
+    }
 
     const pts = data.map((p, i) => [xAt(i), yAt(p.value)] as const);
     const line = pts.map(([x, y], i) => `${i === 0 ? "M" : "L"}${x.toFixed(1)} ${y.toFixed(1)}`).join(" ");
@@ -221,7 +230,7 @@ export default function AreaChart({
             {valueLabel ? `${valueLabel}: ` : ""}
             {formatValue(hc.value)}
           </div>
-          {hover !== null && chart.bench[hover] != null && (
+          {hover !== null && chart.bench[hover] != null && Number.isFinite(chart.bench[hover].value) && (
             <div className="text-primary">
               {benchmarkLabel ? `${benchmarkLabel}: ` : ""}
               {formatValue(chart.bench[hover].value)}

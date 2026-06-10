@@ -23,6 +23,7 @@ export default function SymbolSearch({
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const seqRef = useRef(0); // ignore out-of-order search responses
 
   useEffect(() => {
     function onClick(e: MouseEvent) {
@@ -39,18 +40,20 @@ export default function SymbolSearch({
       return;
     }
     setLoading(true);
+    const seq = ++seqRef.current;
     const t = setTimeout(async () => {
       try {
         const res = await fetch(
           `/api/search?q=${encodeURIComponent(q)}${assetType ? `&type=${encodeURIComponent(assetType)}` : ""}`
         );
         const json = await res.json();
+        if (seqRef.current !== seq) return; // a newer query superseded this one
         setResults(json.results ?? []);
         setOpen(true);
       } catch {
-        setResults([]);
+        if (seqRef.current === seq) setResults([]);
       } finally {
-        setLoading(false);
+        if (seqRef.current === seq) setLoading(false);
       }
     }, 300);
     return () => clearTimeout(t);

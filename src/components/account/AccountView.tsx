@@ -101,9 +101,14 @@ export default function AccountView({
         o.side === "BUY" ? q.price <= Number(o.limit_price) : q.price >= Number(o.limit_price);
       if (meets && !fillingRef.current.has(o.id)) {
         fillingRef.current.add(o.id);
+        // Only refresh when the server actually filled — refreshing on a declined
+        // fill (stale client quote) would re-run this effect in a tight loop.
         fillLimitOrderAction(o.id)
-          .then(() => router.refresh())
-          .finally(() => fillingRef.current.delete(o.id));
+          .then((r) => {
+            if (r.filled || r.error) router.refresh();
+            else fillingRef.current.delete(o.id);
+          })
+          .catch(() => fillingRef.current.delete(o.id));
       }
     }
   }, [orders, quotes, router]);

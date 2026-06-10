@@ -1,6 +1,11 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
+
+// Module-level stack so stacked modals (e.g. symbol popup → trade modal)
+// behave: Escape closes only the topmost, and the body scroll-lock is held
+// until the LAST modal unmounts.
+const modalStack: symbol[] = [];
 
 export default function Modal({
   title,
@@ -13,15 +18,22 @@ export default function Modal({
   children: React.ReactNode;
   wide?: boolean;
 }) {
+  const idRef = useRef<symbol | null>(null);
+  if (idRef.current === null) idRef.current = Symbol("modal");
+
   useEffect(() => {
+    const id = idRef.current as symbol;
+    modalStack.push(id);
     function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape" && modalStack[modalStack.length - 1] === id) onClose();
     }
     document.addEventListener("keydown", onKey);
     document.body.style.overflow = "hidden";
     return () => {
       document.removeEventListener("keydown", onKey);
-      document.body.style.overflow = "";
+      const i = modalStack.indexOf(id);
+      if (i !== -1) modalStack.splice(i, 1);
+      if (modalStack.length === 0) document.body.style.overflow = "";
     };
   }, [onClose]);
 

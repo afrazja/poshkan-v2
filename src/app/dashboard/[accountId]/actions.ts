@@ -129,6 +129,17 @@ export async function fillLimitOrderAction(
     order.side === "BUY" ? price <= Number(order.limit_price) : price >= Number(order.limit_price);
   if (!meetsLimit) return { filled: false };
 
+  // CLAIM the order atomically BEFORE trading, so a concurrent fill (cron or
+  // another tab) can't execute the same order twice. Whoever flips the status
+  // wins; everyone else sees zero updated rows and backs off.
+  const { data: claimed } = await supabase
+    .from("orders")
+    .update({ status: "filled", filled_at: new Date().toISOString(), filled_price: price })
+    .eq("id", orderId)
+    .eq("status", "pending")
+    .select("id");
+  if (!claimed || claimed.length === 0) return { filled: false };
+
   const { error } = await supabase.rpc("execute_trade", {
     p_account_id: order.account_id,
     p_symbol: order.symbol,
@@ -137,16 +148,11 @@ export async function fillLimitOrderAction(
     p_price: price,
   });
   if (error) {
-    // Couldn't fill (e.g. insufficient cash/shares) — cancel so it stops retrying.
-    await supabase.from("orders").update({ status: "canceled" }).eq("id", orderId).eq("status", "pending");
+    // Trade failed (e.g. insufficient cash/shares) — mark canceled so it stops retrying.
+    await supabase.from("orders").update({ status: "canceled" }).eq("id", orderId);
     revalidatePath(`/dashboard/${order.account_id}`);
     return { filled: false, error: error.message };
   }
-  await supabase
-    .from("orders")
-    .update({ status: "filled", filled_at: new Date().toISOString(), filled_price: price })
-    .eq("id", orderId)
-    .eq("status", "pending");
   revalidatePath(`/dashboard/${order.account_id}`);
   return { filled: true, price };
 }
@@ -269,7 +275,8 @@ export async function placeFxOrderAction(input: {
   } catch (e) {
     return { error: `Rate fetch failed: ${(e as Error).message}` };
   }
-  if (Math.abs(input.entryRate - rate) / rate < 0.0001) {
+  // Reject entries within half a pip of the live rate (use a market order there).
+  if (Math.abs(input.entryRate - rate) / rate < 0.00005) {
     return { error: "Entry rate is the current rate — use a market order instead." };
   }
 
@@ -341,6 +348,16 @@ export async function fillFxOrderAction(
     o.trigger_when === "AT_OR_BELOW" ? rate <= Number(o.entry_rate) : rate >= Number(o.entry_rate);
   if (!meets) return { filled: false };
 
+  // CLAIM the order atomically BEFORE opening, so the cron and this path can't
+  // both open a position for the same order.
+  const { data: claimed } = await supabase
+    .from("fx_orders")
+    .update({ status: "filled", filled_at: new Date().toISOString(), filled_rate: rate })
+    .eq("id", orderId)
+    .eq("status", "pending")
+    .select("id");
+  if (!claimed || claimed.length === 0) return { filled: false };
+
   const { error } = await supabase.rpc("fx_open", {
     p_account_id: o.account_id,
     p_symbol: o.symbol,
@@ -352,16 +369,11 @@ export async function fillFxOrderAction(
     p_take_profit: o.take_profit,
   });
   if (error) {
-    // Can't fill (insufficient margin, or SL/TP invalidated by a gap) — cancel.
-    await supabase.from("fx_orders").update({ status: "canceled" }).eq("id", orderId).eq("status", "pending");
+    // Can't open (insufficient margin, or SL/TP invalidated by a gap) — cancel.
+    await supabase.from("fx_orders").update({ status: "canceled" }).eq("id", orderId);
     revalidatePath(`/dashboard/${accountId}`);
     return { filled: false, error: error.message };
   }
-  await supabase
-    .from("fx_orders")
-    .update({ status: "filled", filled_at: new Date().toISOString(), filled_rate: rate })
-    .eq("id", orderId)
-    .eq("status", "pending");
   revalidatePath(`/dashboard/${accountId}`);
   return { filled: true };
 }

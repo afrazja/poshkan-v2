@@ -60,9 +60,14 @@ export default function ForexPanel({
       if (!q?.price || autoRef.current.has(p.id)) continue;
       if (!autoCloseReason(p, q.price)) continue;
       autoRef.current.add(p.id);
+      // Refresh only on a confirmed close — refreshing on a server-declined
+      // close (stale client rate) would loop this effect.
       autoCloseFxPositionAction(p.id, accountId)
-        .then(() => router.refresh())
-        .finally(() => autoRef.current.delete(p.id));
+        .then((r) => {
+          if (r.closed) router.refresh();
+          else autoRef.current.delete(p.id);
+        })
+        .catch(() => autoRef.current.delete(p.id));
     }
   }, [open, quotes, accountId, router]);
 
@@ -85,8 +90,11 @@ export default function ForexPanel({
       if (!expired && !meets) continue;
       fillRef.current.add(o.id);
       fillFxOrderAction(o.id, accountId)
-        .then(() => router.refresh())
-        .finally(() => fillRef.current.delete(o.id));
+        .then((r) => {
+          if (r.filled || r.error || expired) router.refresh();
+          else fillRef.current.delete(o.id);
+        })
+        .catch(() => fillRef.current.delete(o.id));
     }
   }, [pendingOrders, quotes, accountId, router]);
 
@@ -441,8 +449,10 @@ function FxTradeModal({
 
   const rate = quote?.price ?? 0;
   const effUnits = custom ? Number(custom) || 0 : units;
-  const notional = effUnits * rate;
-  const margin = rate > 0 ? marginFor(effUnits, rate) : 0;
+  // Pending orders price at the chosen entry rate; market orders at the live rate.
+  const execRate = execMode === "PENDING" ? Number(entryRate) || rate : rate;
+  const notional = effUnits * execRate;
+  const margin = execRate > 0 ? marginFor(effUnits, execRate) : 0;
   const affordable = margin > 0 && margin <= cash;
 
   async function submit() {
@@ -565,7 +575,8 @@ function FxTradeModal({
                 key={m.key}
                 onClick={() => {
                   setExecMode(m.key);
-                  if (m.key === "PENDING" && !entryRate && rate) setEntryRate(rate.toFixed(5));
+                  // Pre-fill ~20 pips below the live rate (a valid limit entry to edit).
+                  if (m.key === "PENDING" && !entryRate && rate) setEntryRate((rate - 0.002).toFixed(5));
                 }}
                 className={`flex-1 rounded-md py-1.5 text-xs font-medium transition ${
                   execMode === m.key ? "bg-card text-foreground shadow-sm" : "text-muted hover:text-foreground"
