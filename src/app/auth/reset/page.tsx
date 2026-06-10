@@ -23,6 +23,24 @@ export default function ResetPasswordPage() {
     const code = url.searchParams.get("code");
     const tokenHash = url.searchParams.get("token_hash");
     const type = url.searchParams.get("type");
+    // Implicit-flow links and Supabase errors arrive in the #hash fragment.
+    const hash = new URLSearchParams(window.location.hash.slice(1));
+    const accessToken = hash.get("access_token");
+    const refreshToken = hash.get("refresh_token");
+    const hashError = hash.get("error_description") ?? hash.get("error_code");
+
+    if (hashError) {
+      setStage("invalid");
+      return;
+    }
+
+    let finished = false;
+    const finish = (s: Stage) => {
+      if (!finished) {
+        finished = true;
+        setStage(s);
+      }
+    };
 
     (async () => {
       try {
@@ -30,13 +48,22 @@ export default function ResetPasswordPage() {
           await supabase.auth.exchangeCodeForSession(code);
         } else if (tokenHash && type === "recovery") {
           await supabase.auth.verifyOtp({ type: "recovery", token_hash: tokenHash });
+        } else if (accessToken && refreshToken) {
+          await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
         }
         const {
           data: { user },
         } = await supabase.auth.getUser();
-        setStage(user ? "form" : "invalid");
+        if (user) return finish("form");
+        // The client may still be processing a hash session — give it a moment.
+        setTimeout(async () => {
+          const {
+            data: { user: retry },
+          } = await supabase.auth.getUser();
+          finish(retry ? "form" : "invalid");
+        }, 1500);
       } catch {
-        setStage("invalid");
+        finish("invalid");
       }
     })();
   }, []);
