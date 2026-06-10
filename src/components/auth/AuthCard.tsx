@@ -20,10 +20,32 @@ export default function AuthCard() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sent, setSent] = useState(false);
+  const [forgotSent, setForgotSent] = useState(false);
 
   function reset() {
     setError(null);
     setSent(false);
+    setForgotSent(false);
+  }
+
+  async function handleForgot() {
+    reset();
+    if (!email.trim()) {
+      setError("Enter your email above first, then click 'Forgot your password?'.");
+      return;
+    }
+    setLoading(true);
+    const supabase = createClient();
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || window.location.origin;
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${siteUrl}/auth/reset`,
+    });
+    setLoading(false);
+    if (error) {
+      setError(error.message);
+      return;
+    }
+    setForgotSent(true);
   }
 
   async function handleLogin(e: React.FormEvent) {
@@ -160,6 +182,20 @@ export default function AuthCard() {
           >
             {loading ? "Signing in…" : "Log in"}
           </button>
+          <button
+            type="button"
+            onClick={handleForgot}
+            disabled={loading}
+            className="w-full text-center text-xs text-muted hover:text-foreground hover:underline"
+          >
+            Forgot your password?
+          </button>
+          {forgotSent && (
+            <p className="rounded-lg border border-primary/30 bg-primary/10 px-3 py-2 text-xs">
+              If an account exists for <strong>{email}</strong>, a password-reset link is on its
+              way. Check your inbox.
+            </p>
+          )}
         </form>
       ) : (
         <form onSubmit={handleSignup} className="space-y-4">

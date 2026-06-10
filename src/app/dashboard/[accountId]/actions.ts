@@ -125,6 +125,29 @@ export async function fillLimitOrderAction(
   return { filled: true, price };
 }
 
+// Account management.
+export async function renameAccountAction(accountId: string, name: string): Promise<{ error?: string }> {
+  const trimmed = name.trim();
+  if (!trimmed) return { error: "Enter a name" };
+  if (trimmed.length > 60) return { error: "Name is too long" };
+  const supabase = await createClient();
+  const { error } = await supabase.from("accounts").update({ name: trimmed }).eq("id", accountId);
+  if (error) return { error: error.message };
+  revalidatePath(`/dashboard/${accountId}`);
+  revalidatePath("/dashboard");
+  return {};
+}
+
+// Permanently deletes the account; positions, transactions, watchlist, orders,
+// and snapshots cascade in the database.
+export async function deleteAccountAction(accountId: string): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const { error } = await supabase.from("accounts").delete().eq("id", accountId);
+  if (error) return { error: error.message };
+  revalidatePath("/dashboard");
+  return {};
+}
+
 // Price alerts (per user, not per account).
 export async function createAlertAction(input: {
   symbol: string;
