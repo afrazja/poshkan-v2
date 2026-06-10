@@ -23,6 +23,9 @@ export default function AreaChart({
   formatAxisValue,
   formatLabel = defaultFormatLabel,
   baseline,
+  benchmark,
+  valueLabel,
+  benchmarkLabel,
 }: {
   points: ChartPoint[];
   height?: number;
@@ -30,6 +33,9 @@ export default function AreaChart({
   formatAxisValue?: (n: number) => string; // y-axis (defaults to formatValue)
   formatLabel?: (s: string) => string;
   baseline?: number; // if set, anchor the y-domain to this value, draw a reference line, fill to it
+  benchmark?: ChartPoint[]; // optional second line (index-aligned with points)
+  valueLabel?: string; // tooltip label for the main series (used with benchmark)
+  benchmarkLabel?: string; // tooltip label for the benchmark series
 }) {
   const [hover, setHover] = useState<number | null>(null);
   const [width, setWidth] = useState(0);
@@ -58,6 +64,14 @@ export default function AreaChart({
       min = Math.min(min, baseline);
       max = Math.max(max, baseline);
     }
+    // Benchmark shares the y-domain so both lines are comparable.
+    const bench = (benchmark ?? []).filter((p) => Number.isFinite(p.value));
+    if (bench.length >= 2) {
+      for (const b of bench) {
+        if (b.value < min) min = b.value;
+        if (b.value > max) max = b.value;
+      }
+    }
     const span = max - min || Math.abs(min) || 1;
     min -= span * 0.05;
     max += span * 0.05;
@@ -68,6 +82,17 @@ export default function AreaChart({
     const bottom = PAD.top + plotH;
     const xAt = (i: number) => PAD.left + (i / (n - 1)) * plotW;
     const yAt = (v: number) => PAD.top + (1 - (v - min) / range) * plotH;
+
+    // Benchmark line path (index-aligned with the main series).
+    const benchLine =
+      bench.length >= 2
+        ? bench
+            .map((p, i) => {
+              const x = PAD.left + (i / (bench.length - 1)) * plotW;
+              return `${i === 0 ? "M" : "L"}${x.toFixed(1)} ${yAt(p.value).toFixed(1)}`;
+            })
+            .join(" ")
+        : null;
 
     const pts = data.map((p, i) => [xAt(i), yAt(p.value)] as const);
     const line = pts.map(([x, y], i) => `${i === 0 ? "M" : "L"}${x.toFixed(1)} ${y.toFixed(1)}`).join(" ");
@@ -82,8 +107,8 @@ export default function AreaChart({
     const up = baseline !== undefined ? vals[n - 1] >= baseline : vals[n - 1] >= vals[0];
     const baselineY = baseline !== undefined ? yAt(baseline) : null;
 
-    return { data, n, pts, line, area, yTicks, xAt, changePct, up, plotW, plotH, baselineY };
-  }, [points, width, height, baseline]);
+    return { data, n, pts, line, area, yTicks, xAt, changePct, up, plotW, plotH, baselineY, bench, benchLine };
+  }, [points, width, height, baseline, benchmark]);
 
   function onMove(e: React.MouseEvent) {
     if (!chart || !svgRef.current) return;
@@ -147,6 +172,18 @@ export default function AreaChart({
 
         <path d={chart.area} fill={`url(#${gradientId})`} />
 
+        {/* Benchmark line (e.g. S&P 500) */}
+        {chart.benchLine && (
+          <path
+            d={chart.benchLine}
+            fill="none"
+            stroke="var(--primary)"
+            strokeWidth="1.5"
+            strokeDasharray="5 4"
+            strokeLinejoin="round"
+          />
+        )}
+
         {/* Break-even / baseline reference line (e.g. $0 for P&L) */}
         {chart.baselineY !== null && (
           <g>
@@ -180,7 +217,16 @@ export default function AreaChart({
           className="pointer-events-none absolute z-10 -translate-x-1/2 whitespace-nowrap rounded-md border border-border bg-card px-2 py-1 text-xs shadow-md"
           style={{ left: Math.max(50, Math.min(width - 50, hp[0])), top: Math.max(0, hp[1] - 46) }}
         >
-          <div className="font-semibold">{formatValue(hc.value)}</div>
+          <div className="font-semibold">
+            {valueLabel ? `${valueLabel}: ` : ""}
+            {formatValue(hc.value)}
+          </div>
+          {hover !== null && chart.bench[hover] != null && (
+            <div className="text-primary">
+              {benchmarkLabel ? `${benchmarkLabel}: ` : ""}
+              {formatValue(chart.bench[hover].value)}
+            </div>
+          )}
           <div className="text-muted">{formatLabel(hc.label)}</div>
         </div>
       )}

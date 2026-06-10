@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import type { Position, Quote } from "@/lib/types";
 import { formatCurrency, formatPercent, changeColor } from "@/lib/format";
+import PerformanceCard from "./PerformanceCard";
 
 const COLORS = [
   "#3b82f6", "#22c55e", "#f59e0b", "#a855f7", "#ec4899",
@@ -10,12 +11,14 @@ const COLORS = [
 ];
 
 export default function InsightsTab({
+  accountId,
   positions,
   quotes,
   cash,
   todayPnlPct,
   onSelect,
 }: {
+  accountId: string;
   positions: Position[];
   quotes: Record<string, Quote>;
   cash: number;
@@ -61,6 +64,9 @@ export default function InsightsTab({
 
   return (
     <div className="space-y-4">
+      {/* Performance vs benchmark (from daily snapshots) */}
+      <PerformanceCard accountId={accountId} />
+
       {/* Allocation */}
       <div className="rounded-2xl border border-border bg-card p-5">
         <h3 className="mb-3 text-sm font-semibold">Allocation</h3>

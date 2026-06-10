@@ -342,6 +342,7 @@ export default function AccountView({
 
         {tab === "insights" && (
           <InsightsTab
+            accountId={account.id}
             positions={positions}
             quotes={quotes}
             cash={cash}
