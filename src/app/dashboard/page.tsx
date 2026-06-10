@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import AccountsGrid from "@/components/accounts/AccountsGrid";
-import type { Account, Position } from "@/lib/types";
+import AlertsCard from "@/components/accounts/AlertsCard";
+import type { Account, Position, Alert } from "@/lib/types";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -13,6 +14,12 @@ export default async function DashboardPage() {
   const { data: positions } = await supabase
     .from("positions")
     .select("account_id, quantity, avg_cost");
+
+  // Price alerts (table may not exist until upgrades.sql is run — degrades to none).
+  const { data: alerts } = await supabase
+    .from("alerts")
+    .select("*")
+    .order("created_at", { ascending: false });
 
   // Cost-basis summary per account (no API calls here — live value is in the account view).
   const summary: Record<string, { invested: number; holdings: number }> = {};
@@ -30,6 +37,7 @@ export default async function DashboardPage() {
           Each account is an independent paper-trading portfolio.
         </p>
       </div>
+      <AlertsCard alerts={(alerts ?? []) as Alert[]} />
       <AccountsGrid accounts={(accounts ?? []) as Account[]} summary={summary} />
     </div>
   );

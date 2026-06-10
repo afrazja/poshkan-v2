@@ -66,6 +66,7 @@ interface YQuote {
   fiftyTwoWeekLow?: number;
   dividendRate?: number;
   trailingAnnualDividendRate?: number;
+  earningsTimestamp?: number | Date;
 }
 interface YCandle {
   date?: Date | string;
@@ -114,7 +115,14 @@ function toQuote(q: YQuote): Quote {
     fiftyTwoWeekHigh: q.fiftyTwoWeekHigh,
     fiftyTwoWeekLow: q.fiftyTwoWeekLow,
     dividendRate: q.dividendRate ?? q.trailingAnnualDividendRate,
+    earningsDate: toIso(q.earningsTimestamp),
   };
+}
+
+function toIso(v: number | Date | undefined): string | undefined {
+  if (v == null) return undefined;
+  const d = v instanceof Date ? v : new Date(v * 1000);
+  return isNaN(d.getTime()) ? undefined : d.toISOString();
 }
 
 const QUOTE_TTL = 15_000;
@@ -158,6 +166,38 @@ export async function getQuotes(symbols: string[]): Promise<Record<string, Quote
     }
   }
   return out;
+}
+
+export interface NewsItem {
+  title: string;
+  link: string;
+  publisher: string;
+  publishedAt: string | null;
+}
+
+interface YNews {
+  title?: string;
+  link?: string;
+  publisher?: string;
+  providerPublishTime?: number | Date;
+}
+
+export async function getNews(symbol: string): Promise<NewsItem[]> {
+  return cached(`news:${symbol.toUpperCase()}`, 600_000, async () => {
+    const r = (await yf.search(
+      symbol,
+      { quotesCount: 0, newsCount: 6 },
+      { validateResult: false }
+    )) as unknown as { news?: YNews[] };
+    return (Array.isArray(r.news) ? r.news : [])
+      .filter((n) => n.title && n.link)
+      .map((n) => ({
+        title: n.title as string,
+        link: n.link as string,
+        publisher: n.publisher ?? "",
+        publishedAt: toIso(n.providerPublishTime) ?? null,
+      }));
+  });
 }
 
 export interface Candle {

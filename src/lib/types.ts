@@ -81,6 +81,26 @@ export interface Quote {
   fiftyTwoWeekHigh?: number;
   fiftyTwoWeekLow?: number;
   dividendRate?: number;
+  earningsDate?: string;
+}
+
+export interface NewsItem {
+  title: string;
+  link: string;
+  publisher: string;
+  publishedAt: string | null;
+}
+
+export interface Alert {
+  id: string;
+  user_id: string;
+  symbol: string;
+  condition: "ABOVE" | "BELOW";
+  target_price: number;
+  status: "active" | "triggered";
+  created_at: string;
+  triggered_at: string | null;
+  triggered_price: number | null;
 }
 
 export interface SymbolSearchResult {

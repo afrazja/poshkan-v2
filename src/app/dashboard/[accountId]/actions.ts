@@ -125,6 +125,37 @@ export async function fillLimitOrderAction(
   return { filled: true, price };
 }
 
+// Price alerts (per user, not per account).
+export async function createAlertAction(input: {
+  symbol: string;
+  condition: "ABOVE" | "BELOW";
+  targetPrice: number;
+}): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated" };
+  if (!input.targetPrice || input.targetPrice <= 0) return { error: "Enter a valid target price" };
+  const { error } = await supabase.from("alerts").insert({
+    user_id: user.id,
+    symbol: input.symbol.toUpperCase(),
+    condition: input.condition,
+    target_price: input.targetPrice,
+  });
+  if (error) return { error: error.message };
+  revalidatePath("/dashboard");
+  return {};
+}
+
+export async function deleteAlertAction(alertId: string): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const { error } = await supabase.from("alerts").delete().eq("id", alertId);
+  if (error) return { error: error.message };
+  revalidatePath("/dashboard");
+  return {};
+}
+
 export async function addToWatchlistAction(accountId: string, symbol: string) {
   const supabase = await createClient();
   const { error } = await supabase
