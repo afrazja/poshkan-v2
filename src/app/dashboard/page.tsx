@@ -1,7 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
+import { getQuotes } from "@/lib/marketdata";
 import AccountsGrid from "@/components/accounts/AccountsGrid";
 import AlertsCard from "@/components/accounts/AlertsCard";
-import type { Account, Position, Alert } from "@/lib/types";
+import type { Account, Position, Alert, Quote } from "@/lib/types";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -13,7 +14,13 @@ export default async function DashboardPage() {
 
   const { data: positions } = await supabase
     .from("positions")
-    .select("account_id, quantity, avg_cost");
+    .select("account_id, symbol, quantity, avg_cost");
+
+  // Open forex margin counts toward a forex account's value.
+  const { data: fxOpen } = await supabase
+    .from("fx_positions")
+    .select("account_id, margin")
+    .eq("status", "open");
 
   // Price alerts (table may not exist until upgrades.sql is run — degrades to none).
   const { data: alerts } = await supabase
@@ -21,12 +28,28 @@ export default async function DashboardPage() {
     .select("*")
     .order("created_at", { ascending: false });
 
-  // Cost-basis summary per account (no API calls here — live value is in the account view).
-  const summary: Record<string, { invested: number; holdings: number }> = {};
-  for (const p of (positions ?? []) as Pick<Position, "account_id" | "quantity" | "avg_cost">[]) {
-    const s = (summary[p.account_id] ??= { invested: 0, holdings: 0 });
-    s.invested += Number(p.quantity) * Number(p.avg_cost);
+  // Live market value per account (batched quotes, server-side cache).
+  const posRows = (positions ?? []) as Pick<Position, "account_id" | "symbol" | "quantity" | "avg_cost">[];
+  let quotes: Record<string, Quote> = {};
+  const symbols = Array.from(new Set(posRows.map((p) => p.symbol.toUpperCase())));
+  if (symbols.length) {
+    try {
+      quotes = await getQuotes(symbols);
+    } catch {
+      // quotes unavailable — fall back to cost basis below
+    }
+  }
+
+  const summary: Record<string, { marketValue: number; holdings: number }> = {};
+  for (const p of posRows) {
+    const s = (summary[p.account_id] ??= { marketValue: 0, holdings: 0 });
+    const q = quotes[p.symbol.toUpperCase()];
+    s.marketValue += Number(p.quantity) * (q?.price ?? Number(p.avg_cost));
     s.holdings += 1;
+  }
+  for (const f of fxOpen ?? []) {
+    const s = (summary[f.account_id] ??= { marketValue: 0, holdings: 0 });
+    s.marketValue += Number(f.margin);
   }
 
   return (

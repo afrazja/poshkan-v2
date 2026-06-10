@@ -11,7 +11,7 @@ export default function AccountsGrid({
   summary,
 }: {
   accounts: Account[];
-  summary: Record<string, { invested: number; holdings: number }>;
+  summary: Record<string, { marketValue: number; holdings: number }>;
 }) {
   const [showCreate, setShowCreate] = useState(false);
 
@@ -19,8 +19,8 @@ export default function AccountsGrid({
     <>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {accounts.map((acc) => {
-          const s = summary[acc.id] ?? { invested: 0, holdings: 0 };
-          const total = Number(acc.cash_balance) + s.invested;
+          const s = summary[acc.id] ?? { marketValue: 0, holdings: 0 };
+          const total = Number(acc.cash_balance) + s.marketValue;
           return (
             <Link
               key={acc.id}
@@ -34,7 +34,7 @@ export default function AccountsGrid({
                 </span>
               </div>
               <div className="text-2xl font-bold">{formatCurrency(total)}</div>
-              <div className="mt-1 text-xs text-muted">account value (cost basis)</div>
+              <div className="mt-1 text-xs text-muted">account value</div>
               <div className="mt-4 flex justify-between border-t border-border pt-3 text-sm">
                 <span className="text-muted">
                   Cash <span className="text-foreground">{formatCurrency(Number(acc.cash_balance))}</span>

@@ -1,5 +1,8 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { getQuotes } from "@/lib/marketdata";
+import { floatingPnl } from "@/lib/forex";
 import { formatCurrency, formatPercent, changeColor } from "@/lib/format";
 
 interface Row {
@@ -25,14 +28,63 @@ export default async function LeaderboardPage() {
   const { data, error } = await supabase.rpc("get_leaderboard");
   const rows = (data ?? []) as Row[];
 
+  // Re-price standings with LIVE market values (the RPC's values come from the
+  // nightly snapshot / cost basis). Falls back silently if quotes are down.
+  if (rows.length) {
+    try {
+      const admin = createAdminClient();
+      const ids = rows.map((r) => r.account_id);
+      const [{ data: accs }, { data: pos }, { data: fx }] = await Promise.all([
+        admin.from("accounts").select("id, cash_balance").in("id", ids),
+        admin.from("positions").select("account_id, symbol, quantity, avg_cost").in("account_id", ids),
+        admin
+          .from("fx_positions")
+          .select("account_id, symbol, direction, units, open_rate, margin")
+          .eq("status", "open")
+          .in("account_id", ids),
+      ]);
+      const symbols = Array.from(
+        new Set([
+          ...(pos ?? []).map((p) => p.symbol.toUpperCase()),
+          ...(fx ?? []).map((f) => f.symbol.toUpperCase()),
+        ])
+      );
+      const quotes = symbols.length ? await getQuotes(symbols) : {};
+      const cashById = new Map((accs ?? []).map((a) => [a.id, Number(a.cash_balance)]));
+
+      for (const r of rows) {
+        let value = cashById.get(r.account_id) ?? 0;
+        for (const p of pos ?? []) {
+          if (p.account_id !== r.account_id) continue;
+          const q = quotes[p.symbol.toUpperCase()];
+          value += Number(p.quantity) * (q?.price ?? Number(p.avg_cost));
+        }
+        for (const f of fx ?? []) {
+          if (f.account_id !== r.account_id) continue;
+          const q = quotes[f.symbol.toUpperCase()];
+          value +=
+            Number(f.margin) +
+            (q ? floatingPnl(f.direction as "LONG" | "SHORT", Number(f.units), Number(f.open_rate), q.price) : 0);
+        }
+        r.total_value = value;
+        r.return_pct =
+          Number(r.contributions) > 0
+            ? ((value - Number(r.contributions)) / Number(r.contributions)) * 100
+            : 0;
+      }
+      rows.sort((a, b) => b.return_pct - a.return_pct || b.total_value - a.total_value);
+    } catch {
+      // SUPABASE_SERVICE_ROLE_KEY missing or quotes down — snapshot values still shown
+    }
+  }
+
   return (
     <div>
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">🏆 Leaderboard</h1>
           <p className="text-sm text-muted">
-            All accounts ranked by % return on the money put in. Updated with each nightly
-            snapshot.
+            All accounts ranked by % return on the money put in, at live market prices.
           </p>
         </div>
         <Link href="/dashboard" className="text-sm text-muted hover:text-foreground hover:underline">
@@ -95,8 +147,7 @@ export default async function LeaderboardPage() {
       {rows.length > 0 && (
         <p className="mt-3 text-xs text-muted">
           Return = (value − contributions) ÷ contributions, since each account&apos;s last reset.
-          Values are from the latest nightly snapshot (new accounts use cost basis until their
-          first snapshot).
+          Values use live market prices.
         </p>
       )}
     </div>
