@@ -15,6 +15,14 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Poshkan — Paper Trading",
   description: "Risk-free US stock paper trading. Practice the market, master your moves.",
+  appleWebApp: {
+    capable: true,
+    title: "Poshkan",
+    statusBarStyle: "black-translucent",
+  },
+  icons: {
+    apple: "/icons/apple-touch-icon.png",
+  },
 };
 
 // Inline script applies the persisted theme before paint to avoid a flash.
