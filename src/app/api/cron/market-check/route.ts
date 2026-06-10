@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getQuotes } from "@/lib/marketdata";
 import { autoCloseReason, marginFor } from "@/lib/forex";
+import { sendEmail, alertEmailHtml } from "@/lib/email";
+import { sendPushToUser } from "@/lib/push";
 
 export const maxDuration = 60;
 
@@ -16,8 +18,11 @@ export async function GET(request: Request) {
 
   const db = createAdminClient();
   const [{ data: orders }, { data: alerts }, { data: fxPositions }, { data: fxOrders }] = await Promise.all([
-    db.from("orders").select("id, symbol, side, limit_price").eq("status", "pending"),
-    db.from("alerts").select("id, symbol, condition, target_price").eq("status", "active"),
+    db
+      .from("orders")
+      .select("id, symbol, side, quantity, limit_price, accounts(user_id)")
+      .eq("status", "pending"),
+    db.from("alerts").select("id, user_id, symbol, condition, target_price").eq("status", "active"),
     db
       .from("fx_positions")
       .select("id, symbol, direction, units, open_rate, margin, stop_loss, take_profit")
@@ -98,7 +103,16 @@ export async function GET(request: Request) {
       o.side === "BUY" ? q.price <= Number(o.limit_price) : q.price >= Number(o.limit_price);
     if (!meets) continue;
     const { data } = await db.rpc("system_fill_order", { p_order_id: o.id, p_price: q.price });
-    if (data === "filled") filled++;
+    if (data === "filled") {
+      filled++;
+      const ownerId = (o as { accounts?: { user_id?: string } }).accounts?.user_id;
+      if (ownerId) {
+        void sendPushToUser(ownerId, {
+          title: `✅ Order filled: ${o.side} ${o.symbol}`,
+          body: `${Number(o.quantity)} ${o.symbol} @ $${q.price.toFixed(2)} (limit $${Number(o.limit_price).toFixed(2)})`,
+        });
+      }
+    }
   }
 
   for (const a of alerts ?? []) {
@@ -107,12 +121,39 @@ export async function GET(request: Request) {
     const hit =
       a.condition === "ABOVE" ? q.price >= Number(a.target_price) : q.price <= Number(a.target_price);
     if (!hit) continue;
-    const { error } = await db
+    const { data: claimed, error } = await db
       .from("alerts")
       .update({ status: "triggered", triggered_at: new Date().toISOString(), triggered_price: q.price })
       .eq("id", a.id)
-      .eq("status", "active");
-    if (!error) triggered++;
+      .eq("status", "active")
+      .select("id");
+    if (error || !claimed?.length) continue;
+    triggered++;
+
+    // Email the owner (best-effort — the dashboard banner is the source of truth).
+    try {
+      const { data: u } = await db.auth.admin.getUserById(a.user_id);
+      const email = u?.user?.email;
+      if (email) {
+        await sendEmail(
+          email,
+          `🔔 ${a.symbol} ${a.condition === "ABOVE" ? "rose to" : "dropped to"} $${q.price.toFixed(2)}`,
+          alertEmailHtml({
+            symbol: a.symbol,
+            condition: a.condition as "ABOVE" | "BELOW",
+            targetPrice: Number(a.target_price),
+            triggeredPrice: q.price,
+            appUrl: new URL(request.url).origin,
+          })
+        );
+      }
+    } catch {
+      // email failure must never break the cron
+    }
+    void sendPushToUser(a.user_id, {
+      title: `🔔 ${a.symbol} alert`,
+      body: `${a.symbol} ${a.condition === "ABOVE" ? "rose to" : "dropped to"} $${q.price.toFixed(2)} (target $${Number(a.target_price).toFixed(2)})`,
+    });
   }
 
   return NextResponse.json({ filled, triggered, stopped, fxFilled, checked: symbols.length });

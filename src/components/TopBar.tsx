@@ -8,6 +8,14 @@ import Avatar from "./Avatar";
 import ThemeToggle from "./ThemeToggle";
 import ChangePasswordModal from "./ChangePasswordModal";
 import ApiAccessModal from "./ApiAccessModal";
+import { savePushSubscriptionAction } from "@/app/dashboard/[accountId]/actions";
+
+function urlBase64ToUint8Array(base64: string): Uint8Array {
+  const padding = "=".repeat((4 - (base64.length % 4)) % 4);
+  const b64 = (base64 + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const raw = window.atob(b64);
+  return Uint8Array.from([...raw].map((c) => c.charCodeAt(0)));
+}
 
 export default function TopBar({ username, email }: { username: string; email: string }) {
   const router = useRouter();
@@ -15,6 +23,34 @@ export default function TopBar({ username, email }: { username: string; email: s
   const [avatarOpen, setAvatarOpen] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showApiAccess, setShowApiAccess] = useState(false);
+  const [pushMsg, setPushMsg] = useState<string | null>(null);
+
+  async function enablePush() {
+    setPushMsg(null);
+    try {
+      if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+        return setPushMsg("Not supported in this browser");
+      }
+      const key = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+      if (!key) return setPushMsg("Push not configured (VAPID key missing)");
+      const reg = await navigator.serviceWorker.register("/sw.js");
+      const perm = await Notification.requestPermission();
+      if (perm !== "granted") return setPushMsg("Permission denied");
+      const sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(key) as BufferSource,
+      });
+      const json = sub.toJSON();
+      const res = await savePushSubscriptionAction({
+        endpoint: sub.endpoint,
+        p256dh: json.keys?.p256dh ?? "",
+        auth: json.keys?.auth ?? "",
+      });
+      setPushMsg(res.error ?? "✓ Notifications enabled on this device");
+    } catch (e) {
+      setPushMsg(`Failed: ${(e as Error).message}`);
+    }
+  }
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -50,6 +86,12 @@ export default function TopBar({ username, email }: { username: string; email: s
             className="rounded-lg px-2 py-1 text-sm font-medium text-muted transition hover:bg-background hover:text-foreground"
           >
             🏆 Leaderboard
+          </Link>
+          <Link
+            href="/dashboard/journal"
+            className="rounded-lg px-2 py-1 text-sm font-medium text-muted transition hover:bg-background hover:text-foreground"
+          >
+            📓 Journal
           </Link>
         </div>
 
@@ -91,6 +133,13 @@ export default function TopBar({ username, email }: { username: string; email: s
                 >
                   Claude API access
                 </button>
+                <button
+                  onClick={enablePush}
+                  className="w-full rounded-md px-3 py-2 text-left text-sm hover:bg-background"
+                >
+                  Enable notifications
+                </button>
+                {pushMsg && <p className="px-3 py-1 text-xs text-muted">{pushMsg}</p>}
               </div>
             )}
           </div>

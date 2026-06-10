@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { getQuote } from "@/lib/marketdata";
+import { getQuote, getQuotes } from "@/lib/marketdata";
 import { assetTypeError } from "@/lib/assets";
 import { marginFor, sltpError, autoCloseReason } from "@/lib/forex";
 
@@ -449,6 +449,129 @@ export async function autoCloseFxPositionAction(
   if (error) return { closed: false };
   revalidatePath(`/dashboard/${accountId}`);
   return { closed: true, reason };
+}
+
+// Web-push subscriptions (one per device/browser).
+export async function savePushSubscriptionAction(sub: {
+  endpoint: string;
+  p256dh: string;
+  auth: string;
+}): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated" };
+  const { error } = await supabase
+    .from("push_subscriptions")
+    .upsert(
+      { user_id: user.id, endpoint: sub.endpoint, p256dh: sub.p256dh, auth: sub.auth },
+      { onConflict: "endpoint" }
+    );
+  if (error) return { error: error.message };
+  return {};
+}
+
+export async function removePushSubscriptionAction(endpoint: string): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const { error } = await supabase.from("push_subscriptions").delete().eq("endpoint", endpoint);
+  if (error) return { error: error.message };
+  return {};
+}
+
+// Trade journal: record the WHY behind a trade.
+export async function createJournalEntryAction(input: {
+  accountId: string;
+  symbol: string;
+  side: "BUY" | "SELL";
+  quantity: number;
+  price: number;
+  note: string;
+}): Promise<{ error?: string }> {
+  const note = input.note.trim();
+  if (!note) return {};
+  if (note.length > 2000) return { error: "Note is too long" };
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated" };
+  const { error } = await supabase.from("journal_entries").insert({
+    user_id: user.id,
+    account_id: input.accountId,
+    symbol: input.symbol.toUpperCase(),
+    side: input.side,
+    quantity: input.quantity,
+    price: input.price,
+    note,
+  });
+  if (error) return { error: error.message };
+  return {};
+}
+
+// AI coach: Claude reviews the user's journaled reasoning against outcomes.
+export async function reviewJournalAction(): Promise<{ review?: string; error?: string }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated" };
+  if (!process.env.ANTHROPIC_API_KEY) {
+    return { error: "ANTHROPIC_API_KEY is not configured on the server." };
+  }
+
+  const { data: entries } = await supabase
+    .from("journal_entries")
+    .select("symbol, side, quantity, price, note, created_at")
+    .order("created_at", { ascending: false })
+    .limit(50);
+  if (!entries?.length) {
+    return { error: "No journal entries yet — add a note the next time you trade." };
+  }
+
+  // Current prices so Claude can judge how each thesis is playing out.
+  const symbols = Array.from(new Set(entries.map((e) => e.symbol.toUpperCase())));
+  let quotes: Record<string, { price: number }> = {};
+  try {
+    quotes = await getQuotes(symbols);
+  } catch {
+    // proceed without live prices
+  }
+
+  const rows = entries.map((e) => ({
+    date: e.created_at.slice(0, 10),
+    side: e.side,
+    symbol: e.symbol,
+    quantity: Number(e.quantity),
+    price_at_trade: Number(e.price),
+    price_now: quotes[e.symbol.toUpperCase()]?.price ?? null,
+    reasoning: e.note,
+  }));
+
+  const { default: Anthropic } = await import("@anthropic-ai/sdk");
+  const client = new Anthropic();
+  try {
+    const response = await client.messages.create({
+      model: "claude-opus-4-8",
+      max_tokens: 2000,
+      thinking: { type: "adaptive" },
+      system:
+        "You are a trading coach reviewing a paper-trading student's journal. Each entry has the trade, the student's stated reasoning, and how the price has moved since. Evaluate the QUALITY OF REASONING, not just outcomes (good reasoning can lose; bad reasoning can win). Identify patterns across entries: which kinds of theses work for them, recurring mistakes (FOMO, no exit plan, vague theses), and one concrete habit to practice next. Be direct, specific, and encouraging. Reference their actual trades. Respond in concise markdown, under 400 words. This is paper trading practice — no real-money disclaimers needed.",
+      messages: [
+        {
+          role: "user",
+          content: `Here is my trade journal (newest first):\n\n${JSON.stringify(rows, null, 2)}\n\nReview my trading reasoning.`,
+        },
+      ],
+    });
+    const text = response.content
+      .filter((b) => b.type === "text")
+      .map((b) => (b as { text: string }).text)
+      .join("\n");
+    return { review: text || "(empty review)" };
+  } catch (e) {
+    return { error: `AI review failed: ${(e as Error).message}` };
+  }
 }
 
 // Personal API tokens for the Claude/MCP integration. The plaintext token is
