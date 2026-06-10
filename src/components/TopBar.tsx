@@ -35,13 +35,21 @@ export default function TopBar({ username, email }: { username: string; email: s
   return (
     <>
       <header className="sticky top-0 z-30 flex items-center justify-between border-b border-border bg-card/80 px-4 py-3 backdrop-blur sm:px-6">
-        {/* Left: site name */}
-        <Link href="/dashboard" className="flex items-center gap-2">
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-sm font-bold text-primary-foreground">
-            P
-          </span>
-          <span className="text-lg font-bold tracking-tight">Poshkan</span>
-        </Link>
+        {/* Left: site name + nav */}
+        <div className="flex items-center gap-4">
+          <Link href="/dashboard" className="flex items-center gap-2">
+            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-sm font-bold text-primary-foreground">
+              P
+            </span>
+            <span className="text-lg font-bold tracking-tight">Poshkan</span>
+          </Link>
+          <Link
+            href="/dashboard/leaderboard"
+            className="rounded-lg px-2 py-1 text-sm font-medium text-muted transition hover:bg-background hover:text-foreground"
+          >
+            🏆 Leaderboard
+          </Link>
+        </div>
 
         {/* Right: settings (left of avatar) + avatar */}
         <div ref={ref} className="flex items-center gap-2">
