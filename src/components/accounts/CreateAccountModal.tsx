@@ -96,9 +96,7 @@ export default function CreateAccountModal({ onClose }: { onClose: () => void })
             <label className="mb-1 block text-sm font-medium">Type</label>
             <select value={type} onChange={(e) => setType(e.target.value)} className={inputClass}>
               <option value="stocks">Stocks</option>
-              <option value="crypto" disabled>
-                Crypto (coming soon)
-              </option>
+              <option value="crypto">Crypto</option>
               <option value="forex" disabled>
                 Forex (coming soon)
               </option>
