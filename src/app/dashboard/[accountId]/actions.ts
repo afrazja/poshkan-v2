@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getQuote } from "@/lib/marketdata";
 import { assetTypeError } from "@/lib/assets";
-import { marginFor } from "@/lib/forex";
+import { marginFor, sltpError, autoCloseReason } from "@/lib/forex";
 
 // Server-side guard: does this symbol belong in this account's asset class?
 async function checkAccountAsset(
@@ -155,6 +155,8 @@ export async function openFxPositionAction(input: {
   symbol: string;
   direction: "LONG" | "SHORT";
   units: number;
+  stopLoss?: number | null;
+  takeProfit?: number | null;
 }): Promise<{ rate?: number; margin?: number; error?: string }> {
   const supabase = await createClient();
   const {
@@ -181,6 +183,11 @@ export async function openFxPositionAction(input: {
     return { error: `Rate fetch failed: ${(e as Error).message}` };
   }
 
+  const sl = input.stopLoss ?? null;
+  const tp = input.takeProfit ?? null;
+  const sltpErr = sltpError(input.direction, rate, sl, tp);
+  if (sltpErr) return { error: sltpErr };
+
   const margin = marginFor(input.units, rate);
   const { error } = await supabase.rpc("fx_open", {
     p_account_id: input.accountId,
@@ -189,6 +196,8 @@ export async function openFxPositionAction(input: {
     p_units: input.units,
     p_rate: rate,
     p_margin: margin,
+    p_stop_loss: sl,
+    p_take_profit: tp,
   });
   if (error) return { error: error.message };
   revalidatePath(`/dashboard/${input.accountId}`);
@@ -220,11 +229,84 @@ export async function closeFxPositionAction(
   const { data, error } = await supabase.rpc("fx_close", {
     p_position_id: positionId,
     p_rate: rate,
-    p_stopped: false,
+    p_reason: "closed",
   });
   if (error) return { error: error.message };
   revalidatePath(`/dashboard/${accountId}`);
   return { pnl: data as number };
+}
+
+// Forex: set or clear stop-loss / take-profit on an open position.
+export async function setFxSlTpAction(input: {
+  positionId: string;
+  accountId: string;
+  stopLoss: number | null;
+  takeProfit: number | null;
+}): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const { data: pos } = await supabase
+    .from("fx_positions")
+    .select("symbol, direction")
+    .eq("id", input.positionId)
+    .eq("status", "open")
+    .single();
+  if (!pos) return { error: "Position not found" };
+
+  let rate: number;
+  try {
+    rate = (await getQuote(pos.symbol)).price;
+    if (!rate || rate <= 0) return { error: "Could not get a valid rate" };
+  } catch (e) {
+    return { error: `Rate fetch failed: ${(e as Error).message}` };
+  }
+  const err = sltpError(pos.direction as "LONG" | "SHORT", rate, input.stopLoss, input.takeProfit);
+  if (err) return { error: err };
+
+  const { error } = await supabase.rpc("fx_set_sltp", {
+    p_position_id: input.positionId,
+    p_rate: rate,
+    p_stop_loss: input.stopLoss,
+    p_take_profit: input.takeProfit,
+  });
+  if (error) return { error: error.message };
+  revalidatePath(`/dashboard/${input.accountId}`);
+  return {};
+}
+
+// Forex: auto-close an open position if stop-out / SL / TP currently holds.
+// The reason is re-derived server-side from a fresh rate — never trusted from
+// the client, and the RPC's status='open' guard makes double-fires harmless.
+export async function autoCloseFxPositionAction(
+  positionId: string,
+  accountId: string
+): Promise<{ closed: boolean; reason?: string }> {
+  const supabase = await createClient();
+  const { data: pos } = await supabase
+    .from("fx_positions")
+    .select("symbol, direction, units, open_rate, margin, stop_loss, take_profit")
+    .eq("id", positionId)
+    .eq("status", "open")
+    .single();
+  if (!pos) return { closed: false };
+
+  let rate: number;
+  try {
+    rate = (await getQuote(pos.symbol)).price;
+    if (!rate || rate <= 0) return { closed: false };
+  } catch {
+    return { closed: false };
+  }
+  const reason = autoCloseReason(pos as Parameters<typeof autoCloseReason>[0], rate);
+  if (!reason) return { closed: false };
+
+  const { error } = await supabase.rpc("fx_close", {
+    p_position_id: positionId,
+    p_rate: rate,
+    p_reason: reason,
+  });
+  if (error) return { closed: false };
+  revalidatePath(`/dashboard/${accountId}`);
+  return { closed: true, reason };
 }
 
 // Account management.

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { FxPosition, Quote } from "@/lib/types";
 import { formatCurrency, formatSignedCurrency, formatPercent, changeColor } from "@/lib/format";
@@ -14,8 +14,15 @@ import {
   floatingPnl,
   pips,
   formatRate,
+  sltpError,
+  autoCloseReason,
 } from "@/lib/forex";
-import { openFxPositionAction, closeFxPositionAction } from "@/app/dashboard/[accountId]/actions";
+import {
+  openFxPositionAction,
+  closeFxPositionAction,
+  setFxSlTpAction,
+  autoCloseFxPositionAction,
+} from "@/app/dashboard/[accountId]/actions";
 import Modal from "@/components/Modal";
 import PriceChart from "./PriceChart";
 
@@ -33,9 +40,25 @@ export default function ForexPanel({
   const router = useRouter();
   const [trade, setTrade] = useState<string | null>(null); // pair symbol
   const [closing, setClosing] = useState<string | null>(null);
+  const [editSltp, setEditSltp] = useState<FxPosition | null>(null);
 
   const open = positions.filter((p) => p.status === "open");
   const closed = positions.filter((p) => p.status !== "open").slice(0, 10);
+
+  // Live auto-close while the page is open (cron covers the rest of the time).
+  // The server re-verifies with a fresh rate, so a stale quote can't force a close.
+  const autoRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    for (const p of open) {
+      const q = quotes[p.symbol.toUpperCase()];
+      if (!q?.price || autoRef.current.has(p.id)) continue;
+      if (!autoCloseReason(p, q.price)) continue;
+      autoRef.current.add(p.id);
+      autoCloseFxPositionAction(p.id, accountId)
+        .then(() => router.refresh())
+        .finally(() => autoRef.current.delete(p.id));
+    }
+  }, [open, quotes, accountId, router]);
 
   async function closePosition(id: string) {
     setClosing(id);
@@ -92,6 +115,7 @@ export default function ForexPanel({
                   <th className="px-4 py-3 text-right font-medium">Pips</th>
                   <th className="px-4 py-3 text-right font-medium">P&L</th>
                   <th className="px-4 py-3 text-right font-medium">Margin</th>
+                  <th className="px-4 py-3 text-right font-medium">SL / TP</th>
                   <th className="px-4 py-3 text-right font-medium"></th>
                 </tr>
               </thead>
@@ -123,6 +147,27 @@ export default function ForexPanel({
                         {fl != null ? formatSignedCurrency(fl) : "…"}
                       </td>
                       <td className="px-4 py-3 text-right text-muted">{formatCurrency(Number(p.margin))}</td>
+                      <td className="px-4 py-3 text-right">
+                        <button
+                          onClick={() => setEditSltp(p)}
+                          className="rounded-md border border-border px-2 py-1 text-xs hover:bg-background"
+                          title="Set stop-loss / take-profit"
+                        >
+                          {p.stop_loss != null || p.take_profit != null ? (
+                            <>
+                              <span className="text-negative">
+                                {p.stop_loss != null ? formatRate(Number(p.stop_loss)) : "—"}
+                              </span>
+                              {" / "}
+                              <span className="text-positive">
+                                {p.take_profit != null ? formatRate(Number(p.take_profit)) : "—"}
+                              </span>
+                            </>
+                          ) : (
+                            "Set"
+                          )}
+                        </button>
+                      </td>
                       <td className="px-4 py-3 text-right">
                         <button
                           onClick={() => closePosition(p.id)}
@@ -175,6 +220,16 @@ export default function ForexPanel({
                           Stopped out
                         </span>
                       )}
+                      {p.status === "sl" && (
+                        <span className="rounded-md bg-negative/15 px-2 py-0.5 text-xs font-medium text-negative">
+                          SL hit
+                        </span>
+                      )}
+                      {p.status === "tp" && (
+                        <span className="rounded-md bg-positive/15 px-2 py-0.5 text-xs font-medium text-positive">
+                          TP hit
+                        </span>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -193,7 +248,99 @@ export default function ForexPanel({
           onClose={() => setTrade(null)}
         />
       )}
+      {editSltp && (
+        <SlTpModal
+          accountId={accountId}
+          position={editSltp}
+          rate={quotes[editSltp.symbol.toUpperCase()]?.price}
+          onClose={() => setEditSltp(null)}
+        />
+      )}
     </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Edit stop-loss / take-profit on an open position.
+function SlTpModal({
+  accountId,
+  position,
+  rate,
+  onClose,
+}: {
+  accountId: string;
+  position: FxPosition;
+  rate?: number;
+  onClose: () => void;
+}) {
+  const router = useRouter();
+  const [sl, setSl] = useState(position.stop_loss != null ? String(position.stop_loss) : "");
+  const [tp, setTp] = useState(position.take_profit != null ? String(position.take_profit) : "");
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const isLong = position.direction === "LONG";
+
+  async function save() {
+    setError(null);
+    const slNum = sl.trim() ? Number(sl) : null;
+    const tpNum = tp.trim() ? Number(tp) : null;
+    if (rate) {
+      const err = sltpError(position.direction, rate, slNum, tpNum);
+      if (err) return setError(err);
+    }
+    setLoading(true);
+    const res = await setFxSlTpAction({
+      positionId: position.id,
+      accountId,
+      stopLoss: slNum,
+      takeProfit: tpNum,
+    });
+    setLoading(false);
+    if (res.error) return setError(res.error);
+    router.refresh();
+    onClose();
+  }
+
+  const inputClass =
+    "w-full rounded-lg border border-border bg-input px-3 py-2 text-sm outline-none focus:border-primary";
+
+  return (
+    <Modal title={`SL / TP — ${pairName(position.symbol)}`} onClose={onClose}>
+      <div className="space-y-4">
+        {error && (
+          <div className="rounded-lg border border-negative/30 bg-negative/10 px-3 py-2 text-sm text-negative">
+            {error}
+          </div>
+        )}
+        <div className="flex justify-between rounded-lg bg-background px-3 py-2 text-sm">
+          <span className="text-muted">
+            {position.direction === "LONG" ? "Long" : "Short"} {Number(position.units).toLocaleString("en-US")} ·
+            opened {formatRate(Number(position.open_rate))}
+          </span>
+          <span className="font-semibold">{rate ? formatRate(rate) : "…"}</span>
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-medium">Stop-loss</label>
+          <input type="number" min="0" step="any" value={sl} onChange={(e) => setSl(e.target.value)}
+            placeholder={isLong ? "Below current rate…" : "Above current rate…"} className={inputClass} />
+          <p className="mt-1 text-xs text-muted">Closes the position to cap your loss. Leave empty for none.</p>
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-medium">Take-profit</label>
+          <input type="number" min="0" step="any" value={tp} onChange={(e) => setTp(e.target.value)}
+            placeholder={isLong ? "Above current rate…" : "Below current rate…"} className={inputClass} />
+          <p className="mt-1 text-xs text-muted">Locks in your gain automatically. Leave empty for none.</p>
+        </div>
+        <button
+          onClick={save}
+          disabled={loading}
+          className="w-full rounded-lg bg-primary py-2.5 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50"
+        >
+          {loading ? "Saving…" : "Save levels"}
+        </button>
+      </div>
+    </Modal>
   );
 }
 
@@ -215,6 +362,8 @@ function FxTradeModal({
   const [direction, setDirection] = useState<"LONG" | "SHORT">("LONG");
   const [units, setUnits] = useState(10_000); // default mini lot
   const [custom, setCustom] = useState("");
+  const [sl, setSl] = useState("");
+  const [tp, setTp] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<{ rate: number; margin: number } | null>(null);
@@ -229,8 +378,21 @@ function FxTradeModal({
     setError(null);
     if (effUnits <= 0) return setError("Enter a position size.");
     if (!affordable) return setError("Not enough free cash for the required margin.");
+    const slNum = sl.trim() ? Number(sl) : null;
+    const tpNum = tp.trim() ? Number(tp) : null;
+    if (rate) {
+      const sltpErr = sltpError(direction, rate, slNum, tpNum);
+      if (sltpErr) return setError(sltpErr);
+    }
     setLoading(true);
-    const res = await openFxPositionAction({ accountId, symbol, direction, units: effUnits });
+    const res = await openFxPositionAction({
+      accountId,
+      symbol,
+      direction,
+      units: effUnits,
+      stopLoss: slNum,
+      takeProfit: tpNum,
+    });
     setLoading(false);
     if (res.error) return setError(res.error);
     setDone({ rate: res.rate ?? rate, margin: res.margin ?? margin });
@@ -323,6 +485,34 @@ function FxTradeModal({
               placeholder="Custom units…"
               className="mt-2 w-full rounded-lg border border-border bg-input px-3 py-2 text-sm outline-none focus:border-primary"
             />
+          </div>
+
+          {/* Risk management (optional) */}
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="mb-1 block text-xs font-medium text-muted">Stop-loss (optional)</label>
+              <input
+                type="number"
+                min="0"
+                step="any"
+                value={sl}
+                onChange={(e) => setSl(e.target.value)}
+                placeholder={direction === "LONG" ? "Below rate…" : "Above rate…"}
+                className="w-full rounded-lg border border-border bg-input px-3 py-2 text-sm outline-none focus:border-primary"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-muted">Take-profit (optional)</label>
+              <input
+                type="number"
+                min="0"
+                step="any"
+                value={tp}
+                onChange={(e) => setTp(e.target.value)}
+                placeholder={direction === "LONG" ? "Above rate…" : "Below rate…"}
+                className="w-full rounded-lg border border-border bg-input px-3 py-2 text-sm outline-none focus:border-primary"
+              />
+            </div>
           </div>
 
           {/* Order summary */}

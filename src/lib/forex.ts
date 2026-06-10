@@ -50,3 +50,47 @@ export function pips(direction: "LONG" | "SHORT", openRate: number, rate: number
 export function formatRate(rate: number): string {
   return rate.toFixed(5);
 }
+
+// Validate SL/TP placement relative to the current rate (null = not set).
+export function sltpError(
+  direction: "LONG" | "SHORT",
+  rate: number,
+  stopLoss: number | null,
+  takeProfit: number | null
+): string | null {
+  if (direction === "LONG") {
+    if (stopLoss != null && stopLoss >= rate) return "Stop-loss must be below the current rate for a long.";
+    if (takeProfit != null && takeProfit <= rate) return "Take-profit must be above the current rate for a long.";
+  } else {
+    if (stopLoss != null && stopLoss <= rate) return "Stop-loss must be above the current rate for a short.";
+    if (takeProfit != null && takeProfit >= rate) return "Take-profit must be below the current rate for a short.";
+  }
+  return null;
+}
+
+// Why an open position should auto-close at this rate, if at all.
+// Priority: margin stop-out, then stop-loss, then take-profit.
+export function autoCloseReason(
+  p: {
+    direction: "LONG" | "SHORT";
+    units: number;
+    open_rate: number;
+    margin: number;
+    stop_loss?: number | null;
+    take_profit?: number | null;
+  },
+  rate: number
+): "stopped" | "sl" | "tp" | null {
+  const floating = floatingPnl(p.direction, Number(p.units), Number(p.open_rate), rate);
+  if (floating <= -Number(p.margin)) return "stopped";
+  const sl = p.stop_loss != null ? Number(p.stop_loss) : null;
+  const tp = p.take_profit != null ? Number(p.take_profit) : null;
+  if (p.direction === "LONG") {
+    if (sl != null && rate <= sl) return "sl";
+    if (tp != null && rate >= tp) return "tp";
+  } else {
+    if (sl != null && rate >= sl) return "sl";
+    if (tp != null && rate <= tp) return "tp";
+  }
+  return null;
+}

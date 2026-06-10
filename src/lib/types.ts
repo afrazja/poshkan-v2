@@ -99,7 +99,9 @@ export interface FxPosition {
   units: number;
   open_rate: number;
   margin: number;
-  status: "open" | "closed" | "stopped";
+  stop_loss: number | null;
+  take_profit: number | null;
+  status: "open" | "closed" | "stopped" | "sl" | "tp";
   opened_at: string;
   closed_at: string | null;
   close_rate: number | null;
