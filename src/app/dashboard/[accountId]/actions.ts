@@ -451,6 +451,52 @@ export async function autoCloseFxPositionAction(
   return { closed: true, reason };
 }
 
+// Personal API tokens for the Claude/MCP integration. The plaintext token is
+// returned ONCE at creation; only its SHA-256 hash is stored.
+export async function createApiTokenAction(
+  name: string
+): Promise<{ token?: string; error?: string }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated" };
+  const trimmed = name.trim() || "Claude";
+  if (trimmed.length > 60) return { error: "Name is too long" };
+
+  const { randomBytes, createHash } = await import("node:crypto");
+  const token = `pk_${randomBytes(24).toString("hex")}`;
+  const tokenHash = createHash("sha256").update(token).digest("hex");
+
+  const { error } = await supabase.from("api_tokens").insert({
+    user_id: user.id,
+    name: trimmed,
+    token_hash: tokenHash,
+  });
+  if (error) return { error: error.message };
+  return { token };
+}
+
+export async function listApiTokensAction(): Promise<{
+  tokens?: { id: string; name: string; created_at: string; last_used_at: string | null }[];
+  error?: string;
+}> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("api_tokens")
+    .select("id, name, created_at, last_used_at")
+    .order("created_at", { ascending: false });
+  if (error) return { error: error.message };
+  return { tokens: data ?? [] };
+}
+
+export async function revokeApiTokenAction(tokenId: string): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const { error } = await supabase.from("api_tokens").delete().eq("id", tokenId);
+  if (error) return { error: error.message };
+  return {};
+}
+
 // Account management.
 export async function renameAccountAction(accountId: string, name: string): Promise<{ error?: string }> {
   const trimmed = name.trim();

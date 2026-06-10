@@ -7,12 +7,14 @@ import { createClient } from "@/lib/supabase/client";
 import Avatar from "./Avatar";
 import ThemeToggle from "./ThemeToggle";
 import ChangePasswordModal from "./ChangePasswordModal";
+import ApiAccessModal from "./ApiAccessModal";
 
 export default function TopBar({ username, email }: { username: string; email: string }) {
   const router = useRouter();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [avatarOpen, setAvatarOpen] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [showApiAccess, setShowApiAccess] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -80,6 +82,15 @@ export default function TopBar({ username, email }: { username: string; email: s
                 >
                   Change password
                 </button>
+                <button
+                  onClick={() => {
+                    setShowApiAccess(true);
+                    setSettingsOpen(false);
+                  }}
+                  className="w-full rounded-md px-3 py-2 text-left text-sm hover:bg-background"
+                >
+                  Claude API access
+                </button>
               </div>
             )}
           </div>
@@ -115,6 +126,7 @@ export default function TopBar({ username, email }: { username: string; email: s
       </header>
 
       {showPassword && <ChangePasswordModal onClose={() => setShowPassword(false)} />}
+      {showApiAccess && <ApiAccessModal onClose={() => setShowApiAccess(false)} />}
     </>
   );
 }
