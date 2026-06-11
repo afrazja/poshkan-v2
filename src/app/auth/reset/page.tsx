@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
 
 type Stage = "verifying" | "form" | "invalid" | "done";
@@ -92,9 +93,7 @@ export default function ResetPasswordPage() {
     <main className="flex min-h-screen items-center justify-center p-6">
       <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6">
         <div className="mb-6 flex items-center gap-2">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-lg font-bold text-primary-foreground">
-            P
-          </div>
+          <Image src="/icons/icon-192.png" alt="Poshkan" width={36} height={36} className="rounded-lg" />
           <span className="text-xl font-bold tracking-tight">Poshkan</span>
         </div>
 

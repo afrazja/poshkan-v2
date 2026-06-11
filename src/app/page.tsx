@@ -1,3 +1,4 @@
+import Image from "next/image";
 import AuthCard from "@/components/auth/AuthCard";
 import SiteFooter from "@/components/SiteFooter";
 
@@ -15,9 +16,7 @@ export default function LandingPage() {
         {/* Left: auth */}
         <div className="flex flex-col justify-center px-6 py-12 sm:px-12 lg:px-16">
           <div className="mb-8 flex items-center gap-2">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-lg font-bold text-primary-foreground">
-              P
-            </div>
+            <Image src="/icons/icon-192.png" alt="Poshkan" width={36} height={36} className="rounded-lg" />
             <span className="text-xl font-bold tracking-tight">Poshkan</span>
           </div>
           <div className="flex flex-1 items-center">

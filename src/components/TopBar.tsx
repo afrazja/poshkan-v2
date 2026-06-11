@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import Avatar from "./Avatar";
@@ -76,9 +77,7 @@ export default function TopBar({ username, email }: { username: string; email: s
         {/* Left: site name + nav */}
         <div className="flex items-center gap-4">
           <Link href="/dashboard" className="flex items-center gap-2">
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-sm font-bold text-primary-foreground">
-              P
-            </span>
+            <Image src="/icons/icon-192.png" alt="Poshkan" width={32} height={32} className="rounded-lg" />
             <span className="text-lg font-bold tracking-tight">Poshkan</span>
           </Link>
           <Link
