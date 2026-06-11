@@ -529,6 +529,36 @@ export async function reviewJournalAction(): Promise<{ review?: string; error?: 
     return { error: "No journal entries yet — add a note the next time you trade." };
   }
 
+  // Per-user guardrail: a daily quota + skip if nothing changed since the last
+  // review. Protects the shared API budget from one user spamming the button.
+  // Best-effort: if the ai_reviews table isn't migrated yet, reviews stay open.
+  const DAILY_LIMIT = 5;
+  const newestEntryAt = entries[0].created_at;
+  try {
+    const startOfDay = new Date();
+    startOfDay.setUTCHours(0, 0, 0, 0);
+    const { count } = await supabase
+      .from("ai_reviews")
+      .select("id", { count: "exact", head: true })
+      .gte("created_at", startOfDay.toISOString());
+    if ((count ?? 0) >= DAILY_LIMIT) {
+      return { error: `You've used all ${DAILY_LIMIT} AI reviews for today. They reset at midnight UTC.` };
+    }
+    const { data: last } = await supabase
+      .from("ai_reviews")
+      .select("last_entry_at")
+      .order("created_at", { ascending: false })
+      .limit(1);
+    const lastEntryAt = last?.[0]?.last_entry_at;
+    if (lastEntryAt && new Date(newestEntryAt).getTime() <= new Date(lastEntryAt).getTime()) {
+      return {
+        error: "No new journaled trades since your last review. Add a note on your next trade, then review again.",
+      };
+    }
+  } catch {
+    // ai_reviews table not migrated — proceed without the quota
+  }
+
   // Current prices so Claude can judge how each thesis is playing out.
   const symbols = Array.from(new Set(entries.map((e) => e.symbol.toUpperCase())));
   let quotes: Record<string, { price: number }> = {};
@@ -568,6 +598,12 @@ export async function reviewJournalAction(): Promise<{ review?: string; error?: 
       .filter((b) => b.type === "text")
       .map((b) => (b as { text: string }).text)
       .join("\n");
+    // Record usage (drives the daily quota + dedup). Best-effort.
+    try {
+      await supabase.from("ai_reviews").insert({ user_id: user.id, last_entry_at: newestEntryAt });
+    } catch {
+      // ignore if the table isn't migrated
+    }
     return { review: text || "(empty review)" };
   } catch (e) {
     return { error: `AI review failed: ${(e as Error).message}` };
