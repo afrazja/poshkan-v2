@@ -11,7 +11,10 @@ export async function sendEmail(to: string, subject: string, html: string): Prom
       method: "POST",
       headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        from: "Poshkan <onboarding@resend.dev>",
+        // Set EMAIL_FROM (e.g. "Poshkan <alerts@poshkan.com>") once the domain
+        // is verified in Resend; the resend.dev fallback only delivers to the
+        // Resend account owner's address.
+        from: process.env.EMAIL_FROM || "Poshkan <onboarding@resend.dev>",
         to,
         subject,
         html,
