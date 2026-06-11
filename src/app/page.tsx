@@ -1,8 +1,10 @@
 import AuthCard from "@/components/auth/AuthCard";
+import SiteFooter from "@/components/SiteFooter";
 
 export default function LandingPage() {
   return (
-    <main className="grid min-h-screen grid-cols-1 lg:grid-cols-2">
+    <div className="flex min-h-screen flex-col">
+    <main className="grid flex-1 grid-cols-1 lg:grid-cols-2">
       {/* Left: auth */}
       <div className="flex flex-col justify-center px-6 py-12 sm:px-12 lg:px-16">
         <div className="mb-8 flex items-center gap-2">
@@ -45,6 +47,8 @@ export default function LandingPage() {
         </div>
       </div>
     </main>
+    <SiteFooter />
+    </div>
   );
 }
 

@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import Providers from "@/components/Providers";
 import TopBar from "@/components/TopBar";
+import SiteFooter from "@/components/SiteFooter";
 
 export default async function DashboardLayout({
   children,
@@ -30,6 +31,7 @@ export default async function DashboardLayout({
         <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:px-6">
           {children}
         </main>
+        <SiteFooter />
       </div>
     </Providers>
   );

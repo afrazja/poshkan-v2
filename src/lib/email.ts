@@ -44,7 +44,8 @@ export function alertEmailHtml(input: {
       Open Poshkan
     </a>
     <p style="font-size:12px;color:#888;margin-top:24px">
-      You set this alert in Poshkan. Dismiss it on your dashboard to stop tracking.
+      You set this alert in Poshkan. Dismiss it on your dashboard to stop tracking.<br/>
+      Poshkan is a paper-trading simulator — all balances are virtual; nothing here is financial advice.
     </p>
   </div>`;
 }

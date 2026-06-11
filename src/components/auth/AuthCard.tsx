@@ -250,6 +250,18 @@ export default function AuthCard() {
           >
             {loading ? "Creating…" : "Create account"}
           </button>
+          <p className="text-center text-xs text-muted">
+            Poshkan is a 100% virtual paper-trading simulator — no real money, no financial
+            advice. By creating an account you agree to the{" "}
+            <a href="/terms" className="underline hover:text-foreground">
+              Terms
+            </a>{" "}
+            and{" "}
+            <a href="/privacy" className="underline hover:text-foreground">
+              Privacy policy
+            </a>
+            .
+          </p>
         </form>
       )}
     </div>
