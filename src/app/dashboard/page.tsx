@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getQuotes } from "@/lib/marketdata";
 import AccountsGrid from "@/components/accounts/AccountsGrid";
 import AlertsCard from "@/components/accounts/AlertsCard";
+import GettingStarted from "@/components/accounts/GettingStarted";
 import type { Account, Position, Alert, Quote } from "@/lib/types";
 
 export default async function DashboardPage() {
@@ -27,6 +28,20 @@ export default async function DashboardPage() {
     .from("alerts")
     .select("*")
     .order("created_at", { ascending: false });
+
+  // Getting-started checklist flags (each query is a cheap existence check).
+  const [{ data: anyTrade }, { data: anyJournal }, { data: anyReview }] = await Promise.all([
+    supabase.from("transactions").select("id").in("side", ["BUY", "SELL"]).limit(1),
+    supabase.from("journal_entries").select("id").limit(1),
+    supabase.from("ai_reviews").select("id").limit(1),
+  ]);
+  const checks = {
+    hasAccount: (accounts?.length ?? 0) > 0,
+    hasTrade: (anyTrade?.length ?? 0) > 0,
+    hasJournal: (anyJournal?.length ?? 0) > 0,
+    hasAlert: (alerts?.length ?? 0) > 0,
+    hasAiReview: (anyReview?.length ?? 0) > 0,
+  };
 
   // Live market value per account (batched quotes, server-side cache).
   const posRows = (positions ?? []) as Pick<Position, "account_id" | "symbol" | "quantity" | "avg_cost">[];
@@ -60,6 +75,7 @@ export default async function DashboardPage() {
           Each account is an independent paper-trading portfolio.
         </p>
       </div>
+      <GettingStarted checks={checks} />
       <AlertsCard alerts={(alerts ?? []) as Alert[]} />
       <AccountsGrid accounts={(accounts ?? []) as Account[]} summary={summary} />
     </div>

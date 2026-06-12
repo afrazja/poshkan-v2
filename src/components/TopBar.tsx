@@ -138,6 +138,13 @@ export default function TopBar({ username, email }: { username: string; email: s
                 >
                   Enable notifications
                 </button>
+                <Link
+                  href="/help"
+                  onClick={() => setSettingsOpen(false)}
+                  className="block w-full rounded-md px-3 py-2 text-left text-sm hover:bg-background"
+                >
+                  Help &amp; guide
+                </Link>
                 {pushMsg && <p className="px-3 py-1 text-xs text-muted">{pushMsg}</p>}
               </div>
             )}
