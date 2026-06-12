@@ -316,7 +316,7 @@ export default function AccountView({
             </div>
           )}
         </div>
-        <div className="mt-5 grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <div className={`mt-5 grid grid-cols-2 gap-4 ${isForex ? "sm:grid-cols-4" : "sm:grid-cols-3 lg:grid-cols-5"}`}>
           {isForex ? (
             <>
               <Stat label="Free cash" value={formatCurrency(cash)} />
@@ -339,6 +339,11 @@ export default function AccountView({
                 label="Holdings value"
                 value={formatCurrency(holdingsValue)}
                 onChart={positions.length ? () => setMetricChart("holdings") : undefined}
+              />
+              <Stat
+                label="Today's P&L"
+                value={`${formatSignedCurrency(todayPnl)} (${formatPercent(todayPnlPct)})`}
+                colorClass={changeColor(todayPnl)}
               />
               <Stat
                 label="Unrealized P&L"
