@@ -109,6 +109,41 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* Positioning: why not the alternatives */}
+      <section className="border-t border-border px-6 py-14 sm:px-12">
+        <div className="mx-auto max-w-5xl">
+          <h2 className="text-center text-2xl font-bold tracking-tight sm:text-3xl">
+            Why not just use a broker&apos;s demo?
+          </h2>
+          <p className="mx-auto mt-2 max-w-2xl text-center text-sm text-muted">
+            Fair question. Here&apos;s the honest comparison.
+          </p>
+
+          <div className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <Alternative
+              title="Broker demo accounts"
+              point="High-fidelity simulations of real platforms."
+              catchLine="Built to convert you into a paying customer — cockpit UIs that intimidate beginners, and zero feedback on why you lose."
+            />
+            <Alternative
+              title="Classroom simulators"
+              point="Simple stock-picking games with leaderboards."
+              catchLine="Usually stocks-only, dated interfaces, delayed data, shallow order types — and no coaching of any kind."
+            />
+            <Alternative
+              title="AI trading journals"
+              point="AI insights on your trading psychology."
+              catchLine="Cost $200–400 per year, assume you already trade real money — and don't include anywhere to practice."
+            />
+          </div>
+
+          <p className="mx-auto mt-8 max-w-2xl text-center text-base font-medium">
+            Poshkan puts all three in one place — the practice venue, the AI coach, and the
+            competition — <span className="text-primary">free</span>.
+          </p>
+        </div>
+      </section>
+
       {/* How it works */}
       <section className="border-t border-border bg-card px-6 py-14 sm:px-12">
         <div className="mx-auto max-w-4xl">
@@ -127,6 +162,19 @@ export default function LandingPage() {
       </section>
 
       <SiteFooter />
+    </div>
+  );
+}
+
+function Alternative({ title, point, catchLine }: { title: string; point: string; catchLine: string }) {
+  return (
+    <div className="rounded-2xl border border-border bg-card p-5">
+      <h3 className="font-semibold">{title}</h3>
+      <p className="mt-1 text-sm text-muted">{point}</p>
+      <p className="mt-2 text-sm leading-relaxed">
+        <span className="font-medium text-negative">The catch:</span>{" "}
+        <span className="text-muted">{catchLine}</span>
+      </p>
     </div>
   );
 }
