@@ -9,12 +9,33 @@ interface BeforeInstallPromptEvent extends Event {
 
 type InstallState = "installable" | "ios" | "manual" | "installed";
 
+// The iOS Share icon (square with an up arrow), inline so the step reads visually.
+function ShareGlyph() {
+  return (
+    <svg
+      className="inline-block h-4 w-4 align-text-bottom text-primary"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M12 15V3" />
+      <path d="M8 7l4-4 4 4" />
+      <rect x="4" y="11" width="16" height="10" rx="2" />
+    </svg>
+  );
+}
+
 // "Install the app" section for the landing page. Chrome/Edge/Android get a
 // real one-tap install button (beforeinstallprompt); iOS gets Share-menu
 // instructions (Safari has no install API); already-installed users get a ✓.
 export default function InstallPwa() {
   const [deferred, setDeferred] = useState<BeforeInstallPromptEvent | null>(null);
   const [state, setState] = useState<InstallState>("manual");
+  const [showIosGuide, setShowIosGuide] = useState(false);
 
   useEffect(() => {
     const standalone =
@@ -72,19 +93,38 @@ export default function InstallPwa() {
             </button>
           )}
 
-          {state === "ios" && (
-            <div className="mx-auto max-w-sm rounded-2xl border border-border bg-background p-4 text-left text-sm">
-              <p className="font-semibold">On iPhone / iPad:</p>
-              <ol className="mt-2 list-inside list-decimal space-y-1 text-muted">
-                <li>Open this page in Safari</li>
-                <li>
-                  Tap the <strong className="text-foreground">Share</strong> button (square with
-                  an arrow)
+          {state === "ios" && !showIosGuide && (
+            <button
+              onClick={() => setShowIosGuide(true)}
+              className="rounded-xl bg-primary px-8 py-3 text-base font-semibold text-primary-foreground shadow-md transition hover:opacity-90"
+            >
+              📲 Install on iPhone
+            </button>
+          )}
+
+          {state === "ios" && showIosGuide && (
+            <div className="mx-auto max-w-sm rounded-2xl border border-primary/40 bg-background p-5 text-left text-sm">
+              <p className="font-semibold">Two taps and it&apos;s on your home screen:</p>
+              <ol className="mt-3 space-y-3 text-muted">
+                <li className="flex items-center gap-3">
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">1</span>
+                  <span>
+                    Tap the <strong className="text-foreground">Share</strong> button{" "}
+                    <ShareGlyph /> at the bottom of Safari
+                  </span>
                 </li>
-                <li>
-                  Choose <strong className="text-foreground">Add to Home Screen</strong>
+                <li className="flex items-center gap-3">
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">2</span>
+                  <span>
+                    Scroll down and tap{" "}
+                    <strong className="text-foreground">Add to Home Screen</strong>{" "}
+                    <span className="inline-block rounded border border-border px-1 text-xs">＋</span>
+                  </span>
                 </li>
               </ol>
+              <p className="mt-3 text-xs text-muted">
+                (Using Chrome on iPhone? Same thing — Share, then &quot;Add to Home Screen&quot;.)
+              </p>
             </div>
           )}
 
