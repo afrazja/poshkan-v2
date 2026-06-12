@@ -48,6 +48,18 @@ export default function InstallPwa() {
     if (/iphone|ipad|ipod/i.test(navigator.userAgent)) {
       setState("ios");
     }
+    // Chrome/Android: detect when our PWA is already installed (no install
+    // event fires in that case, so without this check we'd show instructions
+    // to someone who already has the app).
+    const nav = navigator as Navigator & {
+      getInstalledRelatedApps?: () => Promise<{ platform: string }[]>;
+    };
+    nav
+      .getInstalledRelatedApps?.()
+      .then((apps) => {
+        if (apps.length > 0) setState("installed");
+      })
+      .catch(() => {});
     const onPrompt = (e: Event) => {
       e.preventDefault();
       setDeferred(e as BeforeInstallPromptEvent);
