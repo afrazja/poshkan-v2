@@ -1,6 +1,7 @@
 import Image from "next/image";
 import AuthCard from "@/components/auth/AuthCard";
 import SiteFooter from "@/components/SiteFooter";
+import InstallPwa from "@/components/InstallPwa";
 
 export const metadata = {
   title: "Poshkan — Practice trading stocks, crypto & forex with virtual money",
@@ -160,6 +161,8 @@ export default function LandingPage() {
           </p>
         </div>
       </section>
+
+      <InstallPwa />
 
       <SiteFooter />
     </div>
