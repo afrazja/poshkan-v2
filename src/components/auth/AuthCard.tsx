@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { signInAction, usernameAvailableAction, resetPasswordAction } from "@/app/auth/actions";
 
 type Tab = "login" | "signup";
 
@@ -38,18 +39,15 @@ export default function AuthCard() {
   async function handleForgot() {
     reset();
     if (!email.trim()) {
-      setError("Enter your email above first, then click 'Forgot your password?'.");
+      setError("Enter your email or username above first, then click 'Forgot your password?'.");
       return;
     }
     setLoading(true);
-    const supabase = createClient();
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || window.location.origin;
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${siteUrl}/auth/reset`,
-    });
+    const res = await resetPasswordAction(email, siteUrl);
     setLoading(false);
-    if (error) {
-      setError(error.message);
+    if (res.error) {
+      setError(res.error);
       return;
     }
     setForgotSent(true);
@@ -59,11 +57,10 @@ export default function AuthCard() {
     e.preventDefault();
     reset();
     setLoading(true);
-    const supabase = createClient();
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) {
+    const res = await signInAction(email, password);
+    if (res.error) {
       setLoading(false);
-      setError(error.message);
+      setError(res.error);
       return;
     }
     // Keep the button in its loading state through the navigation — the dashboard
@@ -83,7 +80,22 @@ export default function AuthCard() {
       setError("Password must be at least 6 characters.");
       return;
     }
+    if (username.trim().length < 3) {
+      setError("Username must be at least 3 characters.");
+      return;
+    }
+    if (!/^[a-zA-Z0-9_]+$/.test(username.trim())) {
+      setError("Username can only contain letters, numbers, and underscores.");
+      return;
+    }
     setLoading(true);
+    // Friendly pre-check; the DB unique index is the real guard against races.
+    const available = await usernameAvailableAction(username);
+    if (!available) {
+      setLoading(false);
+      setError("That username is taken — try another.");
+      return;
+    }
     const supabase = createClient();
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || window.location.origin;
     const { error } = await supabase.auth.signUp({
@@ -96,7 +108,9 @@ export default function AuthCard() {
     });
     setLoading(false);
     if (error) {
-      setError(error.message);
+      // A race past the pre-check trips the unique index — surface it kindly.
+      const taken = /duplicate|unique|already|profiles_username/i.test(error.message);
+      setError(taken ? "That username is taken — try another." : error.message);
       return;
     }
     setSent(true);
@@ -163,14 +177,16 @@ export default function AuthCard() {
       {tab === "login" ? (
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
-            <label className="mb-1 block text-sm font-medium">Email</label>
+            <label className="mb-1 block text-sm font-medium">Email or username</label>
             <input
-              type="email"
+              type="text"
+              autoCapitalize="none"
+              autoCorrect="off"
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className={inputClass}
-              placeholder="you@example.com"
+              placeholder="you@example.com or yourname"
             />
           </div>
           <div>
