@@ -6,6 +6,13 @@ import { createClient } from "@/lib/supabase/client";
 
 type Tab = "login" | "signup";
 
+// Small inline spinner for buttons in their loading state.
+function Spinner() {
+  return (
+    <span className="h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground/40 border-t-primary-foreground" />
+  );
+}
+
 export default function AuthCard() {
   const router = useRouter();
   const [tab, setTab] = useState<Tab>("login");
@@ -54,11 +61,13 @@ export default function AuthCard() {
     setLoading(true);
     const supabase = createClient();
     const { error } = await supabase.auth.signInWithPassword({ email, password });
-    setLoading(false);
     if (error) {
+      setLoading(false);
       setError(error.message);
       return;
     }
+    // Keep the button in its loading state through the navigation — the dashboard
+    // takes a moment to load, and this component unmounts once it arrives.
     router.refresh();
     router.push("/dashboard");
   }
@@ -178,8 +187,9 @@ export default function AuthCard() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-lg bg-primary py-2.5 text-sm font-semibold text-primary-foreground transition hover:opacity-90 disabled:opacity-50"
+            className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary py-2.5 text-sm font-semibold text-primary-foreground transition hover:opacity-90 disabled:opacity-70"
           >
+            {loading && <Spinner />}
             {loading ? "Signing in…" : "Log in"}
           </button>
           <button
@@ -246,8 +256,9 @@ export default function AuthCard() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-lg bg-primary py-2.5 text-sm font-semibold text-primary-foreground transition hover:opacity-90 disabled:opacity-50"
+            className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary py-2.5 text-sm font-semibold text-primary-foreground transition hover:opacity-90 disabled:opacity-70"
           >
+            {loading && <Spinner />}
             {loading ? "Creating…" : "Create account"}
           </button>
           <p className="text-center text-xs text-muted">
