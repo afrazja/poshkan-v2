@@ -48,7 +48,7 @@ export default function ApiAccessModal({ onClose }: { onClose: () => void }) {
     refresh();
   }
 
-  const origin = typeof window !== "undefined" ? window.location.origin : "https://trade.poshkan.com";
+  const origin = typeof window !== "undefined" ? window.location.origin : "https://poshkan.com";
   const mcpUrl = `${origin}/api/mcp/mcp`;
 
   return (

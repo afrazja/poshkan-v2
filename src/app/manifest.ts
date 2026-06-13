@@ -11,7 +11,7 @@ export default function manifest(): MetadataRoute.Manifest {
     display: "standalone",
     // Lets getInstalledRelatedApps() detect our own installed PWA.
     related_applications: [
-      { platform: "webapp", url: "https://trade.poshkan.com/manifest.webmanifest" },
+      { platform: "webapp", url: "https://poshkan.com/manifest.webmanifest" },
     ],
     background_color: "#0b0e14",
     theme_color: "#0b0e14",
