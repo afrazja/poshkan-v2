@@ -3,6 +3,7 @@ import AuthCard from "@/components/auth/AuthCard";
 import SiteFooter from "@/components/SiteFooter";
 import InstallPwa from "@/components/InstallPwa";
 import RecoveryRedirect from "@/components/auth/RecoveryRedirect";
+import LandingThemeToggle from "@/components/auth/LandingThemeToggle";
 
 export const metadata = {
   title: "Poshkan — Practice trading stocks, crypto & forex with virtual money",
@@ -12,8 +13,9 @@ export const metadata = {
 
 export default function LandingPage() {
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="relative flex min-h-screen flex-col">
       <RecoveryRedirect />
+      <LandingThemeToggle />
       {/* Above the fold: signup + hero */}
       <main className="grid grid-cols-1 lg:grid-cols-2">
         {/* Left: auth */}
