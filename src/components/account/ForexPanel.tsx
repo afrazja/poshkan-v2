@@ -511,6 +511,16 @@ function SlTpModal({
   const isLong = position.direction === "LONG";
   const useScaled = tpRows.length > 0;
 
+  // Translate the SL/TP price levels into a dollar threshold from the open rate.
+  const slLoss =
+    sl.trim() && Number(sl) > 0
+      ? floatingPnl(position.direction, units, Number(position.open_rate), Number(sl), position.symbol)
+      : null;
+  const tpGain =
+    !useScaled && tp.trim() && Number(tp) > 0
+      ? floatingPnl(position.direction, units, Number(position.open_rate), Number(tp), position.symbol)
+      : null;
+
   function addRow() {
     setTpRows((r) => [...r, { price: "", pct: "" }]);
   }
@@ -592,7 +602,17 @@ function SlTpModal({
           <label className="mb-1 block text-sm font-medium">Stop-loss</label>
           <input type="number" min="0" step="any" value={sl} onChange={(e) => setSl(e.target.value)}
             placeholder={isLong ? "Below current rate…" : "Above current rate…"} className={inputClass} />
-          <p className="mt-1 text-xs text-muted">Closes the position to cap your loss. Leave empty for none.</p>
+          <p className="mt-1 text-xs text-muted">
+            Closes the position to cap your loss. Leave empty for none.
+            {slLoss != null && (
+              <>
+                {" "}
+                <span className={`font-semibold ${changeColor(slLoss)}`}>
+                  ≈ {formatSignedCurrency(slLoss)} at this price
+                </span>
+              </>
+            )}
+          </p>
         </div>
 
         {!useScaled && (
@@ -600,7 +620,17 @@ function SlTpModal({
             <label className="mb-1 block text-sm font-medium">Take-profit</label>
             <input type="number" min="0" step="any" value={tp} onChange={(e) => setTp(e.target.value)}
               placeholder={isLong ? "Above current rate…" : "Below current rate…"} className={inputClass} />
-            <p className="mt-1 text-xs text-muted">Closes the whole position at one price. Leave empty for none.</p>
+            <p className="mt-1 text-xs text-muted">
+              Closes the whole position at one price. Leave empty for none.
+              {tpGain != null && (
+                <>
+                  {" "}
+                  <span className={`font-semibold ${changeColor(tpGain)}`}>
+                    ≈ {formatSignedCurrency(tpGain)} at this price
+                  </span>
+                </>
+              )}
+            </p>
           </div>
         )}
 
@@ -617,26 +647,40 @@ function SlTpModal({
           <p className="mb-2 text-xs text-muted">
             Close part of the position at each price — e.g. 50% at one target, the rest higher.
           </p>
-          {tpRows.map((row, i) => (
-            <div key={i} className="mb-2 flex items-center gap-2">
-              <input
-                type="number" min="0" step="any" value={row.price}
-                onChange={(e) => updateRow(i, { price: e.target.value })}
-                placeholder="Price" className={`${inputClass} flex-1`}
-              />
-              <div className="flex items-center gap-1">
-                <input
-                  type="number" min="1" max="100" step="1" value={row.pct}
-                  onChange={(e) => updateRow(i, { pct: e.target.value })}
-                  placeholder="%" className="w-16 rounded-lg border border-border bg-input px-2 py-2 text-sm outline-none focus:border-primary"
-                />
-                <span className="text-xs text-muted">%</span>
+          {tpRows.map((row, i) => {
+            const rowUnits = (units * (Number(row.pct) || 0)) / 100;
+            const rowGain =
+              Number(row.price) > 0 && rowUnits > 0
+                ? floatingPnl(position.direction, rowUnits, Number(position.open_rate), Number(row.price), position.symbol)
+                : null;
+            return (
+              <div key={i} className="mb-2">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number" min="0" step="any" value={row.price}
+                    onChange={(e) => updateRow(i, { price: e.target.value })}
+                    placeholder="Price" className={`${inputClass} flex-1`}
+                  />
+                  <div className="flex items-center gap-1">
+                    <input
+                      type="number" min="1" max="100" step="1" value={row.pct}
+                      onChange={(e) => updateRow(i, { pct: e.target.value })}
+                      placeholder="%" className="w-16 rounded-lg border border-border bg-input px-2 py-2 text-sm outline-none focus:border-primary"
+                    />
+                    <span className="text-xs text-muted">%</span>
+                  </div>
+                  <button onClick={() => removeRow(i)} className="text-muted hover:text-negative" aria-label="Remove level">
+                    ✕
+                  </button>
+                </div>
+                {rowGain != null && (
+                  <p className={`mt-0.5 text-xs font-medium ${changeColor(rowGain)}`}>
+                    ≈ {formatSignedCurrency(rowGain)} on this step
+                  </p>
+                )}
               </div>
-              <button onClick={() => removeRow(i)} className="text-muted hover:text-negative" aria-label="Remove level">
-                ✕
-              </button>
-            </div>
-          ))}
+            );
+          })}
           <button onClick={addRow} className="text-xs font-medium text-primary hover:underline">
             + Add level
           </button>
@@ -700,6 +744,16 @@ function FxTradeModal({
   const notional = effUnits * execRate;
   const margin = execRate > 0 ? marginFor(effUnits, execRate, leverage, symbol) : 0;
   const affordable = margin > 0 && margin <= cash;
+
+  // Dollar threshold at the SL/TP levels (from the order's entry rate).
+  const slLossOpen =
+    sl.trim() && Number(sl) > 0 && execRate > 0
+      ? floatingPnl(direction, effUnits, execRate, Number(sl), symbol)
+      : null;
+  const tpGainOpen =
+    tp.trim() && Number(tp) > 0 && execRate > 0
+      ? floatingPnl(direction, effUnits, execRate, Number(tp), symbol)
+      : null;
 
   async function submit() {
     setError(null);
@@ -927,6 +981,11 @@ function FxTradeModal({
                 placeholder={direction === "LONG" ? "Below rate…" : "Above rate…"}
                 className="w-full rounded-lg border border-border bg-input px-3 py-2 text-sm outline-none focus:border-primary"
               />
+              {slLossOpen != null && (
+                <p className={`mt-0.5 text-xs font-medium ${changeColor(slLossOpen)}`}>
+                  ≈ {formatSignedCurrency(slLossOpen)}
+                </p>
+              )}
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium text-muted">Take-profit (optional)</label>
@@ -939,6 +998,11 @@ function FxTradeModal({
                 placeholder={direction === "LONG" ? "Above rate…" : "Below rate…"}
                 className="w-full rounded-lg border border-border bg-input px-3 py-2 text-sm outline-none focus:border-primary"
               />
+              {tpGainOpen != null && (
+                <p className={`mt-0.5 text-xs font-medium ${changeColor(tpGainOpen)}`}>
+                  ≈ {formatSignedCurrency(tpGainOpen)}
+                </p>
+              )}
             </div>
           </div>
 
