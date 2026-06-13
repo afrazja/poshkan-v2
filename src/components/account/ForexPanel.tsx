@@ -560,7 +560,16 @@ function FxTradeModal({
   const [tp, setTp] = useState("");
   const [execMode, setExecMode] = useState<"MARKET" | "PENDING">("MARKET");
   const [entryRate, setEntryRate] = useState("");
-  const [expiry, setExpiry] = useState<number | null>(null); // hours; null = GTC
+  const [expiryUnit, setExpiryUnit] = useState<"gtc" | "min" | "hour" | "day">("gtc");
+  const [expiryAmount, setExpiryAmount] = useState("40");
+
+  // Chosen expiry as minutes from now (null = good-til-canceled).
+  const expiryMinutes =
+    expiryUnit === "gtc"
+      ? null
+      : (Number(expiryAmount) || 0) > 0
+        ? Number(expiryAmount) * (expiryUnit === "min" ? 1 : expiryUnit === "hour" ? 60 : 1440)
+        : null;
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<{ rate: number; margin: number; pending?: boolean } | null>(null);
@@ -594,7 +603,7 @@ function FxTradeModal({
         entryRate: entry,
         stopLoss: slNum,
         takeProfit: tpNum,
-        expiresHours: expiry,
+        expiresMinutes: expiryMinutes,
       });
       setLoading(false);
       if (res.error) return setError(res.error);
@@ -724,16 +733,29 @@ function FxTradeModal({
                 />
               </div>
               <div>
-                <label className="mb-1 block text-xs font-medium text-muted">Expires</label>
-                <select
-                  value={expiry ?? ""}
-                  onChange={(e) => setExpiry(e.target.value ? Number(e.target.value) : null)}
-                  className="w-full rounded-lg border border-border bg-input px-3 py-2 text-sm outline-none focus:border-primary"
-                >
-                  <option value="">Never (GTC)</option>
-                  <option value="24">In 1 day</option>
-                  <option value="168">In 1 week</option>
-                </select>
+                <label className="mb-1 block text-xs font-medium text-muted">Expires in</label>
+                <div className="flex gap-1">
+                  {expiryUnit !== "gtc" && (
+                    <input
+                      type="number"
+                      min="1"
+                      step="1"
+                      value={expiryAmount}
+                      onChange={(e) => setExpiryAmount(e.target.value)}
+                      className="w-16 rounded-lg border border-border bg-input px-2 py-2 text-sm outline-none focus:border-primary"
+                    />
+                  )}
+                  <select
+                    value={expiryUnit}
+                    onChange={(e) => setExpiryUnit(e.target.value as typeof expiryUnit)}
+                    className="flex-1 rounded-lg border border-border bg-input px-2 py-2 text-sm outline-none focus:border-primary"
+                  >
+                    <option value="gtc">Never (GTC)</option>
+                    <option value="min">Minutes</option>
+                    <option value="hour">Hours</option>
+                    <option value="day">Days</option>
+                  </select>
+                </div>
               </div>
             </div>
           )}

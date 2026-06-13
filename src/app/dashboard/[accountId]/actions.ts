@@ -255,7 +255,7 @@ export async function placeFxOrderAction(input: {
   entryRate: number;
   stopLoss?: number | null;
   takeProfit?: number | null;
-  expiresHours?: number | null; // null = GTC
+  expiresMinutes?: number | null; // null = GTC
 }): Promise<{ error?: string }> {
   const supabase = await createClient();
   if (!input.units || input.units <= 0) return { error: "Units must be positive" };
@@ -295,9 +295,10 @@ export async function placeFxOrderAction(input: {
     trigger_when: input.entryRate < rate ? "AT_OR_BELOW" : "AT_OR_ABOVE",
     stop_loss: sl,
     take_profit: tp,
-    expires_at: input.expiresHours
-      ? new Date(Date.now() + input.expiresHours * 3_600_000).toISOString()
-      : null,
+    expires_at:
+      input.expiresMinutes && input.expiresMinutes > 0
+        ? new Date(Date.now() + input.expiresMinutes * 60_000).toISOString()
+        : null,
   });
   if (error) return { error: error.message };
   revalidatePath(`/dashboard/${input.accountId}`);
