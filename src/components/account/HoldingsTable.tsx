@@ -76,7 +76,35 @@ export default function HoldingsTable({
   }
 
   return (
-    <div className="overflow-x-auto rounded-2xl border border-border bg-card">
+    <>
+      {/* Mobile: stacked cards (the table is too wide for phones) */}
+      <div className="space-y-2 sm:hidden">
+        {sorted.map(({ p, q, qty, avg, price, mktValue, pnl, pnlPct, dayPct }) => (
+          <button
+            key={p.id}
+            onClick={() => onSelect(p.symbol)}
+            className="w-full rounded-xl border border-border bg-card p-3 text-left"
+          >
+            <div className="flex items-center justify-between">
+              <span className="font-semibold">{p.symbol}</span>
+              <span className="font-semibold">{formatCurrency(mktValue)}</span>
+            </div>
+            <div className="mt-1 flex items-center justify-between text-xs text-muted">
+              <span>{formatNumber(qty)} sh · avg {formatCurrency(avg)}</span>
+              <span className={changeColor(dayPct)}>{q ? `${formatPercent(dayPct)} today` : "…"}</span>
+            </div>
+            <div className="mt-1 flex items-center justify-between text-sm">
+              <span className="text-muted">{q ? formatCurrency(price) : "…"}</span>
+              <span className={`font-medium ${changeColor(pnl)}`}>
+                {formatSignedCurrency(pnl)} ({formatPercent(pnlPct)})
+              </span>
+            </div>
+          </button>
+        ))}
+      </div>
+
+      {/* Desktop: full sortable table */}
+      <div className="hidden overflow-x-auto rounded-2xl border border-border bg-card sm:block">
       <table className="w-full min-w-[760px] text-sm">
         <thead>
           <tr className="border-b border-border text-xs uppercase tracking-wide text-muted">
@@ -115,6 +143,7 @@ export default function HoldingsTable({
           ))}
         </tbody>
       </table>
-    </div>
+      </div>
+    </>
   );
 }

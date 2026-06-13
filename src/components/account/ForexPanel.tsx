@@ -182,7 +182,65 @@ export default function ForexPanel({
             No open positions. Pick a pair above to place your first trade.
           </div>
         ) : (
-          <div className="overflow-x-auto rounded-2xl border border-border bg-card">
+          <>
+          {/* Mobile: position cards */}
+          <div className="space-y-2 sm:hidden">
+            {open.map((p) => {
+              const q = quotes[p.symbol.toUpperCase()];
+              const rate = q?.price;
+              const fl = rate ? floatingPnl(p.direction, Number(p.units), Number(p.open_rate), rate) : null;
+              const pp = rate ? pips(p.direction, Number(p.open_rate), rate) : null;
+              return (
+                <div key={p.id} className="rounded-xl border border-border bg-card p-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold">{pairName(p.symbol)}</span>
+                      <span
+                        className={`rounded-md px-2 py-0.5 text-xs font-medium ${
+                          p.direction === "LONG" ? "bg-positive/15 text-positive" : "bg-negative/15 text-negative"
+                        }`}
+                      >
+                        {p.direction === "LONG" ? "Long" : "Short"}
+                      </span>
+                    </div>
+                    <span className={`font-medium ${fl != null ? changeColor(fl) : ""}`}>
+                      {fl != null ? formatSignedCurrency(fl) : "…"}
+                    </span>
+                  </div>
+                  <div className="mt-1 text-xs text-muted">
+                    {Number(p.units).toLocaleString("en-US")} units · {formatRate(Number(p.open_rate))} →{" "}
+                    {rate ? formatRate(rate) : "…"}
+                    {pp != null && (
+                      <span className={`ml-1 ${changeColor(pp)}`}>
+                        ({pp >= 0 ? "+" : ""}
+                        {pp.toFixed(1)} pips)
+                      </span>
+                    )}
+                  </div>
+                  <div className="mt-2 flex gap-2">
+                    <button
+                      onClick={() => setEditSltp(p)}
+                      className="flex-1 rounded-md border border-border px-2 py-1.5 text-xs hover:bg-background"
+                    >
+                      {p.stop_loss != null || p.take_profit != null
+                        ? `SL ${p.stop_loss != null ? formatRate(Number(p.stop_loss)) : "—"} / TP ${p.take_profit != null ? formatRate(Number(p.take_profit)) : "—"}`
+                        : "Set SL / TP"}
+                    </button>
+                    <button
+                      onClick={() => closePosition(p.id)}
+                      disabled={closing === p.id}
+                      className="flex-1 rounded-md border border-border px-2 py-1.5 text-xs hover:bg-background disabled:opacity-50"
+                    >
+                      {closing === p.id ? "Closing…" : "Close"}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Desktop: full table */}
+          <div className="hidden overflow-x-auto rounded-2xl border border-border bg-card sm:block">
             <table className="w-full min-w-[760px] text-sm">
               <thead>
                 <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted">
@@ -262,6 +320,7 @@ export default function ForexPanel({
               </tbody>
             </table>
           </div>
+          </>
         )}
       </section>
 
@@ -269,7 +328,36 @@ export default function ForexPanel({
       {closed.length > 0 && (
         <section>
           <h2 className="mb-3 text-lg font-semibold">Closed positions</h2>
-          <div className="overflow-x-auto rounded-2xl border border-border bg-card">
+          {/* Mobile: closed-position cards */}
+          <div className="space-y-2 sm:hidden">
+            {closed.map((p) => (
+              <div key={p.id} className="rounded-xl border border-border bg-card p-3">
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold">
+                    {pairName(p.symbol)}{" "}
+                    <span className="text-xs font-normal text-muted">
+                      {p.direction === "LONG" ? "Long" : "Short"}
+                    </span>
+                  </span>
+                  <span className={`font-medium ${changeColor(Number(p.pnl ?? 0))}`}>
+                    {formatSignedCurrency(Number(p.pnl ?? 0))}
+                  </span>
+                </div>
+                <div className="mt-1 flex items-center justify-between text-xs text-muted">
+                  <span>
+                    {Number(p.units).toLocaleString("en-US")} · {formatRate(Number(p.open_rate))} →{" "}
+                    {p.close_rate ? formatRate(Number(p.close_rate)) : "—"}
+                  </span>
+                  {p.status === "stopped" && <span className="text-negative">Stopped out</span>}
+                  {p.status === "sl" && <span className="text-negative">SL hit</span>}
+                  {p.status === "tp" && <span className="text-positive">TP hit</span>}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop: full table */}
+          <div className="hidden overflow-x-auto rounded-2xl border border-border bg-card sm:block">
             <table className="w-full min-w-[680px] text-sm">
               <thead>
                 <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted">

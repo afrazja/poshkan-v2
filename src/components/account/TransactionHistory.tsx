@@ -47,7 +47,36 @@ export default function TransactionHistory({ transactions }: { transactions: Tra
   }
 
   return (
-    <div className="overflow-x-auto rounded-2xl border border-border bg-card">
+    <>
+      {/* Mobile: stacked cards */}
+      <div className="space-y-2 sm:hidden">
+        {transactions.map((t) => {
+          const isTrade = t.side === "BUY" || t.side === "SELL" || t.side === "OPENING_BALANCE";
+          const hasShares = isTrade && t.symbol && Number(t.quantity) > 0;
+          return (
+            <div key={t.id} className="rounded-xl border border-border bg-card p-3">
+              <div className="flex items-center justify-between">
+                <span className={`rounded-md px-2 py-0.5 text-xs font-medium ${badgeClass(t.side)}`}>
+                  {LABELS[t.side] ?? t.side}
+                  {t.symbol ? ` ${t.symbol}` : ""}
+                </span>
+                <span className={`text-sm font-medium ${changeColor(Number(t.cash_delta))}`}>
+                  {Number(t.cash_delta) !== 0 ? formatSignedCurrency(Number(t.cash_delta)) : "—"}
+                </span>
+              </div>
+              <div className="mt-1 text-xs text-muted">{formatDateTime(t.created_at)}</div>
+              {hasShares && (
+                <div className="mt-0.5 text-xs text-muted">
+                  {formatNumber(Number(t.quantity))} sh @ {formatCurrency(Number(t.price))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Desktop: full table */}
+      <div className="hidden overflow-x-auto rounded-2xl border border-border bg-card sm:block">
       <table className="w-full min-w-[720px] text-sm">
         <thead>
           <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted">
@@ -85,6 +114,7 @@ export default function TransactionHistory({ transactions }: { transactions: Tra
           })}
         </tbody>
       </table>
-    </div>
+      </div>
+    </>
   );
 }

@@ -59,7 +59,33 @@ export default function WatchlistTable({
   }
 
   return (
-    <div className="overflow-x-auto rounded-2xl border border-border bg-card">
+    <>
+      {/* Mobile: stacked cards */}
+      <div className="space-y-2 sm:hidden">
+        {sorted.map(({ item, q, price, dayPct }) => (
+          <div
+            key={item.id}
+            className="flex items-center justify-between rounded-xl border border-border bg-card p-3"
+          >
+            <button onClick={() => onSelect(item.symbol)} className="text-left">
+              <div className="font-semibold">{item.symbol}</div>
+              <div className="text-xs text-muted">
+                {q ? formatCurrency(price) : "…"} ·{" "}
+                <span className={changeColor(dayPct)}>{q ? formatPercent(dayPct) : "…"}</span>
+              </div>
+            </button>
+            <button
+              onClick={() => onRemove(item.symbol)}
+              className="text-xs text-muted hover:text-negative"
+            >
+              Remove
+            </button>
+          </div>
+        ))}
+      </div>
+
+      {/* Desktop: full sortable table */}
+      <div className="hidden overflow-x-auto rounded-2xl border border-border bg-card sm:block">
       <table className="w-full min-w-[480px] text-sm">
         <thead>
           <tr className="border-b border-border text-xs uppercase tracking-wide text-muted">
@@ -94,6 +120,7 @@ export default function WatchlistTable({
           ))}
         </tbody>
       </table>
-    </div>
+      </div>
+    </>
   );
 }
