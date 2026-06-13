@@ -45,6 +45,7 @@ export default function ForexPanel({
   const router = useRouter();
   const [trade, setTrade] = useState<string | null>(null); // pair symbol
   const [closing, setClosing] = useState<string | null>(null);
+  const [canceling, setCanceling] = useState<string | null>(null);
   const [editSltp, setEditSltp] = useState<FxPosition | null>(null);
 
   const open = positions.filter((p) => p.status === "open");
@@ -99,6 +100,7 @@ export default function ForexPanel({
   }, [pendingOrders, quotes, accountId, router]);
 
   async function cancelOrder(id: string) {
+    setCanceling(id);
     await cancelFxOrderAction(id, accountId);
     router.refresh();
   }
@@ -160,9 +162,10 @@ export default function ForexPanel({
                   </div>
                   <button
                     onClick={() => cancelOrder(o.id)}
-                    className="shrink-0 text-xs text-muted hover:text-negative"
+                    disabled={canceling === o.id}
+                    className="shrink-0 text-xs text-muted hover:text-negative disabled:opacity-50"
                   >
-                    Cancel
+                    {canceling === o.id ? "Cancelling…" : "Cancel"}
                   </button>
                 </div>
               );

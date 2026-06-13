@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Alert } from "@/lib/types";
 import { formatCurrency } from "@/lib/format";
@@ -8,12 +9,14 @@ import { deleteAlertAction } from "@/app/dashboard/[accountId]/actions";
 // Price alerts list on the dashboard: triggered ones surface first.
 export default function AlertsCard({ alerts }: { alerts: Alert[] }) {
   const router = useRouter();
+  const [busy, setBusy] = useState<string | null>(null);
   if (alerts.length === 0) return null;
 
   const triggered = alerts.filter((a) => a.status === "triggered");
   const active = alerts.filter((a) => a.status === "active");
 
   async function dismiss(id: string) {
+    setBusy(id);
     await deleteAlertAction(id);
     router.refresh();
   }
@@ -32,8 +35,12 @@ export default function AlertsCard({ alerts }: { alerts: Alert[] }) {
               <strong>{formatCurrency(Number(a.triggered_price ?? a.target_price))}</strong>{" "}
               <span className="text-muted">(target {formatCurrency(Number(a.target_price))})</span>
             </span>
-            <button onClick={() => dismiss(a.id)} className="shrink-0 text-xs text-muted hover:text-foreground">
-              Dismiss
+            <button
+              onClick={() => dismiss(a.id)}
+              disabled={busy === a.id}
+              className="shrink-0 text-xs text-muted hover:text-foreground disabled:opacity-50"
+            >
+              {busy === a.id ? "…" : "Dismiss"}
             </button>
           </div>
         ))}
@@ -47,8 +54,12 @@ export default function AlertsCard({ alerts }: { alerts: Alert[] }) {
               {a.condition === "ABOVE" ? "rises to" : "drops to"}{" "}
               {formatCurrency(Number(a.target_price))}
             </span>
-            <button onClick={() => dismiss(a.id)} className="shrink-0 text-xs text-muted hover:text-negative">
-              Remove
+            <button
+              onClick={() => dismiss(a.id)}
+              disabled={busy === a.id}
+              className="shrink-0 text-xs text-muted hover:text-negative disabled:opacity-50"
+            >
+              {busy === a.id ? "…" : "Remove"}
             </button>
           </div>
         ))}

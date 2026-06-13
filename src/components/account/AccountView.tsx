@@ -156,13 +156,18 @@ export default function AccountView({
   const inWatchlist = (symbol: string) =>
     watchlist.some((w) => w.symbol.toUpperCase() === symbol.toUpperCase());
 
+  const [watchBusy, setWatchBusy] = useState(false);
+  const [canceling, setCanceling] = useState<string | null>(null);
+
   async function toggleWatch(symbol: string) {
+    setWatchBusy(true);
     if (inWatchlist(symbol)) {
       await removeFromWatchlistAction(account.id, symbol);
     } else {
       await addToWatchlistAction(account.id, symbol);
     }
     router.refresh();
+    setWatchBusy(false);
   }
 
   // Selecting a symbol (from search results or a table row) opens its detail popup.
@@ -171,6 +176,7 @@ export default function AccountView({
   }
 
   async function cancelOrder(id: string) {
+    setCanceling(id);
     await cancelOrderAction(id, account.id);
     router.refresh();
   }
@@ -400,6 +406,7 @@ export default function AccountView({
             onBuy={() => setTrade({ side: "BUY", symbol: selected.symbol })}
             onSell={() => setTrade({ side: "SELL", symbol: selected.symbol })}
             onToggleWatch={() => toggleWatch(selected.symbol)}
+            watchPending={watchBusy}
           />
         </Modal>
       )}
@@ -428,9 +435,10 @@ export default function AccountView({
                   </div>
                   <button
                     onClick={() => cancelOrder(o.id)}
-                    className="shrink-0 text-xs text-muted hover:text-negative"
+                    disabled={canceling === o.id}
+                    className="shrink-0 text-xs text-muted hover:text-negative disabled:opacity-50"
                   >
-                    Cancel
+                    {canceling === o.id ? "Cancelling…" : "Cancel"}
                   </button>
                 </div>
               );

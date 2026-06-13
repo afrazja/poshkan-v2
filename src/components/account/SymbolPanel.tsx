@@ -15,6 +15,7 @@ export default function SymbolPanel({
   onBuy,
   onSell,
   onToggleWatch,
+  watchPending,
 }: {
   symbol: string;
   name: string;
@@ -24,6 +25,7 @@ export default function SymbolPanel({
   onBuy: () => void;
   onSell: () => void;
   onToggleWatch: () => void;
+  watchPending?: boolean;
 }) {
   const [quote, setQuote] = useState<Quote | undefined>(liveQuote);
   const [loading, setLoading] = useState(!liveQuote);
@@ -115,9 +117,10 @@ export default function SymbolPanel({
         </button>
         <button
           onClick={onToggleWatch}
-          className="rounded-lg border border-border px-5 py-2.5 text-sm font-medium hover:bg-background"
+          disabled={watchPending}
+          className="rounded-lg border border-border px-5 py-2.5 text-sm font-medium hover:bg-background disabled:opacity-50"
         >
-          {inWatchlist ? "★ In watchlist" : "☆ Add to watchlist"}
+          {watchPending ? "…" : inWatchlist ? "★ In watchlist" : "☆ Add to watchlist"}
         </button>
       </div>
     </div>
