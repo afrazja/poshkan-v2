@@ -17,18 +17,23 @@ export async function GET(request: Request) {
   }
 
   const db = createAdminClient();
-  const [{ data: orders }, { data: alerts }, { data: fxPositions }, { data: fxOrders }] = await Promise.all([
-    db
-      .from("orders")
-      .select("id, symbol, side, quantity, limit_price, accounts(user_id)")
-      .eq("status", "pending"),
-    db.from("alerts").select("id, user_id, symbol, condition, target_price").eq("status", "active"),
-    db
-      .from("fx_positions")
-      .select("id, symbol, direction, units, open_rate, margin, stop_loss, take_profit")
-      .eq("status", "open"),
-    db.from("fx_orders").select("*, accounts(leverage)").eq("status", "pending"),
-  ]);
+  const [{ data: orders }, { data: alerts }, { data: fxPositions }, { data: fxOrders }, { data: fxTpLevels }] =
+    await Promise.all([
+      db
+        .from("orders")
+        .select("id, symbol, side, quantity, limit_price, accounts(user_id)")
+        .eq("status", "pending"),
+      db.from("alerts").select("id, user_id, symbol, condition, target_price").eq("status", "active"),
+      db
+        .from("fx_positions")
+        .select("id, symbol, direction, units, open_rate, margin, stop_loss, take_profit")
+        .eq("status", "open"),
+      db.from("fx_orders").select("*, accounts(leverage)").eq("status", "pending"),
+      db
+        .from("fx_tp_levels")
+        .select("id, price, close_units, position_id, fx_positions(symbol, direction, status)")
+        .eq("status", "pending"),
+    ]);
 
   const symbols = Array.from(
     new Set(
@@ -82,6 +87,32 @@ export async function GET(request: Request) {
       .eq("id", o.id)
       .eq("status", "pending");
     fxFilled++;
+  }
+
+  // Forex scaled take-profit: partial-close a position as each level is hit.
+  let fxTp = 0;
+  for (const l of fxTpLevels ?? []) {
+    const raw = l.fx_positions as { symbol?: string; direction?: string; status?: string } | { symbol?: string; direction?: string; status?: string }[] | null;
+    const info = Array.isArray(raw) ? raw[0] : raw;
+    if (!info || info.status !== "open") continue;
+    const q = quotes[(info.symbol ?? "").toUpperCase()];
+    if (!q?.price) continue;
+    const meets = info.direction === "LONG" ? q.price >= Number(l.price) : q.price <= Number(l.price);
+    if (!meets) continue;
+    const { data: claimed } = await db
+      .from("fx_tp_levels")
+      .update({ status: "filled", filled_at: new Date().toISOString() })
+      .eq("id", l.id)
+      .eq("status", "pending")
+      .select("id");
+    if (!claimed || claimed.length === 0) continue;
+    const { error } = await db.rpc("fx_close_partial", {
+      p_position_id: l.position_id,
+      p_close_units: Number(l.close_units),
+      p_rate: q.price,
+      p_reason: "tp",
+    });
+    if (!error) fxTp++;
   }
 
   // Forex auto-close: margin stop-out, stop-loss, or take-profit.
@@ -158,5 +189,5 @@ export async function GET(request: Request) {
     });
   }
 
-  return NextResponse.json({ filled, triggered, stopped, fxFilled, checked: symbols.length });
+  return NextResponse.json({ filled, triggered, stopped, fxFilled, fxTp, checked: symbols.length });
 }

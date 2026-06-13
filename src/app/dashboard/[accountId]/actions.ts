@@ -458,6 +458,80 @@ export async function autoCloseFxPositionAction(
   return { closed: true, reason };
 }
 
+// Forex: set scaled take-profit levels on a position. levels = [{price, units}].
+// Validation (profit-side, total <= position size) happens in the RPC.
+export async function setFxTakeProfitLevelsAction(input: {
+  positionId: string;
+  accountId: string;
+  levels: { price: number; units: number }[];
+}): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("fx_set_tp_levels", {
+    p_position_id: input.positionId,
+    p_levels: input.levels,
+  });
+  if (error) return { error: error.message };
+  revalidatePath(`/dashboard/${input.accountId}`);
+  return {};
+}
+
+// Forex: fill any triggered TP levels on a position (live page check; cron does
+// the same when the page is closed). Rate is re-derived server-side; each level
+// is claimed atomically so the two paths can't double-close.
+export async function fillFxTpLevelsAction(
+  positionId: string,
+  accountId: string
+): Promise<{ filled: number }> {
+  const supabase = await createClient();
+  const { data: pos } = await supabase
+    .from("fx_positions")
+    .select("symbol, direction")
+    .eq("id", positionId)
+    .eq("status", "open")
+    .single();
+  if (!pos) return { filled: 0 };
+
+  const { data: levels } = await supabase
+    .from("fx_tp_levels")
+    .select("id, price, close_units")
+    .eq("position_id", positionId)
+    .eq("status", "pending");
+  if (!levels || levels.length === 0) return { filled: 0 };
+
+  let rate: number;
+  try {
+    rate = (await getQuote(pos.symbol)).price;
+    if (!rate || rate <= 0) return { filled: 0 };
+  } catch {
+    return { filled: 0 };
+  }
+
+  const isLong = pos.direction === "LONG";
+  const triggered = levels
+    .filter((l) => (isLong ? rate >= Number(l.price) : rate <= Number(l.price)))
+    .sort((a, b) => (isLong ? Number(a.price) - Number(b.price) : Number(b.price) - Number(a.price)));
+
+  let filled = 0;
+  for (const l of triggered) {
+    const { data: claimed } = await supabase
+      .from("fx_tp_levels")
+      .update({ status: "filled", filled_at: new Date().toISOString() })
+      .eq("id", l.id)
+      .eq("status", "pending")
+      .select("id");
+    if (!claimed || claimed.length === 0) continue;
+    const { error } = await supabase.rpc("fx_close_partial", {
+      p_position_id: positionId,
+      p_close_units: Number(l.close_units),
+      p_rate: rate,
+      p_reason: "tp",
+    });
+    if (!error) filled++;
+  }
+  if (filled > 0) revalidatePath(`/dashboard/${accountId}`);
+  return { filled };
+}
+
 // Web-push subscriptions (one per device/browser).
 export async function savePushSubscriptionAction(sub: {
   endpoint: string;

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import type { FxPosition, FxOrder, Quote } from "@/lib/types";
+import type { FxPosition, FxOrder, FxTpLevel, Quote } from "@/lib/types";
 import { formatCurrency, formatSignedCurrency, formatPercent, changeColor } from "@/lib/format";
 import {
   FX_PAIRS,
@@ -25,6 +25,8 @@ import {
   placeFxOrderAction,
   cancelFxOrderAction,
   fillFxOrderAction,
+  setFxTakeProfitLevelsAction,
+  fillFxTpLevelsAction,
 } from "@/app/dashboard/[accountId]/actions";
 import Modal from "@/components/Modal";
 import PriceChart from "./PriceChart";
@@ -35,6 +37,7 @@ export default function ForexPanel({
   positions,
   quotes,
   orders = [],
+  tpLevels = [],
   leverage = FX_LEVERAGE,
 }: {
   accountId: string;
@@ -42,6 +45,7 @@ export default function ForexPanel({
   positions: FxPosition[];
   quotes: Record<string, Quote>;
   orders?: FxOrder[];
+  tpLevels?: FxTpLevel[];
   leverage?: number;
 }) {
   const router = useRouter();
@@ -91,6 +95,28 @@ export default function ForexPanel({
     setClosing(null);
     router.refresh();
   }
+
+  // Live scaled-take-profit fills while the page is open (cron covers the rest).
+  const tpRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    for (const p of open) {
+      if (tpRef.current.has(p.id)) continue;
+      const mine = tpLevels.filter((l) => l.position_id === p.id && l.status === "pending");
+      if (mine.length === 0) continue;
+      const q = quotes[p.symbol.toUpperCase()];
+      if (!q?.price) continue;
+      const isLong = p.direction === "LONG";
+      const triggered = mine.some((l) => (isLong ? q.price >= Number(l.price) : q.price <= Number(l.price)));
+      if (!triggered) continue;
+      tpRef.current.add(p.id);
+      fillFxTpLevelsAction(p.id, accountId)
+        .then((r) => {
+          if (r.filled > 0) router.refresh();
+          tpRef.current.delete(p.id);
+        })
+        .catch(() => tpRef.current.delete(p.id));
+    }
+  }, [open, tpLevels, quotes, accountId, router]);
 
   // Live entry-order fills while the page is open (cron covers the rest).
   const fillRef = useRef<Set<string>>(new Set());
@@ -445,6 +471,7 @@ export default function ForexPanel({
           accountId={accountId}
           position={editSltp}
           rate={quotes[editSltp.symbol.toUpperCase()]?.price}
+          levels={tpLevels.filter((l) => l.position_id === editSltp.id && l.status === "pending")}
           onClose={() => setEditSltp(null)}
         />
       )}
@@ -458,38 +485,87 @@ function SlTpModal({
   accountId,
   position,
   rate,
+  levels,
   onClose,
 }: {
   accountId: string;
   position: FxPosition;
   rate?: number;
+  levels: FxTpLevel[];
   onClose: () => void;
 }) {
   const router = useRouter();
+  const units = Number(position.units);
   const [sl, setSl] = useState(position.stop_loss != null ? String(position.stop_loss) : "");
   const [tp, setTp] = useState(position.take_profit != null ? String(position.take_profit) : "");
+  // Scaled take-profit rows: price + % of the position to close at that price.
+  const [tpRows, setTpRows] = useState<{ price: string; pct: string }[]>(
+    levels.map((l) => ({
+      price: String(l.price),
+      pct: String(Math.round((Number(l.close_units) / units) * 100)),
+    }))
+  );
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   const isLong = position.direction === "LONG";
+  const useScaled = tpRows.length > 0;
+
+  function addRow() {
+    setTpRows((r) => [...r, { price: "", pct: "" }]);
+  }
+  function updateRow(i: number, patch: Partial<{ price: string; pct: string }>) {
+    setTpRows((r) => r.map((row, idx) => (idx === i ? { ...row, ...patch } : row)));
+  }
+  function removeRow(i: number) {
+    setTpRows((r) => r.filter((_, idx) => idx !== i));
+  }
 
   async function save() {
     setError(null);
     const slNum = sl.trim() ? Number(sl) : null;
-    const tpNum = tp.trim() ? Number(tp) : null;
+    const tpNum = useScaled ? null : tp.trim() ? Number(tp) : null;
+
+    // Build the scaled levels (price + units derived from %).
+    const scaledLevels: { price: number; units: number }[] = [];
+    if (useScaled) {
+      let totalPct = 0;
+      for (const row of tpRows) {
+        const price = Number(row.price);
+        const pct = Number(row.pct);
+        if (!price || price <= 0 || !pct || pct <= 0) {
+          return setError("Each take-profit level needs a price and a percentage.");
+        }
+        totalPct += pct;
+        scaledLevels.push({ price, units: Math.round(units * (pct / 100) * 100) / 100 });
+      }
+      if (totalPct > 100) return setError("Your take-profit percentages add up to more than 100%.");
+    }
+
     if (rate) {
       const err = sltpError(position.direction, rate, slNum, tpNum);
       if (err) return setError(err);
     }
+
     setLoading(true);
-    const res = await setFxSlTpAction({
+    const slRes = await setFxSlTpAction({
       positionId: position.id,
       accountId,
       stopLoss: slNum,
       takeProfit: tpNum,
     });
+    if (slRes.error) {
+      setLoading(false);
+      return setError(slRes.error);
+    }
+    // Set scaled levels (or clear them when not used).
+    const tpRes = await setFxTakeProfitLevelsAction({
+      positionId: position.id,
+      accountId,
+      levels: scaledLevels,
+    });
     setLoading(false);
-    if (res.error) return setError(res.error);
+    if (tpRes.error) return setError(tpRes.error);
     router.refresh();
     onClose();
   }
@@ -507,10 +583,10 @@ function SlTpModal({
         )}
         <div className="flex justify-between rounded-lg bg-background px-3 py-2 text-sm">
           <span className="text-muted">
-            {position.direction === "LONG" ? "Long" : "Short"} {Number(position.units).toLocaleString("en-US")} ·
-            opened {formatRate(Number(position.open_rate))}
+            {position.direction === "LONG" ? "Long" : "Short"} {units.toLocaleString("en-US")} ·
+            opened {formatRate(Number(position.open_rate), position.symbol)}
           </span>
-          <span className="font-semibold">{rate ? formatRate(rate) : "…"}</span>
+          <span className="font-semibold">{rate ? formatRate(rate, position.symbol) : "…"}</span>
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium">Stop-loss</label>
@@ -518,12 +594,55 @@ function SlTpModal({
             placeholder={isLong ? "Below current rate…" : "Above current rate…"} className={inputClass} />
           <p className="mt-1 text-xs text-muted">Closes the position to cap your loss. Leave empty for none.</p>
         </div>
-        <div>
-          <label className="mb-1 block text-sm font-medium">Take-profit</label>
-          <input type="number" min="0" step="any" value={tp} onChange={(e) => setTp(e.target.value)}
-            placeholder={isLong ? "Above current rate…" : "Below current rate…"} className={inputClass} />
-          <p className="mt-1 text-xs text-muted">Locks in your gain automatically. Leave empty for none.</p>
+
+        {!useScaled && (
+          <div>
+            <label className="mb-1 block text-sm font-medium">Take-profit</label>
+            <input type="number" min="0" step="any" value={tp} onChange={(e) => setTp(e.target.value)}
+              placeholder={isLong ? "Above current rate…" : "Below current rate…"} className={inputClass} />
+            <p className="mt-1 text-xs text-muted">Closes the whole position at one price. Leave empty for none.</p>
+          </div>
+        )}
+
+        {/* Scaled take-profit (scale out) */}
+        <div className="rounded-lg border border-border p-3">
+          <div className="mb-1 flex items-center justify-between">
+            <span className="text-sm font-medium">Scaled take-profit</span>
+            {useScaled && (
+              <button onClick={() => setTpRows([])} className="text-xs text-muted hover:text-negative">
+                Clear
+              </button>
+            )}
+          </div>
+          <p className="mb-2 text-xs text-muted">
+            Close part of the position at each price — e.g. 50% at one target, the rest higher.
+          </p>
+          {tpRows.map((row, i) => (
+            <div key={i} className="mb-2 flex items-center gap-2">
+              <input
+                type="number" min="0" step="any" value={row.price}
+                onChange={(e) => updateRow(i, { price: e.target.value })}
+                placeholder="Price" className={`${inputClass} flex-1`}
+              />
+              <div className="flex items-center gap-1">
+                <input
+                  type="number" min="1" max="100" step="1" value={row.pct}
+                  onChange={(e) => updateRow(i, { pct: e.target.value })}
+                  placeholder="%" className="w-16 rounded-lg border border-border bg-input px-2 py-2 text-sm outline-none focus:border-primary"
+                />
+                <span className="text-xs text-muted">%</span>
+              </div>
+              <button onClick={() => removeRow(i)} className="text-muted hover:text-negative" aria-label="Remove level">
+                ✕
+              </button>
+            </div>
+          ))}
+          <button onClick={addRow} className="text-xs font-medium text-primary hover:underline">
+            + Add level
+          </button>
+          {useScaled && <p className="mt-2 text-xs text-muted">Scaled take-profit replaces the single take-profit above.</p>}
         </div>
+
         <button
           onClick={save}
           disabled={loading}

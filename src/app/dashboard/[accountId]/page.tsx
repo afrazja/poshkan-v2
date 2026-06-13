@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import AccountView from "@/components/account/AccountView";
-import type { Account, Position, WatchlistItem, Transaction, Order, FxPosition, FxOrder } from "@/lib/types";
+import type { Account, Position, WatchlistItem, Transaction, Order, FxPosition, FxOrder, FxTpLevel } from "@/lib/types";
 
 export default async function AccountPage({
   params,
@@ -58,6 +58,13 @@ export default async function AccountPage({
     .eq("status", "pending")
     .order("created_at", { ascending: false });
 
+  // Pending scaled take-profit levels (table may not exist yet — degrades to none).
+  const { data: fxTpLevels } = await supabase
+    .from("fx_tp_levels")
+    .select("id, position_id, price, close_units, status, fx_positions!inner(account_id)")
+    .eq("fx_positions.account_id", accountId)
+    .eq("status", "pending");
+
   return (
     <AccountView
       account={account as Account}
@@ -67,6 +74,7 @@ export default async function AccountPage({
       initialOrders={(orders ?? []) as Order[]}
       initialFxPositions={(fxPositions ?? []) as FxPosition[]}
       initialFxOrders={(fxOrders ?? []) as FxOrder[]}
+      initialFxTpLevels={(fxTpLevels ?? []) as unknown as FxTpLevel[]}
     />
   );
 }

@@ -127,6 +127,14 @@ export interface FxPosition {
   pnl: number | null;
 }
 
+export interface FxTpLevel {
+  id: string;
+  position_id: string;
+  price: number;
+  close_units: number;
+  status: "pending" | "filled";
+}
+
 export interface Alert {
   id: string;
   user_id: string;

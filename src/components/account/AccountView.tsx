@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import type { Account, Position, WatchlistItem, Transaction, Order, FxPosition, FxOrder } from "@/lib/types";
+import type { Account, Position, WatchlistItem, Transaction, Order, FxPosition, FxOrder, FxTpLevel } from "@/lib/types";
 import { FX_PAIRS, floatingPnl } from "@/lib/forex";
 import ForexPanel from "./ForexPanel";
 import { useQuotes } from "@/lib/useQuotes";
@@ -44,6 +44,7 @@ export default function AccountView({
   initialOrders,
   initialFxPositions = [],
   initialFxOrders = [],
+  initialFxTpLevels = [],
 }: {
   account: Account;
   initialPositions: Position[];
@@ -52,6 +53,7 @@ export default function AccountView({
   initialOrders: Order[];
   initialFxPositions?: FxPosition[];
   initialFxOrders?: FxOrder[];
+  initialFxTpLevels?: FxTpLevel[];
 }) {
   const router = useRouter();
   const [selected, setSelected] = useState<{ symbol: string; name: string } | null>(null);
@@ -377,6 +379,7 @@ export default function AccountView({
           positions={fxPositions}
           quotes={quotes}
           orders={initialFxOrders}
+          tpLevels={initialFxTpLevels}
           leverage={account.leverage}
         />
       )}
