@@ -64,9 +64,20 @@ export default function PriceChart({ symbol, height = 220 }: { symbol: string; h
   return (
     <div className="rounded-lg border border-border bg-background p-3">
       <div className="mb-2 flex items-center justify-between">
-        <span className={`text-xs font-medium ${points.length >= 2 ? changeColor(changePct) : "text-muted"}`}>
-          {points.length >= 2 ? `${formatPercent(changePct)} · ${RANGES[rangeIdx].label}` : ""}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className={`text-xs font-medium ${points.length >= 2 ? changeColor(changePct) : "text-muted"}`}>
+            {points.length >= 2 ? `${formatPercent(changePct)} · ${RANGES[rangeIdx].label}` : ""}
+          </span>
+          <a
+            href={`/chart/${encodeURIComponent(symbol)}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs font-medium text-primary hover:underline"
+            title="Open the full TradingView chart in a new tab"
+          >
+            ↗ Advanced
+          </a>
+        </div>
         <div className="flex gap-1">
           {RANGES.map((r, i) => (
             <button
