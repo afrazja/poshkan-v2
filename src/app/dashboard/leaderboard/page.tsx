@@ -64,7 +64,7 @@ export default async function LeaderboardPage() {
           const q = quotes[f.symbol.toUpperCase()];
           value +=
             Number(f.margin) +
-            (q ? floatingPnl(f.direction as "LONG" | "SHORT", Number(f.units), Number(f.open_rate), q.price) : 0);
+            (q ? floatingPnl(f.direction as "LONG" | "SHORT", Number(f.units), Number(f.open_rate), q.price, f.symbol) : 0);
         }
         r.total_value = value;
         r.return_pct =

@@ -67,7 +67,7 @@ export async function GET(request: Request) {
       p_direction: o.direction,
       p_units: Number(o.units),
       p_rate: q.price,
-      p_margin: marginFor(Number(o.units), q.price, lev),
+      p_margin: marginFor(Number(o.units), q.price, lev, o.symbol),
       p_stop_loss: o.stop_loss,
       p_take_profit: o.take_profit,
     });

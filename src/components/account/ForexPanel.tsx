@@ -49,6 +49,17 @@ export default function ForexPanel({
   const [closing, setClosing] = useState<string | null>(null);
   const [canceling, setCanceling] = useState<string | null>(null);
   const [editSltp, setEditSltp] = useState<FxPosition | null>(null);
+  const [pairQuery, setPairQuery] = useState("");
+
+  const query = pairQuery.trim().toLowerCase();
+  const visiblePairs = query
+    ? FX_PAIRS.filter(
+        (p) =>
+          p.name.toLowerCase().includes(query) ||
+          p.label.toLowerCase().includes(query) ||
+          p.symbol.toLowerCase().includes(query)
+      )
+    : FX_PAIRS;
 
   const open = positions.filter((p) => p.status === "open");
   const closed = positions.filter((p) => p.status !== "open").slice(0, 10);
@@ -111,10 +122,18 @@ export default function ForexPanel({
     <div className="space-y-6">
       {/* Pair picker */}
       <div className="rounded-2xl border border-border bg-card p-4">
-        <h2 className="mb-3 text-sm font-semibold">Currency pairs</h2>
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <h2 className="text-sm font-semibold">Currency pairs</h2>
+          <input
+            value={pairQuery}
+            onChange={(e) => setPairQuery(e.target.value)}
+            placeholder="Search (e.g. JPY)…"
+            className="w-40 rounded-lg border border-border bg-input px-3 py-1.5 text-sm outline-none focus:border-primary"
+          />
+        </div>
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-          {FX_PAIRS.map((p) => {
-            const q = quotes[p.symbol];
+          {visiblePairs.map((p) => {
+            const quote = quotes[p.symbol];
             return (
               <button
                 key={p.symbol}
@@ -122,13 +141,16 @@ export default function ForexPanel({
                 className="rounded-xl border border-border bg-background p-3 text-left transition hover:border-primary/60"
               >
                 <div className="font-semibold">{p.name}</div>
-                <div className="mt-1 text-sm">{q ? formatRate(q.price) : "…"}</div>
-                <div className={`text-xs ${changeColor(q?.percentChange ?? 0)}`}>
-                  {q ? formatPercent(q.percentChange) : ""}
+                <div className="mt-1 text-sm">{quote ? formatRate(quote.price, p.symbol) : "…"}</div>
+                <div className={`text-xs ${changeColor(quote?.percentChange ?? 0)}`}>
+                  {quote ? formatPercent(quote.percentChange) : ""}
                 </div>
               </button>
             );
           })}
+          {visiblePairs.length === 0 && (
+            <p className="col-span-full py-2 text-sm text-muted">No pairs match “{pairQuery}”.</p>
+          )}
         </div>
         <p className="mt-2 text-xs text-muted">
           Tap a pair to go long (buy) or short (sell) with {leverage}:1 leverage.
@@ -190,8 +212,8 @@ export default function ForexPanel({
             {open.map((p) => {
               const q = quotes[p.symbol.toUpperCase()];
               const rate = q?.price;
-              const fl = rate ? floatingPnl(p.direction, Number(p.units), Number(p.open_rate), rate) : null;
-              const pp = rate ? pips(p.direction, Number(p.open_rate), rate) : null;
+              const fl = rate ? floatingPnl(p.direction, Number(p.units), Number(p.open_rate), rate, p.symbol) : null;
+              const pp = rate ? pips(p.direction, Number(p.open_rate), rate, p.symbol) : null;
               return (
                 <div key={p.id} className="rounded-xl border border-border bg-card p-3">
                   <div className="flex items-center justify-between">
@@ -262,8 +284,8 @@ export default function ForexPanel({
                 {open.map((p) => {
                   const q = quotes[p.symbol.toUpperCase()];
                   const rate = q?.price;
-                  const fl = rate ? floatingPnl(p.direction, Number(p.units), Number(p.open_rate), rate) : null;
-                  const pp = rate ? pips(p.direction, Number(p.open_rate), rate) : null;
+                  const fl = rate ? floatingPnl(p.direction, Number(p.units), Number(p.open_rate), rate, p.symbol) : null;
+                  const pp = rate ? pips(p.direction, Number(p.open_rate), rate, p.symbol) : null;
                   return (
                     <tr key={p.id} className="border-b border-border last:border-0">
                       <td className="px-4 py-3 font-semibold">{pairName(p.symbol)}</td>
@@ -548,7 +570,7 @@ function FxTradeModal({
   // Pending orders price at the chosen entry rate; market orders at the live rate.
   const execRate = execMode === "PENDING" ? Number(entryRate) || rate : rate;
   const notional = effUnits * execRate;
-  const margin = execRate > 0 ? marginFor(effUnits, execRate, leverage) : 0;
+  const margin = execRate > 0 ? marginFor(effUnits, execRate, leverage, symbol) : 0;
   const affordable = margin > 0 && margin <= cash;
 
   async function submit() {
@@ -576,7 +598,7 @@ function FxTradeModal({
       });
       setLoading(false);
       if (res.error) return setError(res.error);
-      setDone({ rate: entry, margin: marginFor(effUnits, entry, leverage), pending: true });
+      setDone({ rate: entry, margin: marginFor(effUnits, entry, leverage, symbol), pending: true });
       router.refresh();
       return;
     }
@@ -783,7 +805,7 @@ function FxTradeModal({
           <div className="space-y-1.5 rounded-lg border border-border bg-background p-3 text-sm">
             <Row label="Notional value" value={rate ? formatCurrency(notional) : "…"} />
             <Row label={`Margin required (${leverage}:1)`} value={rate ? formatCurrency(margin) : "…"} bold />
-            <Row label="Pip value" value={`${formatCurrency(pipValue(effUnits))} / pip`} />
+            <Row label="Pip value" value={`${formatCurrency(pipValue(effUnits, symbol, rate))} / pip`} />
             <Row label="Free cash" value={formatCurrency(cash)} />
           </div>
 

@@ -141,7 +141,7 @@ export default function AccountView({
   const fxMargin = fxOpen.reduce((s, p) => s + Number(p.margin), 0);
   const fxFloating = fxOpen.reduce((s, p) => {
     const q = quotes[p.symbol.toUpperCase()];
-    return s + (q ? floatingPnl(p.direction, Number(p.units), Number(p.open_rate), q.price) : 0);
+    return s + (q ? floatingPnl(p.direction, Number(p.units), Number(p.open_rate), q.price, p.symbol) : 0);
   }, 0);
   const fxRealized = fxPositions
     .filter((p) => p.status !== "open")

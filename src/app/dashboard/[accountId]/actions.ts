@@ -196,7 +196,7 @@ export async function openFxPositionAction(input: {
   const sltpErr = sltpError(input.direction, rate, sl, tp);
   if (sltpErr) return { error: sltpErr };
 
-  const margin = marginFor(input.units, rate, (account as { leverage?: number }).leverage);
+  const margin = marginFor(input.units, rate, (account as { leverage?: number }).leverage, input.symbol);
   const { error } = await supabase.rpc("fx_open", {
     p_account_id: input.accountId,
     p_symbol: input.symbol.toUpperCase(),
@@ -370,7 +370,7 @@ export async function fillFxOrderAction(
     p_direction: o.direction,
     p_units: Number(o.units),
     p_rate: rate,
-    p_margin: marginFor(Number(o.units), rate, (acct as { leverage?: number } | null)?.leverage),
+    p_margin: marginFor(Number(o.units), rate, (acct as { leverage?: number } | null)?.leverage, o.symbol),
     p_stop_loss: o.stop_loss,
     p_take_profit: o.take_profit,
   });
