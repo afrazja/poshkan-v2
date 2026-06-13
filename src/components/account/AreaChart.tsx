@@ -119,12 +119,23 @@ export default function AreaChart({
     return { data, n, pts, line, area, yTicks, xAt, changePct, up, plotW, plotH, baselineY, bench, benchLine };
   }, [points, width, height, baseline, benchmark]);
 
-  function onMove(e: React.MouseEvent) {
+  function setHoverFromX(clientX: number) {
     if (!chart || !svgRef.current) return;
     const rect = svgRef.current.getBoundingClientRect();
-    const frac = (e.clientX - rect.left - PAD.left) / chart.plotW;
+    const frac = (clientX - rect.left - PAD.left) / chart.plotW;
     const idx = Math.round(frac * (chart.n - 1));
     setHover(Math.max(0, Math.min(chart.n - 1, idx)));
+  }
+
+  function onMove(e: React.MouseEvent) {
+    setHoverFromX(e.clientX);
+  }
+
+  // Touch: scrub the crosshair by dragging; the value stays put after you lift
+  // so it can be read. touch-action: pan-y keeps vertical page scroll working.
+  function onTouch(e: React.TouchEvent) {
+    if (e.touches.length === 0) return;
+    setHoverFromX(e.touches[0].clientX);
   }
 
   if (!chart) {
@@ -148,7 +159,10 @@ export default function AreaChart({
         height={height}
         onMouseMove={onMove}
         onMouseLeave={() => setHover(null)}
+        onTouchStart={onTouch}
+        onTouchMove={onTouch}
         className="block"
+        style={{ touchAction: "pan-y" }}
       >
         <defs>
           <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">

@@ -69,6 +69,13 @@ export default function SymbolPanel({
               <div className={`text-sm font-medium ${changeColor(quote.percentChange)}`}>
                 {formatCurrency(quote.change)} ({formatPercent(quote.percentChange)}) today
               </div>
+              <div className="mt-0.5 text-xs">
+                {quote.isMarketOpen ? (
+                  <span className="text-positive">● Live price</span>
+                ) : (
+                  <span className="text-muted">○ Market closed · last close shown</span>
+                )}
+              </div>
             </>
           )}
         </div>
