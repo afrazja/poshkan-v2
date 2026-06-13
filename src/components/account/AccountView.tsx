@@ -270,12 +270,6 @@ export default function AccountView({
         </nav>
         <div className="flex gap-2">
           <button
-            onClick={() => setCashModal("DEPOSIT")}
-            className="rounded-lg border border-border px-3 py-1.5 text-sm hover:bg-card"
-          >
-            Add cash
-          </button>
-          <button
             onClick={() => setCashModal("RESET")}
             className="rounded-lg border border-border px-3 py-1.5 text-sm text-muted hover:bg-card"
           >
@@ -325,7 +319,7 @@ export default function AccountView({
         <div className={`mt-5 grid grid-cols-2 gap-4 ${isForex ? "sm:grid-cols-4" : "sm:grid-cols-3 lg:grid-cols-5"}`}>
           {isForex ? (
             <>
-              <Stat label="Free cash" value={formatCurrency(cash)} />
+              <Stat label="Free cash" value={formatCurrency(cash)} onAdd={() => setCashModal("DEPOSIT")} />
               <Stat label="Margin in use" value={formatCurrency(fxMargin)} />
               <Stat
                 label="Floating P&L"
@@ -340,7 +334,7 @@ export default function AccountView({
             </>
           ) : (
             <>
-              <Stat label="Buying power" value={formatCurrency(cash)} />
+              <Stat label="Buying power" value={formatCurrency(cash)} onAdd={() => setCashModal("DEPOSIT")} />
               <Stat
                 label="Holdings value"
                 value={formatCurrency(holdingsValue)}
@@ -631,16 +625,28 @@ function Stat({
   value,
   colorClass,
   onChart,
+  onAdd,
 }: {
   label: string;
   value: string;
   colorClass?: string;
   onChart?: () => void;
+  onAdd?: () => void;
 }) {
   return (
     <div>
       <div className="text-xs text-muted">{label}</div>
       <div className="mt-0.5 flex items-center gap-1.5">
+        {onAdd && (
+          <button
+            onClick={onAdd}
+            aria-label="Add cash"
+            title="Add cash"
+            className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-border text-sm leading-none text-muted transition hover:border-primary hover:text-primary"
+          >
+            +
+          </button>
+        )}
         {onChart && (
           <button
             onClick={onChart}
