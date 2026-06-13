@@ -375,6 +375,7 @@ export default function AccountView({
           positions={fxPositions}
           quotes={quotes}
           orders={initialFxOrders}
+          leverage={account.leverage}
         />
       )}
 

@@ -175,7 +175,7 @@ export async function openFxPositionAction(input: {
 
   const { data: account } = await supabase
     .from("accounts")
-    .select("type")
+    .select("type, leverage")
     .eq("id", input.accountId)
     .single();
   if (!account) return { error: "Account not found" };
@@ -196,7 +196,7 @@ export async function openFxPositionAction(input: {
   const sltpErr = sltpError(input.direction, rate, sl, tp);
   if (sltpErr) return { error: sltpErr };
 
-  const margin = marginFor(input.units, rate);
+  const margin = marginFor(input.units, rate, (account as { leverage?: number }).leverage);
   const { error } = await supabase.rpc("fx_open", {
     p_account_id: input.accountId,
     p_symbol: input.symbol.toUpperCase(),
@@ -358,13 +358,19 @@ export async function fillFxOrderAction(
     .select("id");
   if (!claimed || claimed.length === 0) return { filled: false };
 
+  const { data: acct } = await supabase
+    .from("accounts")
+    .select("leverage")
+    .eq("id", o.account_id)
+    .single();
+
   const { error } = await supabase.rpc("fx_open", {
     p_account_id: o.account_id,
     p_symbol: o.symbol,
     p_direction: o.direction,
     p_units: Number(o.units),
     p_rate: rate,
-    p_margin: marginFor(Number(o.units), rate),
+    p_margin: marginFor(Number(o.units), rate, (acct as { leverage?: number } | null)?.leverage),
     p_stop_loss: o.stop_loss,
     p_take_profit: o.take_profit,
   });

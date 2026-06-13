@@ -35,12 +35,14 @@ export default function ForexPanel({
   positions,
   quotes,
   orders = [],
+  leverage = FX_LEVERAGE,
 }: {
   accountId: string;
   cash: number;
   positions: FxPosition[];
   quotes: Record<string, Quote>;
   orders?: FxOrder[];
+  leverage?: number;
 }) {
   const router = useRouter();
   const [trade, setTrade] = useState<string | null>(null); // pair symbol
@@ -129,7 +131,7 @@ export default function ForexPanel({
           })}
         </div>
         <p className="mt-2 text-xs text-muted">
-          Tap a pair to go long (buy) or short (sell) with {FX_LEVERAGE}:1 leverage.
+          Tap a pair to go long (buy) or short (sell) with {leverage}:1 leverage.
         </p>
       </div>
 
@@ -412,6 +414,7 @@ export default function ForexPanel({
           symbol={trade}
           quote={quotes[trade]}
           cash={cash}
+          leverage={leverage}
           onClose={() => setTrade(null)}
         />
       )}
@@ -517,12 +520,14 @@ function FxTradeModal({
   symbol,
   quote,
   cash,
+  leverage,
   onClose,
 }: {
   accountId: string;
   symbol: string;
   quote?: Quote;
   cash: number;
+  leverage: number;
   onClose: () => void;
 }) {
   const router = useRouter();
@@ -543,7 +548,7 @@ function FxTradeModal({
   // Pending orders price at the chosen entry rate; market orders at the live rate.
   const execRate = execMode === "PENDING" ? Number(entryRate) || rate : rate;
   const notional = effUnits * execRate;
-  const margin = execRate > 0 ? marginFor(effUnits, execRate) : 0;
+  const margin = execRate > 0 ? marginFor(effUnits, execRate, leverage) : 0;
   const affordable = margin > 0 && margin <= cash;
 
   async function submit() {
@@ -571,7 +576,7 @@ function FxTradeModal({
       });
       setLoading(false);
       if (res.error) return setError(res.error);
-      setDone({ rate: entry, margin: marginFor(effUnits, entry), pending: true });
+      setDone({ rate: entry, margin: marginFor(effUnits, entry, leverage), pending: true });
       router.refresh();
       return;
     }
@@ -777,7 +782,7 @@ function FxTradeModal({
           {/* Order summary */}
           <div className="space-y-1.5 rounded-lg border border-border bg-background p-3 text-sm">
             <Row label="Notional value" value={rate ? formatCurrency(notional) : "…"} />
-            <Row label={`Margin required (${FX_LEVERAGE}:1)`} value={rate ? formatCurrency(margin) : "…"} bold />
+            <Row label={`Margin required (${leverage}:1)`} value={rate ? formatCurrency(margin) : "…"} bold />
             <Row label="Pip value" value={`${formatCurrency(pipValue(effUnits))} / pip`} />
             <Row label="Free cash" value={formatCurrency(cash)} />
           </div>

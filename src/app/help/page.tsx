@@ -87,9 +87,10 @@ export default function HelpPage() {
           position sizes: micro = 1,000 units, mini = 10,000, standard = 100,000.
         </Term>
         <Term name="Leverage & margin">
-          Poshkan uses 30:1 leverage — opening a 10,000-unit position only reserves about 1/30 of
-          its value from your cash as <strong>margin</strong>. Leverage amplifies both gains and
-          losses.
+          You choose your leverage (30:1 up to 500:1) when you create a forex account. At 30:1,
+          opening a 10,000-unit position reserves about 1/30 of its value from your cash as{" "}
+          <strong>margin</strong>; higher leverage reserves less, so the same cash controls bigger
+          positions — amplifying both gains and losses. 30:1 matches EU/UK retail brokers.
         </Term>
         <Term name="Pip">
           the smallest common price step (0.0001 for most pairs). Your P&amp;L per pip = units ×

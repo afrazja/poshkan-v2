@@ -1,7 +1,10 @@
 // Forex domain rules (shared client/server). v1: USD-quoted majors only, so
 // P&L and pip values are natively in USD — no conversion needed.
 
-export const FX_LEVERAGE = 30;
+export const FX_LEVERAGE = 30; // default when an account has no leverage set
+
+// Leverage choices offered when creating a forex account (30:1 = EU/UK retail).
+export const FX_LEVERAGE_OPTIONS = [30, 50, 100, 200, 500] as const;
 
 export const FX_PAIRS = [
   { symbol: "EURUSD=X", name: "EUR/USD", label: "Euro / US Dollar" },
@@ -29,8 +32,9 @@ export function pairName(symbol: string): string {
   return s.length === 6 ? `${s.slice(0, 3)}/${s.slice(3)}` : s;
 }
 
-export function marginFor(units: number, rate: number): number {
-  return Math.round(((units * rate) / FX_LEVERAGE) * 100) / 100;
+export function marginFor(units: number, rate: number, leverage?: number | null): number {
+  const lev = leverage && leverage > 0 ? leverage : FX_LEVERAGE;
+  return Math.round(((units * rate) / lev) * 100) / 100;
 }
 
 export function pipValue(units: number): number {

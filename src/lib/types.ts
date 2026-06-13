@@ -21,6 +21,7 @@ export interface Account {
   name: string;
   type: AccountType;
   cash_balance: number;
+  leverage?: number; // forex accounts only; defaults to 30
   created_at: string;
 }
 
