@@ -26,7 +26,7 @@ export default function ApiAccessModal({ onClose }: { onClose: () => void }) {
 
   async function refresh() {
     const res = await listApiTokensAction();
-    if (res.error) setError(res.error.includes("api_tokens") ? "Run supabase/mcp.sql first." : res.error);
+    if (res.error) setError(res.error.includes("api_tokens") ? "API access isn't available right now." : res.error);
     else setTokens(res.tokens ?? []);
   }
   useEffect(() => {

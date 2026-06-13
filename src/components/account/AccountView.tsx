@@ -63,6 +63,14 @@ export default function AccountView({
   const [manageBusy, setManageBusy] = useState(false);
   const [metricChart, setMetricChart] = useState<"holdings" | "pnl" | null>(null);
   const [tab, setTab] = useState<Tab>("holdings");
+
+  // Restore the last tab the user had open on this account.
+  useEffect(() => {
+    const saved = localStorage.getItem(`poshkan-tab-${account.id}`);
+    if (saved === "holdings" || saved === "watchlist" || saved === "history" || saved === "insights") {
+      setTab(saved);
+    }
+  }, [account.id]);
   const [filter, setFilter] = useState("");
 
   const positions = initialPositions;
@@ -156,18 +164,18 @@ export default function AccountView({
   const inWatchlist = (symbol: string) =>
     watchlist.some((w) => w.symbol.toUpperCase() === symbol.toUpperCase());
 
-  const [watchBusy, setWatchBusy] = useState(false);
+  const [watchBusy, setWatchBusy] = useState<string | null>(null);
   const [canceling, setCanceling] = useState<string | null>(null);
 
   async function toggleWatch(symbol: string) {
-    setWatchBusy(true);
+    setWatchBusy(symbol);
     if (inWatchlist(symbol)) {
       await removeFromWatchlistAction(account.id, symbol);
     } else {
       await addToWatchlistAction(account.id, symbol);
     }
     router.refresh();
-    setWatchBusy(false);
+    setWatchBusy(null);
   }
 
   // Selecting a symbol (from search results or a table row) opens its detail popup.
@@ -401,7 +409,7 @@ export default function AccountView({
             onBuy={() => setTrade({ side: "BUY", symbol: selected.symbol })}
             onSell={() => setTrade({ side: "SELL", symbol: selected.symbol })}
             onToggleWatch={() => toggleWatch(selected.symbol)}
-            watchPending={watchBusy}
+            watchPending={watchBusy === selected.symbol}
           />
         </Modal>
       )}
@@ -463,6 +471,9 @@ export default function AccountView({
                 onClick={() => {
                   setTab(t.key);
                   setFilter("");
+                  try {
+                    localStorage.setItem(`poshkan-tab-${account.id}`, t.key);
+                  } catch {}
                 }}
                 className={`rounded-md px-4 py-1.5 text-sm font-medium transition ${
                   tab === t.key ? "bg-background text-foreground shadow-sm" : "text-muted hover:text-foreground"
@@ -522,6 +533,7 @@ export default function AccountView({
             quotes={quotes}
             onSelect={selectSymbol}
             onRemove={(symbol) => toggleWatch(symbol)}
+            pendingSymbol={watchBusy}
           />
         )}
 

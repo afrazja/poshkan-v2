@@ -11,7 +11,12 @@ export const metadata = {
     "A risk-free trading simulator with live prices, real order types, an AI coach that reviews your trades, and a leaderboard to compete with friends. 100% virtual money.",
 };
 
-export default function LandingPage() {
+export default async function LandingPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ expired?: string }>;
+}) {
+  const { expired } = await searchParams;
   return (
     <div className="relative flex min-h-screen flex-col">
       <RecoveryRedirect />
@@ -24,7 +29,12 @@ export default function LandingPage() {
             <Image src="/icons/icon-192.png" alt="Poshkan" width={36} height={36} className="rounded-lg" />
             <span className="text-xl font-bold tracking-tight">Poshkan</span>
           </div>
-          <div className="flex flex-1 items-center">
+          <div className="flex flex-1 flex-col items-center justify-center gap-4">
+            {expired && (
+              <div className="w-full max-w-md rounded-lg border border-primary/30 bg-primary/10 px-4 py-3 text-sm">
+                Your session expired — please log in again.
+              </div>
+            )}
             <AuthCard />
           </div>
         </div>

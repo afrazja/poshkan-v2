@@ -4,6 +4,7 @@ import Providers from "@/components/Providers";
 import TopBar from "@/components/TopBar";
 import SiteFooter from "@/components/SiteFooter";
 import ThemeSync from "@/components/ThemeSync";
+import SessionWatcher from "@/components/SessionWatcher";
 
 export default async function DashboardLayout({
   children,
@@ -29,6 +30,7 @@ export default async function DashboardLayout({
   return (
     <Providers>
       <ThemeSync theme={theme} />
+      <SessionWatcher />
       <div className="flex min-h-screen flex-col">
         <TopBar username={username} email={user.email ?? ""} />
         <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:px-6">

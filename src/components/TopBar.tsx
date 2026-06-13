@@ -66,6 +66,10 @@ export default function TopBar({ username, email }: { username: string; email: s
   }, []);
 
   async function signOut() {
+    // Flag so SessionWatcher doesn't treat this as an expired session.
+    try {
+      sessionStorage.setItem("poshkan-signing-out", "1");
+    } catch {}
     await createClient().auth.signOut();
     router.refresh();
     router.push("/");

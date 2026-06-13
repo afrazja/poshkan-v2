@@ -10,11 +10,13 @@ export default function WatchlistTable({
   quotes,
   onSelect,
   onRemove,
+  pendingSymbol,
 }: {
   items: WatchlistItem[];
   quotes: Record<string, Quote>;
   onSelect: (symbol: string) => void;
   onRemove: (symbol: string) => void;
+  pendingSymbol?: string | null;
 }) {
   const [sort, setSort] = useState<SortState | null>(null);
 
@@ -76,9 +78,10 @@ export default function WatchlistTable({
             </button>
             <button
               onClick={() => onRemove(item.symbol)}
-              className="text-xs text-muted hover:text-negative"
+              disabled={pendingSymbol === item.symbol}
+              className="text-xs text-muted hover:text-negative disabled:opacity-50"
             >
-              Remove
+              {pendingSymbol === item.symbol ? "…" : "Remove"}
             </button>
           </div>
         ))}
@@ -111,9 +114,10 @@ export default function WatchlistTable({
               <td className="px-4 py-3 text-right">
                 <button
                   onClick={() => onRemove(item.symbol)}
-                  className="text-xs text-muted hover:text-negative"
+                  disabled={pendingSymbol === item.symbol}
+                  className="text-xs text-muted hover:text-negative disabled:opacity-50"
                 >
-                  Remove
+                  {pendingSymbol === item.symbol ? "…" : "Remove"}
                 </button>
               </td>
             </tr>

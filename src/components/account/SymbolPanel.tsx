@@ -221,7 +221,7 @@ function AlertForm({ symbol, currentPrice }: { symbol: string; currentPrice?: nu
       <button onClick={() => setOpen(false)} className="text-xs text-muted hover:text-foreground">
         ✕
       </button>
-      {state === "error" && <span className="text-xs text-negative">Failed — run upgrades.sql?</span>}
+      {state === "error" && <span className="text-xs text-negative">Couldn&apos;t set the alert — try again.</span>}
     </span>
   );
 }
