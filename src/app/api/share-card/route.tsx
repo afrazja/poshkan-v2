@@ -22,6 +22,7 @@ export async function GET(request: Request) {
   let accountLabel = "Paper portfolio";
   let returnPct = 0;
   let value = 0;
+  let periodLabel = "";
 
   try {
     const admin = createAdminClient();
@@ -30,15 +31,28 @@ export async function GET(request: Request) {
     if (row) {
       username = row.username || username;
       accountLabel = `${row.account_name} · ${row.account_type}`;
-      const [{ data: acc }, { data: pos }, { data: fx }] = await Promise.all([
-        admin.from("accounts").select("cash_balance").eq("id", accountId).single(),
+      const [{ data: acc }, { data: pos }, { data: fx }, { data: resets }] = await Promise.all([
+        admin.from("accounts").select("cash_balance, created_at").eq("id", accountId).single(),
         admin.from("positions").select("symbol, quantity, avg_cost").eq("account_id", accountId),
         admin
           .from("fx_positions")
           .select("symbol, direction, units, open_rate, margin")
           .eq("account_id", accountId)
           .eq("status", "open"),
+        admin
+          .from("transactions")
+          .select("created_at")
+          .eq("account_id", accountId)
+          .eq("side", "RESET")
+          .order("created_at", { ascending: false })
+          .limit(1),
       ]);
+      // Return is measured since the account's last reset (or its creation).
+      const start = resets?.[0]?.created_at ?? acc?.created_at;
+      if (start) {
+        const days = Math.max(1, Math.round((Date.now() - new Date(start).getTime()) / 86_400_000));
+        periodLabel = days <= 1 ? "since today" : days < 60 ? `over ${days} days` : `since ${new Date(start).toLocaleDateString("en-US", { month: "short", year: "numeric" })}`;
+      }
       const symbols = Array.from(
         new Set([
           ...(pos ?? []).map((p) => p.symbol.toUpperCase()),
@@ -103,7 +117,7 @@ export async function GET(request: Request) {
 
         <div style={{ display: "flex", flexDirection: "column" }}>
           <div style={{ display: "flex", fontSize: "30px", color: "rgba(255,255,255,0.85)" }}>
-            {username}&apos;s paper-trading return
+            {username}&apos;s paper-trading return{periodLabel ? ` ${periodLabel}` : ""}
           </div>
           <div style={{ display: "flex", fontSize: "150px", fontWeight: 800, color: accent, lineHeight: 1.05 }}>
             {pctStr}
