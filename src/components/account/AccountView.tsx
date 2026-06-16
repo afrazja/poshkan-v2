@@ -24,6 +24,7 @@ import InsightsTab from "./InsightsTab";
 import WatchlistTable from "./WatchlistTable";
 import TradeModal from "./TradeModal";
 import CashModal from "./CashModal";
+import ShareCardModal from "@/components/ShareCardModal";
 import {
   addToWatchlistAction,
   removeFromWatchlistAction,
@@ -59,6 +60,7 @@ export default function AccountView({
   const [selected, setSelected] = useState<{ symbol: string; name: string } | null>(null);
   const [trade, setTrade] = useState<{ side: "BUY" | "SELL"; symbol: string } | null>(null);
   const [cashModal, setCashModal] = useState<"DEPOSIT" | "RESET" | null>(null);
+  const [shareOpen, setShareOpen] = useState(false);
   const [manageModal, setManageModal] = useState<"rename" | "delete" | null>(null);
   const [renameValue, setRenameValue] = useState(account.name);
   const [manageError, setManageError] = useState<string | null>(null);
@@ -279,6 +281,12 @@ export default function AccountView({
           <span className="font-semibold text-foreground">{account.name}</span>
         </nav>
         <div className="flex gap-2">
+          <button
+            onClick={() => setShareOpen(true)}
+            className="rounded-lg border border-border px-3 py-1.5 text-sm hover:bg-card"
+          >
+            Share
+          </button>
           <button
             onClick={() => setCashModal("RESET")}
             className="rounded-lg border border-border px-3 py-1.5 text-sm text-muted hover:bg-card"
@@ -575,6 +583,7 @@ export default function AccountView({
       {cashModal && (
         <CashModal accountId={account.id} mode={cashModal} onClose={() => setCashModal(null)} />
       )}
+      {shareOpen && <ShareCardModal accountId={account.id} onClose={() => setShareOpen(false)} />}
       {manageModal === "rename" && (
         <Modal title="Rename account" onClose={() => setManageModal(null)}>
           <div className="space-y-4">
