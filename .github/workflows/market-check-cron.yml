@@ -22,7 +22,13 @@ jobs:
     steps:
       - name: Ping market-check endpoint
         run: |
-          curl -fsS "$MARKET_CHECK_URL" -H "Authorization: Bearer $CRON_SECRET"
+          echo "Calling $MARKET_CHECK_URL"
+          code=$(curl -sS -o response.txt -w "%{http_code}" -H "Authorization: Bearer $CRON_SECRET" "$MARKET_CHECK_URL")
+          echo "HTTP $code"; cat response.txt; echo
+          if [ "$code" != "200" ]; then
+            echo "::error::Expected HTTP 200, got $code. A 3xx means the URL redirects — set the secret to the canonical https://www.poshkan.com URL."
+            exit 1
+          fi
         env:
           MARKET_CHECK_URL: ${{ secrets.MARKET_CHECK_URL }}
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
