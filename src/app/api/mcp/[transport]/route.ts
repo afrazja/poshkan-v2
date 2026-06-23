@@ -4,6 +4,7 @@ import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getQuote, getQuotes, searchSymbols, getTimeSeries } from "@/lib/marketdata";
 import { assetTypeError } from "@/lib/assets";
+import { marginFor, sltpError, floatingPnl, isForexSymbol, pairName } from "@/lib/forex";
 
 export const maxDuration = 60;
 
@@ -312,6 +313,142 @@ function buildHandler(userId: string) {
             .order("created_at", { ascending: false })
             .limit(limit ?? 25);
           return ok(data ?? []);
+        }
+      );
+
+      server.tool(
+        "open_forex_position",
+        "Open a leveraged forex position at the live rate on a FOREX account. symbol is a pair like EURUSD=X. units = position size (10000 = 1 mini lot). Optional stop_loss / take_profit prices, and auto_close_minutes for a timed exit. Margin is reserved from cash using the account's leverage.",
+        {
+          account_id: z.string().uuid(),
+          symbol: z.string().min(1),
+          direction: z.enum(["LONG", "SHORT"]),
+          units: z.number().positive(),
+          stop_loss: z.number().positive().optional(),
+          take_profit: z.number().positive().optional(),
+          auto_close_minutes: z.number().int().positive().optional(),
+        },
+        async ({ account_id, symbol, direction, units, stop_loss, take_profit, auto_close_minutes }) => {
+          const account = await ownAccount(account_id);
+          if (!account) return err("Account not found");
+          if (account.type !== "forex") return err("This tool is for forex accounts only");
+          if (!isForexSymbol(symbol)) return err("Symbol must be a forex pair, e.g. EURUSD=X");
+          let rate: number;
+          try {
+            rate = (await getQuote(symbol)).price;
+            if (!rate || rate <= 0) return err("Could not get a valid rate");
+          } catch (e) {
+            return err(`Rate fetch failed: ${(e as Error).message}`);
+          }
+          const sl = stop_loss ?? null;
+          const tp = take_profit ?? null;
+          const slErr = sltpError(direction, rate, sl, tp);
+          if (slErr) return err(slErr);
+          const { data: acc } = await db.from("accounts").select("leverage").eq("id", account_id).single();
+          const leverage = (acc as { leverage?: number } | null)?.leverage;
+          const margin = marginFor(units, rate, leverage, symbol);
+          const { data: posId, error } = await db.rpc("fx_open", {
+            p_account_id: account_id,
+            p_symbol: symbol.toUpperCase(),
+            p_direction: direction,
+            p_units: units,
+            p_rate: rate,
+            p_margin: margin,
+            p_stop_loss: sl,
+            p_take_profit: tp,
+          });
+          if (error) return err(error.message);
+          let timedClose = false;
+          if (auto_close_minutes && auto_close_minutes > 0 && posId) {
+            const { error: acErr } = await db.rpc("fx_set_auto_close", {
+              p_position_id: posId,
+              p_minutes: Math.round(auto_close_minutes),
+            });
+            timedClose = !acErr;
+          }
+          return ok({
+            opened: true,
+            position_id: posId,
+            pair: pairName(symbol),
+            direction,
+            units,
+            open_rate: rate,
+            margin,
+            leverage: leverage ?? 30,
+            auto_close_minutes: timedClose ? auto_close_minutes : null,
+          });
+        }
+      );
+
+      server.tool(
+        "list_forex_positions",
+        "List open forex positions on a forex account, with live rate, floating P&L (USD), margin, SL/TP, and any auto-close time.",
+        { account_id: z.string().uuid() },
+        async ({ account_id }) => {
+          const account = await ownAccount(account_id);
+          if (!account) return err("Account not found");
+          const { data: positions } = await db
+            .from("fx_positions")
+            .select("id, symbol, direction, units, open_rate, margin, stop_loss, take_profit, auto_close_at")
+            .eq("account_id", account_id)
+            .eq("status", "open");
+          if (!positions?.length) return ok([]);
+          const symbols = Array.from(new Set(positions.map((p) => p.symbol.toUpperCase())));
+          const quotes = await getQuotes(symbols);
+          return ok(
+            positions.map((p) => {
+              const q = quotes[p.symbol.toUpperCase()];
+              const rate = q?.price;
+              const fl = rate
+                ? floatingPnl(p.direction as "LONG" | "SHORT", Number(p.units), Number(p.open_rate), rate, p.symbol)
+                : null;
+              return {
+                position_id: p.id,
+                pair: pairName(p.symbol),
+                direction: p.direction,
+                units: Number(p.units),
+                open_rate: Number(p.open_rate),
+                current_rate: rate ?? null,
+                floating_pnl: fl != null ? +fl.toFixed(2) : null,
+                margin: Number(p.margin),
+                stop_loss: p.stop_loss,
+                take_profit: p.take_profit,
+                auto_close_at: p.auto_close_at,
+              };
+            })
+          );
+        }
+      );
+
+      server.tool(
+        "close_forex_position",
+        "Close an open forex position at the live rate, banking its P&L. Use list_forex_positions to get the position_id.",
+        { account_id: z.string().uuid(), position_id: z.string().uuid() },
+        async ({ account_id, position_id }) => {
+          const account = await ownAccount(account_id);
+          if (!account) return err("Account not found");
+          const { data: pos } = await db
+            .from("fx_positions")
+            .select("symbol")
+            .eq("id", position_id)
+            .eq("account_id", account_id)
+            .eq("status", "open")
+            .single();
+          if (!pos) return err("No open position with that id");
+          let rate: number;
+          try {
+            rate = (await getQuote(pos.symbol)).price;
+            if (!rate || rate <= 0) return err("Could not get a valid rate");
+          } catch (e) {
+            return err(`Rate fetch failed: ${(e as Error).message}`);
+          }
+          const { data: pnl, error } = await db.rpc("fx_close", {
+            p_position_id: position_id,
+            p_rate: rate,
+            p_reason: "closed",
+          });
+          if (error) return err(error.message);
+          return ok({ closed: true, position_id, close_rate: rate, pnl: pnl != null ? +Number(pnl).toFixed(2) : null });
         }
       );
     },
