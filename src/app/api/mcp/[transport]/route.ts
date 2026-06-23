@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { createMcpHandler } from "mcp-handler";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getQuote, getQuotes, searchSymbols } from "@/lib/marketdata";
+import { getQuote, getQuotes, searchSymbols, getTimeSeries } from "@/lib/marketdata";
 import { assetTypeError } from "@/lib/assets";
 
 export const maxDuration = 60;
@@ -138,13 +138,47 @@ function buildHandler(userId: string) {
 
       server.tool(
         "get_quote",
-        "Get a live quote for a stock, ETF, or crypto symbol (e.g. AAPL, BTC-USD).",
+        "Get a live quote for a stock, ETF, crypto (BTC-USD), or forex pair (EURUSD=X). Includes price, day range, and 52-week range.",
         { symbol: z.string().min(1) },
         async ({ symbol }) => {
           try {
             return ok(await getQuote(symbol));
           } catch (e) {
             return err(`Quote failed: ${(e as Error).message}`);
+          }
+        }
+      );
+
+      server.tool(
+        "get_price_history",
+        "Get recent price history (the same candles the chart draws) for a stock, ETF, crypto (BTC-USD), or forex pair (EURUSD=X). Use this to analyze trend, momentum, and support/resistance. interval: '1day' (default), '1week', or intraday '5min'/'15min'/'1h'. limit = number of points (default 90).",
+        {
+          symbol: z.string().min(1),
+          interval: z.enum(["5min", "15min", "1h", "1day", "1week"]).optional(),
+          limit: z.number().int().min(2).max(400).optional(),
+        },
+        async ({ symbol, interval, limit }) => {
+          try {
+            const candles = await getTimeSeries(symbol, interval ?? "1day", limit ?? 90);
+            if (!candles.length) return err("No price history available for that symbol");
+            const closes = candles.map((c) => c.close);
+            const first = closes[0];
+            const last = closes[closes.length - 1];
+            return ok({
+              symbol: symbol.toUpperCase(),
+              interval: interval ?? "1day",
+              points: candles.length,
+              summary: {
+                first,
+                last,
+                high: Math.max(...closes),
+                low: Math.min(...closes),
+                change_pct: +(((last - first) / first) * 100).toFixed(2),
+              },
+              candles,
+            });
+          } catch (e) {
+            return err(`History failed: ${(e as Error).message}`);
           }
         }
       );
