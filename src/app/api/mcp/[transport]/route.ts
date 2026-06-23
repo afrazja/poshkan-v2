@@ -2,9 +2,10 @@ import { createHash } from "node:crypto";
 import { createMcpHandler } from "mcp-handler";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getQuote, getQuotes, searchSymbols, getTimeSeries } from "@/lib/marketdata";
+import { getQuote, getQuotes, searchSymbols, getOhlc } from "@/lib/marketdata";
 import { assetTypeError } from "@/lib/assets";
 import { marginFor, sltpError, floatingPnl, isForexSymbol, pairName } from "@/lib/forex";
+import { sma, rsi, trendFromSma, support, resistance } from "@/lib/indicators";
 
 export const maxDuration = 60;
 
@@ -152,31 +153,40 @@ function buildHandler(userId: string) {
 
       server.tool(
         "get_price_history",
-        "Get recent price history (the same candles the chart draws) for a stock, ETF, crypto (BTC-USD), or forex pair (EURUSD=X). Use this to analyze trend, momentum, and support/resistance. interval: '1day' (default), '1week', or intraday '5min'/'15min'/'1h'. limit = number of points (default 90).",
+        "Get OHLC candles + technical indicators (SMA20, SMA50, RSI14, 20-bar support/resistance, trend) for a stock, ETF, crypto (BTC-USD), or forex pair (EURUSD=X). Use for candlestick and technical analysis. interval: '1day' (default), '1week', or intraday '5min'/'15min'/'1h' (use '1h' for hourly analysis). limit = candles returned (default 60).",
         {
           symbol: z.string().min(1),
           interval: z.enum(["5min", "15min", "1h", "1day", "1week"]).optional(),
-          limit: z.number().int().min(2).max(400).optional(),
+          limit: z.number().int().min(2).max(300).optional(),
         },
         async ({ symbol, interval, limit }) => {
           try {
-            const candles = await getTimeSeries(symbol, interval ?? "1day", limit ?? 90);
-            if (!candles.length) return err("No price history available for that symbol");
-            const closes = candles.map((c) => c.close);
-            const first = closes[0];
-            const last = closes[closes.length - 1];
+            const n = limit ?? 60;
+            // Fetch extra bars so SMA50/RSI have warmup, then return the last n.
+            const all = await getOhlc(symbol, interval ?? "1day", Math.max(n + 55, 70));
+            if (!all.length) return err("No price history available for that symbol");
+            const closes = all.map((c) => c.close);
+            const highs = all.map((c) => c.high);
+            const lows = all.map((c) => c.low);
+            const last = all[all.length - 1];
+            const s20 = sma(closes, 20);
+            const s50 = sma(closes, 50);
+            const r14 = rsi(closes, 14);
+            const round = (v: number | null) => (v == null ? null : +v.toFixed(6));
             return ok({
               symbol: symbol.toUpperCase(),
               interval: interval ?? "1day",
-              points: candles.length,
-              summary: {
-                first,
-                last,
-                high: Math.max(...closes),
-                low: Math.min(...closes),
-                change_pct: +(((last - first) / first) * 100).toFixed(2),
+              points: all.length,
+              latest: last,
+              indicators: {
+                sma20: round(s20),
+                sma50: round(s50),
+                rsi14: r14 == null ? null : +r14.toFixed(1),
+                support_20bar: round(support(lows, 20)),
+                resistance_20bar: round(resistance(highs, 20)),
+                trend: trendFromSma(last.close, s20, s50),
               },
-              candles,
+              candles: all.slice(-n),
             });
           } catch (e) {
             return err(`History failed: ${(e as Error).message}`);

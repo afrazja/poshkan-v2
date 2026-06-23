@@ -70,6 +70,9 @@ interface YQuote {
 }
 interface YCandle {
   date?: Date | string;
+  open?: number | null;
+  high?: number | null;
+  low?: number | null;
   close?: number | null;
 }
 
@@ -203,6 +206,60 @@ export async function getNews(symbol: string): Promise<NewsItem[]> {
 export interface Candle {
   datetime: string;
   close: number;
+}
+
+export interface OhlcCandle {
+  datetime: string;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+}
+
+// Full OHLC candles (for candlestick + indicator analysis). Mirrors getTimeSeries
+// but keeps open/high/low; intraday returns multiple days of bars (not just today).
+export async function getOhlc(
+  symbol: string,
+  interval = "1day",
+  outputsize = 120
+): Promise<OhlcCandle[]> {
+  const weekly = interval === "1week" || interval.startsWith("1w");
+  const intraday = !weekly && interval !== "1day" && /\d+(min|m|h)$/i.test(interval);
+  const key = `ohlc:${symbol.toUpperCase()}:${interval}:${outputsize}`;
+  return cached(key, intraday ? 60_000 : 600_000, async () => {
+    let yInterval: string;
+    let days: number;
+    if (intraday) {
+      yInterval = interval.replace("min", "m");
+      days = interval.includes("h") ? Math.ceil(outputsize / 7) + 5 : 10;
+    } else if (weekly) {
+      yInterval = "1wk";
+      days = outputsize * 7 + 14;
+    } else {
+      yInterval = "1d";
+      days = Math.ceil(outputsize * 1.6) + 7;
+    }
+    const period1 = new Date(Date.now() - days * 86_400_000);
+    const chart = (await yf.chart(
+      symbol,
+      { period1, interval: yInterval as "1d" },
+      { validateResult: false }
+    )) as unknown as { quotes?: YCandle[] };
+    const rows = Array.isArray(chart.quotes) ? chart.quotes : [];
+    const candles = rows
+      .filter((c) => c.close != null && c.open != null && c.high != null && c.low != null && c.date)
+      .map((c) => {
+        const iso = new Date(c.date as Date | string).toISOString();
+        return {
+          datetime: intraday ? iso : iso.slice(0, 10),
+          open: Number(c.open),
+          high: Number(c.high),
+          low: Number(c.low),
+          close: Number(c.close),
+        };
+      });
+    return candles.slice(-outputsize);
+  });
 }
 
 const TIMESERIES_TTL = 600_000;
