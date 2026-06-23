@@ -1,0 +1,28 @@
+name: Market check (fills, SL/TP, alerts)
+
+# Drives /api/cron/market-check frequently so paper orders fill, positions
+# auto-close on SL/TP, and push notifications fire in near-real-time.
+# Vercel's Hobby tier can only run crons once/day, so we poll from here instead.
+#
+# Setup — add two repo secrets (Settings → Secrets and variables → Actions):
+#   MARKET_CHECK_URL = https://<your-vercel-domain>/api/cron/market-check
+#   CRON_SECRET      = the same value set in Vercel env (already configured)
+#
+# Note: GitHub's scheduler is best-effort and may drift a few minutes under
+# load. For exact timing use cron-job.org with the same URL + Authorization header.
+
+on:
+  schedule:
+    - cron: '*/5 * * * *' # every 5 minutes
+  workflow_dispatch: {} # manual "Run workflow" button
+
+jobs:
+  poll:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping market-check endpoint
+        run: |
+          curl -fsS "$MARKET_CHECK_URL" -H "Authorization: Bearer $CRON_SECRET"
+        env:
+          MARKET_CHECK_URL: ${{ secrets.MARKET_CHECK_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
