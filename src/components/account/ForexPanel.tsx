@@ -311,6 +311,11 @@ export default function ForexPanel({
                       {closing === p.id ? "Closing…" : "Close"}
                     </button>
                   </div>
+                  {(p.stop_loss != null || p.take_profit != null) && (
+                    <div className="mt-1 text-right">
+                      <SlTpPnl p={p} />
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -386,6 +391,11 @@ export default function ForexPanel({
                             "Set"
                           )}
                         </button>
+                        {(p.stop_loss != null || p.take_profit != null) && (
+                          <div className="mt-0.5">
+                            <SlTpPnl p={p} />
+                          </div>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-right">
                         <button
@@ -1201,6 +1211,24 @@ function FxOutcome({ status }: { status: string }) {
   };
   const o = map[status] ?? { label: status, cls: "bg-muted/15 text-muted" };
   return <span className={`rounded-md px-2 py-0.5 text-xs font-medium ${o.cls}`}>{o.label}</span>;
+}
+
+// The $ profit/loss a position would realize if its SL or TP is hit.
+function SlTpPnl({ p }: { p: FxPosition }) {
+  const at = (level: number | null) =>
+    level == null
+      ? null
+      : floatingPnl(p.direction, Number(p.units), Number(p.open_rate), Number(level), p.symbol);
+  const sl = at(p.stop_loss);
+  const tp = at(p.take_profit);
+  if (sl == null && tp == null) return null;
+  return (
+    <span className="text-xs">
+      {sl != null && <span className={changeColor(sl)}>SL {formatSignedCurrency(sl)}</span>}
+      {sl != null && tp != null && <span className="text-muted"> · </span>}
+      {tp != null && <span className={changeColor(tp)}>TP {formatSignedCurrency(tp)}</span>}
+    </span>
+  );
 }
 
 // "closes in 4m" / "closes in 1h 5m" countdown for a timed auto-close.
