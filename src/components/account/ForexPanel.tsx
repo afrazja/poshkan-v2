@@ -74,8 +74,21 @@ export default function ForexPanel({
   const autoRef = useRef<Set<string>>(new Set());
   useEffect(() => {
     for (const p of open) {
+      if (autoRef.current.has(p.id)) continue;
+      // Timed auto-close: close at market once the timer passes (server fetches
+      // its own rate, so no quote is needed here).
+      if (p.auto_close_at && new Date(p.auto_close_at).getTime() <= Date.now()) {
+        autoRef.current.add(p.id);
+        closeFxPositionAction(p.id, accountId)
+          .then((r) => {
+            if (!r.error) router.refresh();
+            else autoRef.current.delete(p.id);
+          })
+          .catch(() => autoRef.current.delete(p.id));
+        continue;
+      }
       const q = quotes[p.symbol.toUpperCase()];
-      if (!q?.price || autoRef.current.has(p.id)) continue;
+      if (!q?.price) continue;
       if (!autoCloseReason(p, q.price)) continue;
       autoRef.current.add(p.id);
       // Refresh only on a confirmed close — refreshing on a server-declined
@@ -266,6 +279,7 @@ export default function ForexPanel({
                         {pp.toFixed(1)} pips)
                       </span>
                     )}
+                    {p.auto_close_at && <span className="ml-1">· ⏱ {autoCloseLabel(p.auto_close_at)}</span>}
                   </div>
                   <div className="mt-2 flex gap-2">
                     <button
@@ -314,7 +328,12 @@ export default function ForexPanel({
                   const pp = rate ? pips(p.direction, Number(p.open_rate), rate, p.symbol) : null;
                   return (
                     <tr key={p.id} className="border-b border-border last:border-0">
-                      <td className="px-4 py-3 font-semibold">{pairName(p.symbol)}</td>
+                      <td className="px-4 py-3 font-semibold">
+                        {pairName(p.symbol)}
+                        {p.auto_close_at && (
+                          <span className="block text-xs font-normal text-muted">⏱ {autoCloseLabel(p.auto_close_at)}</span>
+                        )}
+                      </td>
                       <td className="px-4 py-3">
                         <span
                           className={`rounded-md px-2 py-0.5 text-xs font-medium ${
@@ -725,6 +744,9 @@ function FxTradeModal({
   const [entryRate, setEntryRate] = useState("");
   const [expiryUnit, setExpiryUnit] = useState<"gtc" | "min" | "hour" | "day">("gtc");
   const [expiryAmount, setExpiryAmount] = useState("40");
+  // Timed auto-close for a market position (off = stays open until you close it).
+  const [autoCloseUnit, setAutoCloseUnit] = useState<"off" | "min" | "hour">("off");
+  const [autoCloseAmount, setAutoCloseAmount] = useState("5");
 
   // Chosen expiry as minutes from now (null = good-til-canceled).
   const expiryMinutes =
@@ -732,6 +754,12 @@ function FxTradeModal({
       ? null
       : (Number(expiryAmount) || 0) > 0
         ? Number(expiryAmount) * (expiryUnit === "min" ? 1 : expiryUnit === "hour" ? 60 : 1440)
+        : null;
+  const autoCloseMinutes =
+    autoCloseUnit === "off"
+      ? null
+      : (Number(autoCloseAmount) || 0) > 0
+        ? Number(autoCloseAmount) * (autoCloseUnit === "min" ? 1 : 60)
         : null;
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -797,6 +825,7 @@ function FxTradeModal({
       units: effUnits,
       stopLoss: slNum,
       takeProfit: tpNum,
+      autoCloseMinutes,
     });
     setLoading(false);
     if (res.error) return setError(res.error);
@@ -1006,6 +1035,37 @@ function FxTradeModal({
             </div>
           </div>
 
+          {/* Timed auto-close (market orders only) */}
+          {execMode === "MARKET" && (
+            <div>
+              <label className="mb-1 block text-xs font-medium text-muted">Auto-close after (optional)</label>
+              <div className="flex gap-1">
+                {autoCloseUnit !== "off" && (
+                  <input
+                    type="number"
+                    min="1"
+                    step="1"
+                    value={autoCloseAmount}
+                    onChange={(e) => setAutoCloseAmount(e.target.value)}
+                    className="w-16 rounded-lg border border-border bg-input px-2 py-2 text-sm outline-none focus:border-primary"
+                  />
+                )}
+                <select
+                  value={autoCloseUnit}
+                  onChange={(e) => setAutoCloseUnit(e.target.value as typeof autoCloseUnit)}
+                  className="flex-1 rounded-lg border border-border bg-input px-2 py-2 text-sm outline-none focus:border-primary"
+                >
+                  <option value="off">Don&apos;t auto-close</option>
+                  <option value="min">Minutes</option>
+                  <option value="hour">Hours</option>
+                </select>
+              </div>
+              <p className="mt-1 text-xs text-muted">
+                Closes the position at market when the timer runs out — banking whatever the P&amp;L is then.
+              </p>
+            </div>
+          )}
+
           {/* Order summary */}
           <div className="space-y-1.5 rounded-lg border border-border bg-background p-3 text-sm">
             <Row label="Notional value" value={rate ? formatCurrency(notional) : "…"} />
@@ -1045,4 +1105,15 @@ function Row({ label, value, bold }: { label: string; value: string; bold?: bool
       <span className={bold ? "font-semibold" : ""}>{value}</span>
     </div>
   );
+}
+
+// "closes in 4m" / "closes in 1h 5m" countdown for a timed auto-close.
+function autoCloseLabel(iso: string): string {
+  const ms = new Date(iso).getTime() - Date.now();
+  if (ms <= 0) return "closing…";
+  const mins = Math.round(ms / 60000);
+  if (mins < 60) return `closes in ${mins}m`;
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return `closes in ${h}h${m ? ` ${m}m` : ""}`;
 }

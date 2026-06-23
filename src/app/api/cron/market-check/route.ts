@@ -30,7 +30,7 @@ export async function GET(request: Request) {
       db.from("alerts").select("id, user_id, symbol, condition, target_price").eq("status", "active"),
       db
         .from("fx_positions")
-        .select("id, symbol, direction, units, open_rate, margin, stop_loss, take_profit")
+        .select("id, symbol, direction, units, open_rate, margin, stop_loss, take_profit, auto_close_at")
         .eq("status", "open"),
       db.from("fx_orders").select("*, accounts(leverage)").eq("status", "pending"),
       db
@@ -119,10 +119,17 @@ export async function GET(request: Request) {
     if (!error) fxTp++;
   }
 
-  // Forex auto-close: margin stop-out, stop-loss, or take-profit.
+  // Forex auto-close: timed exit, then margin stop-out / stop-loss / take-profit.
   for (const p of fxPositions ?? []) {
     const q = quotes[p.symbol.toUpperCase()];
     if (!q?.price) continue;
+    // Timed auto-close (close at market once the timer passes).
+    if ((p as { auto_close_at?: string | null }).auto_close_at &&
+        new Date((p as { auto_close_at: string }).auto_close_at).getTime() <= now) {
+      const { error } = await db.rpc("fx_close", { p_position_id: p.id, p_rate: q.price, p_reason: "closed" });
+      if (!error) stopped++;
+      continue;
+    }
     const reason = autoCloseReason(p, q.price);
     if (!reason) continue;
     const { error } = await db.rpc("fx_close", {

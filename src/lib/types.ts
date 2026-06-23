@@ -120,6 +120,7 @@ export interface FxPosition {
   margin: number;
   stop_loss: number | null;
   take_profit: number | null;
+  auto_close_at: string | null;
   status: "open" | "closed" | "stopped" | "sl" | "tp";
   opened_at: string;
   closed_at: string | null;

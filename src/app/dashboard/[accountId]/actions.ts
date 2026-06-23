@@ -165,6 +165,7 @@ export async function openFxPositionAction(input: {
   units: number;
   stopLoss?: number | null;
   takeProfit?: number | null;
+  autoCloseMinutes?: number | null;
 }): Promise<{ rate?: number; margin?: number; error?: string }> {
   const supabase = await createClient();
   const {
@@ -197,7 +198,7 @@ export async function openFxPositionAction(input: {
   if (sltpErr) return { error: sltpErr };
 
   const margin = marginFor(input.units, rate, (account as { leverage?: number }).leverage, input.symbol);
-  const { error } = await supabase.rpc("fx_open", {
+  const { data: newId, error } = await supabase.rpc("fx_open", {
     p_account_id: input.accountId,
     p_symbol: input.symbol.toUpperCase(),
     p_direction: input.direction,
@@ -208,6 +209,10 @@ export async function openFxPositionAction(input: {
     p_take_profit: tp,
   });
   if (error) return { error: error.message };
+  // Optional timed auto-close (best-effort; needs forex-timed-close.sql).
+  if (input.autoCloseMinutes && input.autoCloseMinutes > 0 && newId) {
+    await supabase.rpc("fx_set_auto_close", { p_position_id: newId, p_minutes: Math.round(input.autoCloseMinutes) });
+  }
   revalidatePath(`/dashboard/${input.accountId}`);
   return { rate, margin };
 }
