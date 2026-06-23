@@ -461,6 +461,120 @@ function buildHandler(userId: string) {
           return ok({ closed: true, position_id, close_rate: rate, pnl: pnl != null ? +Number(pnl).toFixed(2) : null });
         }
       );
+
+      server.tool(
+        "place_forex_entry_order",
+        "Place a PENDING forex entry order: opens a position automatically when the rate reaches entry_rate — for better entries than market (e.g. buy a pullback to support, sell a rally to resistance). Optional stop_loss/take_profit (validated against entry_rate) and expires_minutes (cancels if unfilled). The trigger direction is derived from entry_rate vs the live rate.",
+        {
+          account_id: z.string().uuid(),
+          symbol: z.string().min(1),
+          direction: z.enum(["LONG", "SHORT"]),
+          units: z.number().positive(),
+          entry_rate: z.number().positive(),
+          stop_loss: z.number().positive().optional(),
+          take_profit: z.number().positive().optional(),
+          expires_minutes: z.number().int().positive().optional(),
+        },
+        async ({ account_id, symbol, direction, units, entry_rate, stop_loss, take_profit, expires_minutes }) => {
+          const account = await ownAccount(account_id);
+          if (!account) return err("Account not found");
+          if (account.type !== "forex") return err("This tool is for forex accounts only");
+          if (!isForexSymbol(symbol)) return err("Symbol must be a forex pair, e.g. EURUSD=X");
+          let rate: number;
+          try {
+            rate = (await getQuote(symbol)).price;
+            if (!rate || rate <= 0) return err("Could not get a valid rate");
+          } catch (e) {
+            return err(`Rate fetch failed: ${(e as Error).message}`);
+          }
+          if (Math.abs(entry_rate - rate) / rate < 0.00005) {
+            return err("Entry rate is at the current rate — use open_forex_position (market) instead");
+          }
+          const sl = stop_loss ?? null;
+          const tp = take_profit ?? null;
+          const slErr = sltpError(direction, entry_rate, sl, tp);
+          if (slErr) return err(slErr.replace("current rate", "entry rate"));
+          const trigger = entry_rate < rate ? "AT_OR_BELOW" : "AT_OR_ABOVE";
+          const { data, error } = await db
+            .from("fx_orders")
+            .insert({
+              account_id,
+              symbol: symbol.toUpperCase(),
+              direction,
+              units,
+              entry_rate,
+              trigger_when: trigger,
+              stop_loss: sl,
+              take_profit: tp,
+              expires_at: expires_minutes ? new Date(Date.now() + expires_minutes * 60_000).toISOString() : null,
+            })
+            .select("id")
+            .single();
+          if (error) return err(error.message);
+          return ok({
+            placed: true,
+            order_id: data.id,
+            pair: pairName(symbol),
+            direction,
+            units,
+            entry_rate,
+            trigger_when: trigger,
+            current_rate: rate,
+            stop_loss: sl,
+            take_profit: tp,
+            expires_minutes: expires_minutes ?? null,
+          });
+        }
+      );
+
+      server.tool(
+        "list_forex_orders",
+        "List pending forex entry orders on a forex account (entry rate, trigger, SL/TP, expiry).",
+        { account_id: z.string().uuid() },
+        async ({ account_id }) => {
+          const account = await ownAccount(account_id);
+          if (!account) return err("Account not found");
+          const { data } = await db
+            .from("fx_orders")
+            .select("id, symbol, direction, units, entry_rate, trigger_when, stop_loss, take_profit, expires_at, created_at")
+            .eq("account_id", account_id)
+            .eq("status", "pending")
+            .order("created_at", { ascending: false });
+          return ok(
+            (data ?? []).map((o) => ({
+              order_id: o.id,
+              pair: pairName(o.symbol),
+              direction: o.direction,
+              units: Number(o.units),
+              entry_rate: Number(o.entry_rate),
+              trigger_when: o.trigger_when,
+              stop_loss: o.stop_loss,
+              take_profit: o.take_profit,
+              expires_at: o.expires_at,
+            }))
+          );
+        }
+      );
+
+      server.tool(
+        "cancel_forex_order",
+        "Cancel a pending forex entry order by its order_id.",
+        { account_id: z.string().uuid(), order_id: z.string().uuid() },
+        async ({ account_id, order_id }) => {
+          const account = await ownAccount(account_id);
+          if (!account) return err("Account not found");
+          const { data, error } = await db
+            .from("fx_orders")
+            .update({ status: "canceled" })
+            .eq("id", order_id)
+            .eq("account_id", account_id)
+            .eq("status", "pending")
+            .select("id");
+          if (error) return err(error.message);
+          if (!data?.length) return err("No pending order with that id");
+          return ok({ canceled: true, order_id });
+        }
+      );
     },
     {},
     { basePath: "/api/mcp", verboseLogs: false }
