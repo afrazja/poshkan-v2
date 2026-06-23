@@ -1,0 +1,28 @@
+name: Forex opportunity scan
+
+# Hourly: hits /api/cron/scan-opportunities so Claude analyzes the majors and
+# pushes the best high-conviction setup to your phone. Alert-only (never trades).
+# Vercel Hobby allows only 2 crons (already used), so this runs from here.
+#
+# Setup — add two repo secrets (Settings → Secrets and variables → Actions):
+#   SCAN_URL    = https://<your-vercel-domain>/api/cron/scan-opportunities
+#   CRON_SECRET = the same value set in Vercel env
+#
+# Note: GitHub's scheduler is best-effort; runs may drift a few minutes. The
+# route itself skips quietly when the forex market is closed.
+
+on:
+  schedule:
+    - cron: '0 * * * *' # top of every hour
+  workflow_dispatch: {} # manual "Run workflow" button
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Hit opportunity-scan endpoint
+        run: |
+          curl -fsS "$SCAN_URL" -H "Authorization: Bearer $CRON_SECRET"
+        env:
+          SCAN_URL: ${{ secrets.SCAN_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
