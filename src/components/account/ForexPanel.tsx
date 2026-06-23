@@ -33,9 +33,9 @@ import {
 import Modal from "@/components/Modal";
 import PriceChart from "./PriceChart";
 
-// Pending "At rate…" entry orders are hidden for now (market-only forex).
-// Flip to true to bring back the Market/At-rate toggle and entry/expiry fields.
-const ALLOW_PENDING_FX = false;
+// Pending "At rate…" entry orders: lets users set a better entry at a pullback
+// level instead of chasing market. Set false to hide (market-only forex).
+const ALLOW_PENDING_FX = true;
 
 export default function ForexPanel({
   accountId,
