@@ -73,7 +73,7 @@ export default function ForexPanel({
     : FX_PAIRS;
 
   const open = positions.filter((p) => p.status === "open");
-  const closed = positions.filter((p) => p.status !== "open").slice(0, 10);
+  const closed = positions.filter((p) => p.status !== "open").slice(0, 30);
   const pendingOrders = orders.filter((o) => o.status === "pending");
 
   // Live auto-close while the page is open (cron covers the rest of the time).
@@ -412,76 +412,84 @@ export default function ForexPanel({
           <h2 className="mb-3 text-lg font-semibold">Closed positions</h2>
           {/* Mobile: closed-position cards */}
           <div className="space-y-2 sm:hidden">
-            {closed.map((p) => (
-              <div key={p.id} className="rounded-xl border border-border bg-card p-3">
-                <div className="flex items-center justify-between">
-                  <span className="font-semibold">
-                    {pairName(p.symbol)}{" "}
-                    <span className="text-xs font-normal text-muted">
-                      {p.direction === "LONG" ? "Long" : "Short"}
+            {closed.map((p) => {
+              const pp = p.close_rate
+                ? pips(p.direction, Number(p.open_rate), Number(p.close_rate), p.symbol)
+                : null;
+              return (
+                <div key={p.id} className="rounded-xl border border-border bg-card p-3">
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold">
+                      {pairName(p.symbol)}{" "}
+                      <span className="text-xs font-normal text-muted">
+                        {p.direction === "LONG" ? "Long" : "Short"} {Number(p.units).toLocaleString("en-US")}
+                      </span>
                     </span>
-                  </span>
-                  <span className={`font-medium ${changeColor(Number(p.pnl ?? 0))}`}>
-                    {formatSignedCurrency(Number(p.pnl ?? 0))}
-                  </span>
+                    <span className={`font-medium ${changeColor(Number(p.pnl ?? 0))}`}>
+                      {formatSignedCurrency(Number(p.pnl ?? 0))}
+                    </span>
+                  </div>
+                  <div className="mt-1 flex items-center justify-between text-xs text-muted">
+                    <span>
+                      {formatRate(Number(p.open_rate))} → {p.close_rate ? formatRate(Number(p.close_rate)) : "—"}
+                      {pp != null && (
+                        <span className={`ml-1 ${changeColor(pp)}`}>
+                          ({pp >= 0 ? "+" : ""}
+                          {pp.toFixed(1)} pips)
+                        </span>
+                      )}
+                    </span>
+                    <FxOutcome status={p.status} />
+                  </div>
+                  <div className="mt-1 text-xs text-muted">
+                    {fmtDateTime(p.opened_at)} → {fmtDateTime(p.closed_at)}
+                  </div>
                 </div>
-                <div className="mt-1 flex items-center justify-between text-xs text-muted">
-                  <span>
-                    {Number(p.units).toLocaleString("en-US")} · {formatRate(Number(p.open_rate))} →{" "}
-                    {p.close_rate ? formatRate(Number(p.close_rate)) : "—"}
-                  </span>
-                  {p.status === "stopped" && <span className="text-negative">Stopped out</span>}
-                  {p.status === "sl" && <span className="text-negative">SL hit</span>}
-                  {p.status === "tp" && <span className="text-positive">TP hit</span>}
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           {/* Desktop: full table */}
           <div className="hidden overflow-x-auto rounded-2xl border border-border bg-card sm:block">
-            <table className="w-full min-w-[680px] text-sm">
+            <table className="w-full min-w-[900px] text-sm">
               <thead>
                 <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted">
                   <th className="px-4 py-3 font-medium">Pair</th>
                   <th className="px-4 py-3 font-medium">Side</th>
                   <th className="px-4 py-3 text-right font-medium">Units</th>
                   <th className="px-4 py-3 text-right font-medium">Open → Close</th>
+                  <th className="px-4 py-3 text-right font-medium">Pips</th>
                   <th className="px-4 py-3 text-right font-medium">P&L</th>
-                  <th className="px-4 py-3 font-medium"></th>
+                  <th className="px-4 py-3 font-medium">Opened</th>
+                  <th className="px-4 py-3 font-medium">Closed</th>
+                  <th className="px-4 py-3 font-medium">Outcome</th>
                 </tr>
               </thead>
               <tbody>
-                {closed.map((p) => (
-                  <tr key={p.id} className="border-b border-border last:border-0">
-                    <td className="px-4 py-3 font-semibold">{pairName(p.symbol)}</td>
-                    <td className="px-4 py-3 text-muted">{p.direction === "LONG" ? "Long" : "Short"}</td>
-                    <td className="px-4 py-3 text-right">{Number(p.units).toLocaleString("en-US")}</td>
-                    <td className="px-4 py-3 text-right text-muted">
-                      {formatRate(Number(p.open_rate))} → {p.close_rate ? formatRate(Number(p.close_rate)) : "—"}
-                    </td>
-                    <td className={`px-4 py-3 text-right font-medium ${changeColor(Number(p.pnl ?? 0))}`}>
-                      {formatSignedCurrency(Number(p.pnl ?? 0))}
-                    </td>
-                    <td className="px-4 py-3">
-                      {p.status === "stopped" && (
-                        <span className="rounded-md bg-negative/15 px-2 py-0.5 text-xs font-medium text-negative">
-                          Stopped out
-                        </span>
-                      )}
-                      {p.status === "sl" && (
-                        <span className="rounded-md bg-negative/15 px-2 py-0.5 text-xs font-medium text-negative">
-                          SL hit
-                        </span>
-                      )}
-                      {p.status === "tp" && (
-                        <span className="rounded-md bg-positive/15 px-2 py-0.5 text-xs font-medium text-positive">
-                          TP hit
-                        </span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
+                {closed.map((p) => {
+                  const pp = p.close_rate
+                    ? pips(p.direction, Number(p.open_rate), Number(p.close_rate), p.symbol)
+                    : null;
+                  return (
+                    <tr key={p.id} className="border-b border-border last:border-0">
+                      <td className="px-4 py-3 font-semibold">{pairName(p.symbol)}</td>
+                      <td className="px-4 py-3 text-muted">{p.direction === "LONG" ? "Long" : "Short"}</td>
+                      <td className="px-4 py-3 text-right">{Number(p.units).toLocaleString("en-US")}</td>
+                      <td className="px-4 py-3 text-right text-muted">
+                        {formatRate(Number(p.open_rate))} → {p.close_rate ? formatRate(Number(p.close_rate)) : "—"}
+                      </td>
+                      <td className={`px-4 py-3 text-right ${pp != null ? changeColor(pp) : "text-muted"}`}>
+                        {pp != null ? `${pp >= 0 ? "+" : ""}${pp.toFixed(1)}` : "—"}
+                      </td>
+                      <td className={`px-4 py-3 text-right font-medium ${changeColor(Number(p.pnl ?? 0))}`}>
+                        {formatSignedCurrency(Number(p.pnl ?? 0))}
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-3 text-xs text-muted">{fmtDateTime(p.opened_at)}</td>
+                      <td className="whitespace-nowrap px-4 py-3 text-xs text-muted">{fmtDateTime(p.closed_at)}</td>
+                      <td className="px-4 py-3"><FxOutcome status={p.status} /></td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -1173,6 +1181,26 @@ function Row({ label, value, bold }: { label: string; value: string; bold?: bool
       <span className={bold ? "font-semibold" : ""}>{value}</span>
     </div>
   );
+}
+
+// Date + time for the trade history, e.g. "Jun 23, 9:42 AM".
+function fmtDateTime(iso: string | null): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "—";
+  return d.toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+}
+
+// Outcome label for a closed position.
+function FxOutcome({ status }: { status: string }) {
+  const map: Record<string, { label: string; cls: string }> = {
+    closed: { label: "Closed", cls: "bg-muted/15 text-muted" },
+    stopped: { label: "Stopped out", cls: "bg-negative/15 text-negative" },
+    sl: { label: "SL hit", cls: "bg-negative/15 text-negative" },
+    tp: { label: "TP hit", cls: "bg-positive/15 text-positive" },
+  };
+  const o = map[status] ?? { label: status, cls: "bg-muted/15 text-muted" };
+  return <span className={`rounded-md px-2 py-0.5 text-xs font-medium ${o.cls}`}>{o.label}</span>;
 }
 
 // "closes in 4m" / "closes in 1h 5m" countdown for a timed auto-close.
