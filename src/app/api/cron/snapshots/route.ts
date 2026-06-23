@@ -8,7 +8,10 @@ export const maxDuration = 60;
 // builds a precise portfolio-performance history over time.
 export async function GET(request: Request) {
   const secret = process.env.CRON_SECRET;
-  if (!secret || request.headers.get("authorization") !== `Bearer ${secret}`) {
+  // Bearer header OR ?key= (the param survives an apex→www 308 redirect).
+  const key = new URL(request.url).searchParams.get("key");
+  const authed = !!secret && (request.headers.get("authorization") === `Bearer ${secret}` || key === secret);
+  if (!authed) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

@@ -12,7 +12,11 @@ export const maxDuration = 60;
 // pingers must send "Authorization: Bearer <CRON_SECRET>").
 export async function GET(request: Request) {
   const secret = process.env.CRON_SECRET;
-  if (!secret || request.headers.get("authorization") !== `Bearer ${secret}`) {
+  // Accept the secret via Bearer header OR ?key= — the query param survives an
+  // apex→www (308) redirect, which strips the Authorization header.
+  const key = new URL(request.url).searchParams.get("key");
+  const authed = !!secret && (request.headers.get("authorization") === `Bearer ${secret}` || key === secret);
+  if (!authed) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
