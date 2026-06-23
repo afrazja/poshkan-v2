@@ -8,6 +8,7 @@ import {
   FX_PAIRS,
   FX_LOTS,
   FX_LEVERAGE,
+  FX_LEVERAGE_OPTIONS,
   pairName,
   marginFor,
   pipValue,
@@ -27,6 +28,7 @@ import {
   fillFxOrderAction,
   setFxTakeProfitLevelsAction,
   fillFxTpLevelsAction,
+  setAccountLeverageAction,
 } from "@/app/dashboard/[accountId]/actions";
 import Modal from "@/components/Modal";
 import PriceChart from "./PriceChart";
@@ -54,6 +56,7 @@ export default function ForexPanel({
   const [canceling, setCanceling] = useState<string | null>(null);
   const [editSltp, setEditSltp] = useState<FxPosition | null>(null);
   const [pairQuery, setPairQuery] = useState("");
+  const [showLeverage, setShowLeverage] = useState(false);
 
   const query = pairQuery.trim().toLowerCase();
   const visiblePairs = query
@@ -193,6 +196,12 @@ export default function ForexPanel({
         </div>
         <p className="mt-2 text-xs text-muted">
           Tap a pair to go long (buy) or short (sell) with {leverage}:1 leverage.
+          <button
+            onClick={() => setShowLeverage(true)}
+            className="ml-1 font-medium text-primary hover:underline"
+          >
+            Change
+          </button>
         </p>
       </div>
 
@@ -485,6 +494,9 @@ export default function ForexPanel({
           onClose={() => setTrade(null)}
         />
       )}
+      {showLeverage && (
+        <LeverageModal accountId={accountId} current={leverage} onClose={() => setShowLeverage(false)} />
+      )}
       {editSltp && (
         <SlTpModal
           accountId={accountId}
@@ -495,6 +507,56 @@ export default function ForexPanel({
         />
       )}
     </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Change the account's leverage (affects new positions only).
+function LeverageModal({
+  accountId,
+  current,
+  onClose,
+}: {
+  accountId: string;
+  current: number;
+  onClose: () => void;
+}) {
+  const router = useRouter();
+  const [saving, setSaving] = useState<number | null>(null);
+
+  async function pick(lev: number) {
+    setSaving(lev);
+    await setAccountLeverageAction(accountId, lev);
+    router.refresh();
+    onClose();
+  }
+
+  return (
+    <Modal title="Account leverage" onClose={onClose}>
+      <div className="space-y-3">
+        <p className="text-sm text-muted">
+          Higher leverage reserves less margin per trade — so the same cash opens a bigger
+          position, but a smaller loss triggers stop-out. Applies to <strong>new</strong> positions;
+          open ones keep the margin they already reserved.
+        </p>
+        <div className="grid grid-cols-3 gap-2">
+          {FX_LEVERAGE_OPTIONS.map((l) => (
+            <button
+              key={l}
+              onClick={() => pick(l)}
+              disabled={saving !== null}
+              className={`rounded-lg border px-3 py-2.5 text-sm font-semibold transition disabled:opacity-50 ${
+                l === current
+                  ? "border-primary bg-primary/10 text-primary"
+                  : "border-border hover:bg-background"
+              }`}
+            >
+              {saving === l ? "…" : `${l}:1`}
+            </button>
+          ))}
+        </div>
+      </div>
+    </Modal>
   );
 }
 

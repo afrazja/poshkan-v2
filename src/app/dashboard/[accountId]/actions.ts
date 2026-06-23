@@ -743,6 +743,23 @@ export async function revokeApiTokenAction(tokenId: string): Promise<{ error?: s
 }
 
 // Account management.
+// Forex: change an account's leverage. Affects NEW positions only — open
+// positions keep the margin they already reserved.
+export async function setAccountLeverageAction(
+  accountId: string,
+  leverage: number
+): Promise<{ error?: string }> {
+  if (!leverage || leverage < 1 || leverage > 1000) return { error: "Invalid leverage" };
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("accounts")
+    .update({ leverage: Math.round(leverage) })
+    .eq("id", accountId);
+  if (error) return { error: error.message };
+  revalidatePath(`/dashboard/${accountId}`);
+  return {};
+}
+
 export async function renameAccountAction(accountId: string, name: string): Promise<{ error?: string }> {
   const trimmed = name.trim();
   if (!trimmed) return { error: "Enter a name" };
