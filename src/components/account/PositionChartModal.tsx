@@ -134,6 +134,7 @@ export default function PositionChartModal({
           <span className="text-muted">┄ {isOpen ? "current" : "exit"}</span>
           {rr != null && ` — the plan targets ${rr.toFixed(2)}:1 reward-to-risk.`}
         </p>
+        <p className="text-center text-[11px] text-muted">Scroll or pinch to zoom · drag to pan</p>
       </div>
     </Modal>
   );
