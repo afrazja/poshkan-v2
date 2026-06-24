@@ -32,6 +32,7 @@ import {
 } from "@/app/dashboard/[accountId]/actions";
 import Modal from "@/components/Modal";
 import PriceChart from "./PriceChart";
+import PositionChartModal from "./PositionChartModal";
 
 // Pending "At rate…" entry orders: lets users set a better entry at a pullback
 // level instead of chasing market. Set false to hide (market-only forex).
@@ -59,6 +60,7 @@ export default function ForexPanel({
   const [closing, setClosing] = useState<string | null>(null);
   const [canceling, setCanceling] = useState<string | null>(null);
   const [editSltp, setEditSltp] = useState<FxPosition | null>(null);
+  const [chartPos, setChartPos] = useState<FxPosition | null>(null);
   const [pairQuery, setPairQuery] = useState("");
   const [showLeverage, setShowLeverage] = useState(false);
 
@@ -253,6 +255,11 @@ export default function ForexPanel({
       {/* Open positions */}
       <section>
         <h2 className="mb-3 text-lg font-semibold">Open positions{open.length ? ` (${open.length})` : ""}</h2>
+        {open.length > 0 && (
+          <p className="mb-3 -mt-2 text-xs text-muted">
+            Tap a pair name to see its chart with your entry, stop-loss, and take-profit.
+          </p>
+        )}
         {open.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-border p-8 text-center text-sm text-muted">
             No open positions. Pick a pair above to place your first trade.
@@ -270,7 +277,14 @@ export default function ForexPanel({
                 <div key={p.id} className="rounded-xl border border-border bg-card p-3">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <span className="font-semibold">{pairName(p.symbol)}</span>
+                      <button
+                        type="button"
+                        onClick={() => setChartPos(p)}
+                        className="font-semibold hover:underline"
+                        title="View chart"
+                      >
+                        {pairName(p.symbol)}
+                      </button>
                       <span
                         className={`rounded-md px-2 py-0.5 text-xs font-medium ${
                           p.direction === "LONG" ? "bg-positive/15 text-positive" : "bg-negative/15 text-negative"
@@ -347,7 +361,14 @@ export default function ForexPanel({
                   return (
                     <tr key={p.id} className="border-b border-border last:border-0">
                       <td className="px-4 py-3 font-semibold">
-                        {pairName(p.symbol)}
+                        <button
+                          type="button"
+                          onClick={() => setChartPos(p)}
+                          className="hover:underline"
+                          title="View chart"
+                        >
+                          {pairName(p.symbol)}
+                        </button>
                         {p.auto_close_at && (
                           <span className="block text-xs font-normal text-muted">⏱ {autoCloseLabel(p.auto_close_at)}</span>
                         )}
@@ -430,7 +451,14 @@ export default function ForexPanel({
                 <div key={p.id} className="rounded-xl border border-border bg-card p-3">
                   <div className="flex items-center justify-between">
                     <span className="font-semibold">
-                      {pairName(p.symbol)}{" "}
+                      <button
+                        type="button"
+                        onClick={() => setChartPos(p)}
+                        className="hover:underline"
+                        title="View chart"
+                      >
+                        {pairName(p.symbol)}
+                      </button>{" "}
                       <span className="text-xs font-normal text-muted">
                         {p.direction === "LONG" ? "Long" : "Short"} {Number(p.units).toLocaleString("en-US")}
                       </span>
@@ -482,7 +510,16 @@ export default function ForexPanel({
                     : null;
                   return (
                     <tr key={p.id} className="border-b border-border last:border-0">
-                      <td className="px-4 py-3 font-semibold">{pairName(p.symbol)}</td>
+                      <td className="px-4 py-3 font-semibold">
+                        <button
+                          type="button"
+                          onClick={() => setChartPos(p)}
+                          className="hover:underline"
+                          title="View chart"
+                        >
+                          {pairName(p.symbol)}
+                        </button>
+                      </td>
                       <td className="px-4 py-3 text-muted">{p.direction === "LONG" ? "Long" : "Short"}</td>
                       <td className="px-4 py-3 text-right">{Number(p.units).toLocaleString("en-US")}</td>
                       <td className="px-4 py-3 text-right text-muted">
@@ -526,6 +563,13 @@ export default function ForexPanel({
           rate={quotes[editSltp.symbol.toUpperCase()]?.price}
           levels={tpLevels.filter((l) => l.position_id === editSltp.id && l.status === "pending")}
           onClose={() => setEditSltp(null)}
+        />
+      )}
+      {chartPos && (
+        <PositionChartModal
+          position={chartPos}
+          rate={quotes[chartPos.symbol.toUpperCase()]?.price}
+          onClose={() => setChartPos(null)}
         />
       )}
     </div>
