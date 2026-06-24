@@ -318,6 +318,7 @@ export default function ForexPanel({
                     )}
                     {p.auto_close_at && <span className="ml-1">· ⏱ {autoCloseLabel(p.auto_close_at)}</span>}
                   </div>
+                  <div className="mt-0.5 text-xs text-muted">Opened {fmtDateTime(p.opened_at)}</div>
                   <div className="mt-2 flex gap-2">
                     <button
                       onClick={() => setEditSltp(p)}
@@ -382,6 +383,7 @@ export default function ForexPanel({
                         {p.auto_close_at && (
                           <span className="block text-xs font-normal text-muted">⏱ {autoCloseLabel(p.auto_close_at)}</span>
                         )}
+                        <span className="block text-xs font-normal text-muted">Opened {fmtDateTime(p.opened_at)}</span>
                       </td>
                       <td className="px-4 py-3">
                         <span
