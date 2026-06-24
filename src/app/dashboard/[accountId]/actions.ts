@@ -322,6 +322,57 @@ export async function cancelFxOrderAction(orderId: string, accountId: string) {
   return {};
 }
 
+// Forex: edit a still-pending entry order's rate / SL / TP. trigger_when is
+// recomputed from the live rate (so moving the entry across price flips it).
+export async function editFxOrderAction(input: {
+  orderId: string;
+  accountId: string;
+  entryRate: number;
+  stopLoss?: number | null;
+  takeProfit?: number | null;
+}): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  if (!input.entryRate || input.entryRate <= 0) return { error: "Enter a valid entry rate" };
+
+  const { data: o } = await supabase
+    .from("fx_orders")
+    .select("symbol, direction")
+    .eq("id", input.orderId)
+    .eq("status", "pending")
+    .maybeSingle();
+  if (!o) return { error: "Order not found or no longer pending" };
+
+  let rate: number;
+  try {
+    rate = (await getQuote(o.symbol)).price;
+    if (!rate || rate <= 0) return { error: "Could not get a valid rate" };
+  } catch (e) {
+    return { error: `Rate fetch failed: ${(e as Error).message}` };
+  }
+  if (Math.abs(input.entryRate - rate) / rate < 0.00005) {
+    return { error: "Entry rate is the current rate — use a market order instead." };
+  }
+
+  const sl = input.stopLoss ?? null;
+  const tp = input.takeProfit ?? null;
+  const sltpErr = sltpError(o.direction as "LONG" | "SHORT", input.entryRate, sl, tp);
+  if (sltpErr) return { error: sltpErr };
+
+  const { error } = await supabase
+    .from("fx_orders")
+    .update({
+      entry_rate: input.entryRate,
+      trigger_when: input.entryRate < rate ? "AT_OR_BELOW" : "AT_OR_ABOVE",
+      stop_loss: sl,
+      take_profit: tp,
+    })
+    .eq("id", input.orderId)
+    .eq("status", "pending");
+  if (error) return { error: error.message };
+  revalidatePath(`/dashboard/${input.accountId}`);
+  return {};
+}
+
 // Forex: fill a pending entry order IF the live rate still satisfies its trigger
 // (used by the live page check; the cron does the same with the admin client).
 export async function fillFxOrderAction(

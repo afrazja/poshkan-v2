@@ -25,6 +25,7 @@ import {
   autoCloseFxPositionAction,
   placeFxOrderAction,
   cancelFxOrderAction,
+  editFxOrderAction,
   fillFxOrderAction,
   setFxTakeProfitLevelsAction,
   fillFxTpLevelsAction,
@@ -61,6 +62,7 @@ export default function ForexPanel({
   const [canceling, setCanceling] = useState<string | null>(null);
   const [editSltp, setEditSltp] = useState<FxPosition | null>(null);
   const [chartPos, setChartPos] = useState<FxPosition | null>(null);
+  const [editOrder, setEditOrder] = useState<FxOrder | null>(null);
   const [pairQuery, setPairQuery] = useState("");
   const [showLeverage, setShowLeverage] = useState(false);
 
@@ -238,13 +240,21 @@ export default function ForexPanel({
                       </span>
                     )}
                   </div>
-                  <button
-                    onClick={() => cancelOrder(o.id)}
-                    disabled={canceling === o.id}
-                    className="shrink-0 text-xs text-muted hover:text-negative disabled:opacity-50"
-                  >
-                    {canceling === o.id ? "Cancelling…" : "Cancel"}
-                  </button>
+                  <div className="flex shrink-0 items-center gap-3">
+                    <button
+                      onClick={() => setEditOrder(o)}
+                      className="text-xs text-muted hover:text-primary"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => cancelOrder(o.id)}
+                      disabled={canceling === o.id}
+                      className="text-xs text-muted hover:text-negative disabled:opacity-50"
+                    >
+                      {canceling === o.id ? "Cancelling…" : "Cancel"}
+                    </button>
+                  </div>
                 </div>
               );
             })}
@@ -572,7 +582,125 @@ export default function ForexPanel({
           onClose={() => setChartPos(null)}
         />
       )}
+      {editOrder && (
+        <EditFxOrderModal
+          accountId={accountId}
+          order={editOrder}
+          rate={quotes[editOrder.symbol.toUpperCase()]?.price}
+          onClose={() => setEditOrder(null)}
+        />
+      )}
     </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Edit a still-pending entry order's rate / stop-loss / take-profit.
+function EditFxOrderModal({
+  accountId,
+  order,
+  rate,
+  onClose,
+}: {
+  accountId: string;
+  order: FxOrder;
+  rate?: number;
+  onClose: () => void;
+}) {
+  const router = useRouter();
+  const isLong = order.direction === "LONG";
+  const [entry, setEntry] = useState(String(order.entry_rate));
+  const [sl, setSl] = useState(order.stop_loss != null ? String(order.stop_loss) : "");
+  const [tp, setTp] = useState(order.take_profit != null ? String(order.take_profit) : "");
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  async function save() {
+    setError(null);
+    const entryNum = Number(entry);
+    if (!entryNum || entryNum <= 0) return setError("Enter a valid entry rate.");
+    const slNum = sl.trim() ? Number(sl) : null;
+    const tpNum = tp.trim() ? Number(tp) : null;
+    const err = sltpError(order.direction, entryNum, slNum, tpNum);
+    if (err) return setError(err.replace("current rate", "entry rate"));
+    setLoading(true);
+    const res = await editFxOrderAction({
+      orderId: order.id,
+      accountId,
+      entryRate: entryNum,
+      stopLoss: slNum,
+      takeProfit: tpNum,
+    });
+    setLoading(false);
+    if (res.error) return setError(res.error);
+    router.refresh();
+    onClose();
+  }
+
+  const inputClass =
+    "w-full rounded-lg border border-border bg-input px-3 py-2 text-sm outline-none focus:border-primary";
+
+  return (
+    <Modal title={`Edit order — ${pairName(order.symbol)}`} onClose={onClose}>
+      <div className="space-y-4">
+        {error && (
+          <div className="rounded-lg border border-negative/30 bg-negative/10 px-3 py-2 text-sm text-negative">
+            {error}
+          </div>
+        )}
+        <div className="flex justify-between rounded-lg bg-background px-3 py-2 text-sm">
+          <span className="text-muted">
+            {isLong ? "Long" : "Short"} {Number(order.units).toLocaleString("en-US")} units
+          </span>
+          <span className="font-semibold">live {rate ? formatRate(rate, order.symbol) : "…"}</span>
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-medium">Entry rate</label>
+          <input
+            type="number"
+            min="0"
+            step="any"
+            value={entry}
+            onChange={(e) => setEntry(e.target.value)}
+            className={inputClass}
+          />
+          <p className="mt-1 text-xs text-muted">Opens automatically when the rate reaches this level.</p>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <label className="mb-1 block text-sm font-medium">Stop-loss</label>
+            <input
+              type="number"
+              min="0"
+              step="any"
+              value={sl}
+              onChange={(e) => setSl(e.target.value)}
+              placeholder={isLong ? "Below entry…" : "Above entry…"}
+              className={inputClass}
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium">Take-profit</label>
+            <input
+              type="number"
+              min="0"
+              step="any"
+              value={tp}
+              onChange={(e) => setTp(e.target.value)}
+              placeholder={isLong ? "Above entry…" : "Below entry…"}
+              className={inputClass}
+            />
+          </div>
+        </div>
+        <button
+          onClick={save}
+          disabled={loading}
+          className="w-full rounded-lg bg-primary py-2.5 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50"
+        >
+          {loading ? "Saving…" : "Save changes"}
+        </button>
+      </div>
+    </Modal>
   );
 }
 
