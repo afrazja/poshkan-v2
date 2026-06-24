@@ -26,6 +26,9 @@ export default function PositionChartModal({
   const [candles, setCandles] = useState<OhlcPoint[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [insight, setInsight] = useState<string | null>(null);
+  const [insightLoading, setInsightLoading] = useState(false);
+  const [insightErr, setInsightErr] = useState<string | null>(null);
 
   useEffect(() => {
     const r = RANGES[rangeIdx];
@@ -74,6 +77,34 @@ export default function PositionChartModal({
       ? floatingPnl(position.direction, Number(position.units), entry, current, position.symbol)
       : Number(position.pnl ?? 0);
   const pp = current != null ? pips(position.direction, entry, current, position.symbol) : null;
+
+  async function loadInsight() {
+    setInsightLoading(true);
+    setInsightErr(null);
+    try {
+      const res = await fetch("/api/forex/position-insight", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          pair: position.symbol,
+          direction: position.direction,
+          units: Number(position.units),
+          entry,
+          stopLoss: sl,
+          takeProfit: tp,
+          status: position.status,
+          closeRate,
+        }),
+      });
+      const j = await res.json();
+      if (j.error) setInsightErr(j.error);
+      else setInsight(j.text);
+    } catch (e) {
+      setInsightErr(String(e));
+    } finally {
+      setInsightLoading(false);
+    }
+  }
 
   return (
     <Modal
@@ -135,6 +166,37 @@ export default function PositionChartModal({
           {rr != null && ` — the plan targets ${rr.toFixed(2)}:1 reward-to-risk.`}
         </p>
         <p className="text-center text-[11px] text-muted">Scroll or pinch to zoom · drag to pan</p>
+
+        <div className="rounded-lg border border-border bg-background p-3">
+          <div className="mb-1 flex items-center justify-between gap-2">
+            <span className="text-sm font-semibold">🤖 AI strategy read</span>
+            {!insight && !insightLoading && (
+              <button
+                type="button"
+                onClick={loadInsight}
+                className="text-xs font-medium text-primary hover:underline"
+              >
+                Explain this trade
+              </button>
+            )}
+          </div>
+          {insightLoading ? (
+            <p className="text-xs text-muted">Analyzing the setup…</p>
+          ) : insightErr ? (
+            <p className="text-xs text-muted">
+              {/limit|credit|run out/i.test(insightErr)
+                ? "AI limit reached — try again later."
+                : "Couldn't generate the analysis."}
+            </p>
+          ) : insight ? (
+            <p className="whitespace-pre-line text-sm leading-relaxed">{insight}</p>
+          ) : (
+            <p className="text-xs text-muted">
+              Tap “Explain this trade” for an AI read of the setup, why the stop and target sit where
+              they do, and what to watch.
+            </p>
+          )}
+        </div>
       </div>
     </Modal>
   );

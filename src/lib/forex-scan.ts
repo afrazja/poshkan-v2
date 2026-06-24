@@ -146,3 +146,47 @@ export async function analyzeMarket(summaries: PairSummary[]): Promise<Setup | n
     return null;
   }
 }
+
+export interface PositionContext {
+  pair: string; // "USDJPY=X"
+  direction: "LONG" | "SHORT";
+  units: number;
+  entry: number;
+  stopLoss?: number | null;
+  takeProfit?: number | null;
+  status: string; // "open" | "closed" | "sl" | "tp" | "stopped"
+  closeRate?: number | null;
+}
+
+/** Ask Claude to explain the strategy behind one specific position, on demand. */
+export async function explainPosition(ctx: PositionContext): Promise<string> {
+  const summary = await buildSummary(ctx.pair);
+  const { default: Anthropic } = await import("@anthropic-ai/sdk");
+  const client = new Anthropic();
+
+  const isOpen = ctx.status === "open";
+  const system = `You are a professional forex analyst explaining the strategy behind ONE specific ${isOpen ? "open" : "closed"} position to the trader who holds it. Write 3-5 short sentences in plain language. Cover: the technical read (trend via SMA20/SMA50, RSI14, the 20-bar support/resistance), why the stop-loss and take-profit sit where they do (structure + reward:risk), and what price action would confirm or invalidate the idea. Reference the actual numbers. No preamble, no markdown headers or bullet lists — just the explanation as a short paragraph.`;
+
+  const lines = [
+    `Position: ${ctx.direction} ${ctx.units.toLocaleString("en-US")} units of ${ctx.pair}`,
+    `Entry: ${ctx.entry}`,
+    ctx.stopLoss != null ? `Stop-loss: ${ctx.stopLoss}` : `Stop-loss: none set`,
+    ctx.takeProfit != null ? `Take-profit: ${ctx.takeProfit}` : `Take-profit: none set`,
+    !isOpen && ctx.closeRate != null ? `Already closed at: ${ctx.closeRate} (outcome: ${ctx.status})` : "",
+    "",
+    `Current market readings: ${summary ? JSON.stringify(summary) : "unavailable"}`,
+  ].filter(Boolean);
+
+  const response = await client.messages.create({
+    model: "claude-opus-4-8",
+    max_tokens: 700,
+    thinking: { type: "adaptive" },
+    system,
+    messages: [{ role: "user", content: lines.join("\n") }],
+  });
+
+  return response.content
+    .map((b) => (b.type === "text" ? b.text : ""))
+    .join("")
+    .trim();
+}
