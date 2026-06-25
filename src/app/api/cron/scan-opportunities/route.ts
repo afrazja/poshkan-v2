@@ -23,7 +23,7 @@ const AUTO_ACCOUNTS = new Set(
     .filter(Boolean)
 );
 const AUTO_RISK_PCT = 0.01; // 1% of cash risked per auto-trade
-const AUTO_MAX_OPEN = 2; // max concurrent open + pending before it stops adding
+const AUTO_MAX_OPEN = 2; // max OPEN (filled) positions to hold; pending orders don't count
 const AUTO_MAX_PER_DAY = 1; // max new auto-trades per account per day
 
 // Risk a % of account cash on the stop distance; round to a 1k-unit lot.
@@ -91,16 +91,20 @@ export async function GET(request: Request) {
     if (recent && recent.length) continue;
 
     const autoTrade = AUTO_ENABLED && AUTO_ACCOUNTS.has(acc.id);
-    const maxOpen = autoTrade ? AUTO_MAX_OPEN : 3;
 
-    // Skip if they already hold/pending this pair, or are at the position cap.
+    // Skip if they already hold a position or pending order on this pair.
     const [{ data: pos }, { data: ord }] = await Promise.all([
       db.from("fx_positions").select("symbol").eq("account_id", acc.id).eq("status", "open"),
       db.from("fx_orders").select("symbol").eq("account_id", acc.id).eq("status", "pending"),
     ]);
-    const open = [...(pos ?? []), ...(ord ?? [])];
-    if (open.some((o) => (o.symbol ?? "").toUpperCase() === symbol)) continue;
-    if (open.length >= maxOpen) continue;
+    const held = [...(pos ?? []), ...(ord ?? [])];
+    if (held.some((o) => (o.symbol ?? "").toUpperCase() === symbol)) continue;
+
+    // Position cap: auto-trading counts only OPEN (filled) positions, so pending
+    // orders don't block it; alert-only uses the broader open + pending count.
+    const countForCap = autoTrade ? (pos ?? []).length : held.length;
+    const cap = autoTrade ? AUTO_MAX_OPEN : 3;
+    if (countForCap >= cap) continue;
 
     // ── Autonomous execution path ──
     if (autoTrade) {
