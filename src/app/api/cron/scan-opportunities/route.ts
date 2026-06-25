@@ -119,25 +119,30 @@ export async function GET(request: Request) {
       const cash = Number(acc.cash_balance);
       const lev = Number(acc.leverage) || 1;
       const units = suggestUnits(cash, setup.entry, setup.stop, setup.pair, AUTO_RISK_PCT);
-      const margin = marginFor(units, setup.entry, lev, setup.pair);
+      const margin = marginFor(units, liveRate, lev, setup.pair);
 
       if (tradedToday < AUTO_MAX_PER_DAY && units > 0 && margin <= cash) {
-        // Place a pending entry order (fills on the pullback/breakout).
-        const { error: placeErr } = await db.from("fx_orders").insert({
-          account_id: acc.id,
-          symbol,
-          direction: setup.direction,
-          units,
-          entry_rate: setup.entry,
-          trigger_when: setup.entry < liveRate ? "AT_OR_BELOW" : "AT_OR_ABOVE",
-          stop_loss: setup.stop,
-          take_profit: setup.takeProfit,
-          expires_at: new Date(Date.now() + 72 * 3600 * 1000).toISOString(),
+        // Open immediately at market. Place SL/TP at the same distances as the
+        // plan, anchored to the live fill — preserves the reward:risk.
+        const isLong = setup.direction === "LONG";
+        const risk = Math.abs(setup.entry - setup.stop);
+        const reward = Math.abs(setup.takeProfit - setup.entry);
+        const sl = isLong ? liveRate - risk : liveRate + risk;
+        const tp = isLong ? liveRate + reward : liveRate - reward;
+        const { error: openErr } = await db.rpc("fx_open", {
+          p_account_id: acc.id,
+          p_symbol: symbol,
+          p_direction: setup.direction,
+          p_units: units,
+          p_rate: liveRate,
+          p_margin: margin,
+          p_stop_loss: sl,
+          p_take_profit: tp,
         });
-        if (!placeErr) {
+        if (!openErr) {
           await sendPushToUser(acc.user_id, {
-            title: `🤖 Auto-trade placed: ${setup.direction} ${fmtPair(setup.pair)} (${setup.rr.toFixed(1)}R)`,
-            body: `Entry ${fmtRate(setup.entry)} · SL ${fmtRate(setup.stop)} · TP ${fmtRate(setup.takeProfit)} · ${units.toLocaleString()} units. ${setup.rationale}`,
+            title: `🤖 Auto-trade opened: ${setup.direction} ${fmtPair(setup.pair)} (${setup.rr.toFixed(1)}R)`,
+            body: `Opened at ${fmtRate(liveRate)} · SL ${fmtRate(sl)} · TP ${fmtRate(tp)} · ${units.toLocaleString()} units. ${setup.rationale}`,
             url: `/dashboard/${acc.id}`,
           });
           await db
@@ -146,7 +151,7 @@ export async function GET(request: Request) {
           placed++;
           continue;
         }
-        // Placement failed — fall through to an alert so the user still sees it.
+        // Open failed (margin / SL-TP gap) — fall through to an alert.
       }
       // Daily cap hit / can't afford / placement failed → alert instead.
     }
