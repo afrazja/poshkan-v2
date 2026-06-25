@@ -23,8 +23,8 @@ const AUTO_ACCOUNTS = new Set(
     .filter(Boolean)
 );
 const AUTO_RISK_PCT = 0.01; // 1% of cash risked per auto-trade
-const AUTO_MAX_OPEN = 2; // max OPEN (filled) positions to hold; pending orders don't count
-const AUTO_MAX_PER_DAY = 1; // max new auto-trades per account per day
+const AUTO_MAX_OPEN = 8; // max OPEN (filled) positions to hold; pending orders don't count
+const AUTO_MAX_PER_DAY = 50; // effectively no daily cap (still 1 setup per hourly run)
 
 // Risk a % of account cash on the stop distance; round to a 1k-unit lot.
 function suggestUnits(cash: number, entry: number, stop: number, pair: string, riskPct = 0.015): number {
