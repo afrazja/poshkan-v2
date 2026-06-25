@@ -23,8 +23,9 @@ const AUTO_ACCOUNTS = new Set(
     .filter(Boolean)
 );
 const AUTO_RISK_PCT = 0.01; // 1% of cash risked per auto-trade
-const AUTO_MAX_OPEN = 8; // max OPEN (filled) positions to hold; pending orders don't count
-const AUTO_MAX_PER_DAY = 50; // effectively no daily cap (still 1 setup per hourly run)
+const AUTO_MAX_OPEN = 3; // max OPEN (filled) positions to hold; pending orders don't count
+const AUTO_MAX_PER_DAY = 2; // max new auto-trades per account per day
+const AUTO_DAILY_LOSS_PCT = 0.03; // halt new auto-trades once realized losses today exceed 3% of cash
 
 // Risk a % of account cash on the stop distance; round to a 1k-unit lot.
 function suggestUnits(cash: number, entry: number, stop: number, pair: string, riskPct = 0.015): number {
@@ -119,13 +120,27 @@ export async function GET(request: Request) {
         .eq("executed", true)
         .gte("alerted_at", dayStart.toISOString());
       const tradedToday = count ?? 0;
-
       const cash = Number(acc.cash_balance);
+
+      // Daily loss limit: halt new auto-trades once realized losses today exceed the cap.
+      const { data: closedToday } = await db
+        .from("fx_positions")
+        .select("pnl")
+        .eq("account_id", acc.id)
+        .neq("status", "open")
+        .gte("closed_at", dayStart.toISOString());
+      const realizedToday = (closedToday ?? []).reduce((sum, r) => sum + Number(r.pnl ?? 0), 0);
+      const lossLimitHit = realizedToday <= -Math.abs(cash * AUTO_DAILY_LOSS_PCT);
+
       const lev = Number(acc.leverage) || 1;
       const units = suggestUnits(cash, setup.entry, setup.stop, setup.pair, AUTO_RISK_PCT);
       const margin = marginFor(units, liveRate, lev, setup.pair);
 
-      if ((force || tradedToday < AUTO_MAX_PER_DAY) && units > 0 && margin <= cash) {
+      if (
+        (force || (tradedToday < AUTO_MAX_PER_DAY && !lossLimitHit)) &&
+        units > 0 &&
+        margin <= cash
+      ) {
         // Open immediately at market. Place SL/TP at the same distances as the
         // plan, anchored to the live fill — preserves the reward:risk.
         const isLong = setup.direction === "LONG";
