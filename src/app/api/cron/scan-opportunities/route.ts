@@ -46,16 +46,18 @@ export async function GET(request: Request) {
 
   // Skip silently when the forex market is closed (weekends/holidays).
   const probe = await getQuote("EURUSD=X");
-  if (!probe?.isMarketOpen) return NextResponse.json({ skipped: "market closed" });
+  if (!probe?.isMarketOpen) return NextResponse.json({ skipped: "market closed", autoEnabled: AUTO_ENABLED });
 
   // Build readings for the majors, then ask Claude for the best setup (or none).
   const summaries = (await Promise.all(MAJORS.map((p) => buildSummary(p)))).filter(
     (s): s is PairSummary => s != null
   );
-  if (summaries.length === 0) return NextResponse.json({ skipped: "no data" });
+  if (summaries.length === 0) return NextResponse.json({ skipped: "no data", autoEnabled: AUTO_ENABLED });
 
   const setup = await analyzeMarket(summaries);
-  if (!setup) return NextResponse.json({ setup: null });
+  if (!setup) {
+    return NextResponse.json({ setup: null, autoEnabled: AUTO_ENABLED, autoAccounts: AUTO_ACCOUNTS.size });
+  }
 
   const symbol = setup.pair.toUpperCase();
   const liveRate = summaries.find((s) => s.pair.toUpperCase() === symbol)?.price ?? setup.entry;
