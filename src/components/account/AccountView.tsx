@@ -6,6 +6,7 @@ import Link from "next/link";
 import type { Account, Position, WatchlistItem, Transaction, Order, FxPosition, FxOrder, FxTpLevel } from "@/lib/types";
 import { FX_PAIRS, floatingPnl } from "@/lib/forex";
 import ForexPanel from "./ForexPanel";
+import ForexPerformance from "./ForexPerformance";
 import { useQuotes } from "@/lib/useQuotes";
 import { realizedPnl } from "@/lib/pnl";
 import {
@@ -390,6 +391,11 @@ export default function AccountView({
           tpLevels={initialFxTpLevels}
           leverage={account.leverage}
         />
+      )}
+
+      {/* Forex performance: equity curve + closed-trade stats */}
+      {isForex && (
+        <ForexPerformance accountId={account.id} closed={fxPositions.filter((p) => p.status !== "open")} />
       )}
 
       {/* Search (always available) */}
