@@ -144,15 +144,18 @@ export async function GET(request: Request) {
           p_take_profit: tp,
         });
         if (!openErr) {
-          await sendPushToUser(acc.user_id, {
-            title: `🤖 Auto-trade opened: ${setup.direction} ${fmtPair(setup.pair)} (${setup.rr.toFixed(1)}R)`,
-            body: `Opened at ${fmtRate(liveRate)} · SL ${fmtRate(sl)} · TP ${fmtRate(tp)} · ${units.toLocaleString()} units. ${setup.rationale}`,
-            url: `/dashboard/${acc.id}`,
-          });
           await db
             .from("fx_scan_alerts")
             .insert({ account_id: acc.id, symbol, direction: setup.direction, executed: true });
           placed++;
+          // Push is best-effort — never let a notification failure undo the trade.
+          try {
+            await sendPushToUser(acc.user_id, {
+              title: `🤖 Auto-trade opened: ${setup.direction} ${fmtPair(setup.pair)} (${setup.rr.toFixed(1)}R)`,
+              body: `Opened at ${fmtRate(liveRate)} · SL ${fmtRate(sl)} · TP ${fmtRate(tp)} · ${units.toLocaleString()} units. ${setup.rationale}`,
+              url: `/dashboard/${acc.id}`,
+            });
+          } catch {}
           continue;
         }
         // Open failed (margin / SL-TP gap) — fall through to an alert.
@@ -165,13 +168,15 @@ export async function GET(request: Request) {
     const entryDesc =
       setup.entryType === "limit" ? `limit ${fmtRate(setup.entry)}` : `market ~${fmtRate(setup.entry)}`;
 
-    await sendPushToUser(acc.user_id, {
-      title: `📊 Setup: ${setup.direction} ${fmtPair(setup.pair)} (${setup.rr.toFixed(1)}R)`,
-      body: `Entry ${entryDesc} · SL ${fmtRate(setup.stop)} · TP ${fmtRate(setup.takeProfit)} · ~${units.toLocaleString()} units. ${setup.rationale}`,
-      url: `/dashboard/${acc.id}`,
-    });
     await db.from("fx_scan_alerts").insert({ account_id: acc.id, symbol, direction: setup.direction });
     pushed++;
+    try {
+      await sendPushToUser(acc.user_id, {
+        title: `📊 Setup: ${setup.direction} ${fmtPair(setup.pair)} (${setup.rr.toFixed(1)}R)`,
+        body: `Entry ${entryDesc} · SL ${fmtRate(setup.stop)} · TP ${fmtRate(setup.takeProfit)} · ~${units.toLocaleString()} units. ${setup.rationale}`,
+        url: `/dashboard/${acc.id}`,
+      });
+    } catch {}
   }
 
   return NextResponse.json({
