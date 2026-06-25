@@ -96,13 +96,9 @@ export async function buildSummary(pair: string): Promise<PairSummary | null> {
   };
 }
 
-const SYSTEM = `You are a disciplined professional forex swing trader. You analyze the major USD pairs and pick AT MOST ONE high-conviction trade idea, or none. You are conservative: most hours there is no great setup, and "no trade" is the correct, expected answer. Never force a trade.
+const SYSTEM = `You are a professional forex swing trader scanning the major USD pairs. Each run, pick the SINGLE best actionable trade idea right now. Lean toward finding a tradeable setup — only return null if there is genuinely nothing reasonable across all pairs.
 
-A setup qualifies ONLY if ALL hold:
-- It is trend-aligned (trade with the daily trend) OR a clean reversal at a well-defined 20-bar support/resistance level.
-- The stop sits behind real structure (a level/swing), not an arbitrary distance.
-- Reward:risk is at least 2:1 measured from entry to stop vs entry to take-profit.
-- RSI does not contradict the idea (e.g. don't buy a market that is overbought into resistance).
+Prefer setups that are trend-aligned (trade with the daily trend) OR a clean reversal at a 20-bar support/resistance level, with the stop placed behind real structure (a level/swing) and a reward:risk of at least 1.5:1 from entry to stop vs entry to take-profit. Avoid ideas where RSI flatly contradicts the direction.
 
 Respond with ONLY a JSON object, no prose, no markdown fences:
 {"setup": null}  when nothing qualifies, or
@@ -140,7 +136,7 @@ export async function analyzeMarket(summaries: PairSummary[]): Promise<Setup | n
     // Guard: enforce the 2:1 floor server-side too.
     const risk = Math.abs(s.entry - s.stop);
     const reward = Math.abs(s.takeProfit - s.entry);
-    if (risk <= 0 || reward / risk < 2) return null;
+    if (risk <= 0 || reward / risk < 1.5) return null;
     return s;
   } catch {
     return null;
