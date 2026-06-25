@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getQuote } from "@/lib/marketdata";
 import { marginFor } from "@/lib/forex";
-import { MAJORS, buildSummary, analyzeMarket, type PairSummary } from "@/lib/forex-scan";
+import { MAJORS, buildSummary, analyzeMarket, fallbackSetup, type PairSummary } from "@/lib/forex-scan";
 import { sendPushToUser } from "@/lib/push";
 
 export const maxDuration = 60;
@@ -54,7 +54,11 @@ export async function GET(request: Request) {
   );
   if (summaries.length === 0) return NextResponse.json({ skipped: "no data", autoEnabled: AUTO_ENABLED });
 
-  const setup = await analyzeMarket(summaries);
+  // ?force=1 — testing: place a trade even if the AI finds nothing premium, and
+  // bypass the dedup / same-pair / daily-cap guards below.
+  const force = new URL(request.url).searchParams.get("force") === "1";
+  let setup = await analyzeMarket(summaries);
+  if (!setup && force) setup = fallbackSetup(summaries);
   if (!setup) {
     return NextResponse.json({ setup: null, autoEnabled: AUTO_ENABLED, autoAccounts: AUTO_ACCOUNTS.size });
   }
@@ -88,7 +92,7 @@ export async function GET(request: Request) {
       .eq("direction", setup.direction)
       .gte("alerted_at", since)
       .limit(1);
-    if (recent && recent.length) continue;
+    if (!force && recent && recent.length) continue;
 
     const autoTrade = AUTO_ENABLED && AUTO_ACCOUNTS.has(acc.id);
 
@@ -98,7 +102,7 @@ export async function GET(request: Request) {
       db.from("fx_orders").select("symbol").eq("account_id", acc.id).eq("status", "pending"),
     ]);
     const held = [...(pos ?? []), ...(ord ?? [])];
-    if (held.some((o) => (o.symbol ?? "").toUpperCase() === symbol)) continue;
+    if (!force && held.some((o) => (o.symbol ?? "").toUpperCase() === symbol)) continue;
 
     // Position cap: auto-trading counts only OPEN (filled) positions, so pending
     // orders don't block it; alert-only uses the broader open + pending count.
@@ -121,7 +125,7 @@ export async function GET(request: Request) {
       const units = suggestUnits(cash, setup.entry, setup.stop, setup.pair, AUTO_RISK_PCT);
       const margin = marginFor(units, liveRate, lev, setup.pair);
 
-      if (tradedToday < AUTO_MAX_PER_DAY && units > 0 && margin <= cash) {
+      if ((force || tradedToday < AUTO_MAX_PER_DAY) && units > 0 && margin <= cash) {
         // Open immediately at market. Place SL/TP at the same distances as the
         // plan, anchored to the live fill — preserves the reward:risk.
         const isLong = setup.direction === "LONG";

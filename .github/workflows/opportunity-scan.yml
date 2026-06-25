@@ -14,7 +14,12 @@ name: Forex opportunity scan
 on:
   schedule:
     - cron: '0 * * * *' # top of every hour
-  workflow_dispatch: {} # manual "Run workflow" button
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "Force a test trade even if the AI finds no premium setup"
+        type: boolean
+        default: false
 
 jobs:
   scan:
@@ -22,8 +27,10 @@ jobs:
     steps:
       - name: Hit opportunity-scan endpoint
         run: |
-          echo "Calling $SCAN_URL"
-          code=$(curl -sS -o response.txt -w "%{http_code}" -H "Authorization: Bearer $CRON_SECRET" "$SCAN_URL")
+          URL="$SCAN_URL"
+          if [ "${{ inputs.force }}" = "true" ]; then URL="$SCAN_URL?force=1"; fi
+          echo "Calling $URL"
+          code=$(curl -sS -o response.txt -w "%{http_code}" -H "Authorization: Bearer $CRON_SECRET" "$URL")
           echo "HTTP $code"; cat response.txt; echo
           if [ "$code" != "200" ]; then
             echo "::error::Expected HTTP 200, got $code. A 3xx means the URL redirects — set the secret to the canonical https://www.poshkan.com URL."

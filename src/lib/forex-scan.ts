@@ -143,6 +143,30 @@ export async function analyzeMarket(summaries: PairSummary[]): Promise<Setup | n
   }
 }
 
+// Deterministic fallback used by the scanner's force/test mode: fade the most
+// RSI-extreme pair (overbought → short, oversold → long) with a ~2:1 plan.
+// Guarantees a placeable setup so the autonomous path can be verified on demand.
+export function fallbackSetup(summaries: PairSummary[]): Setup | null {
+  let best: PairSummary | null = null;
+  for (const s of summaries) {
+    if (s.rsi14 == null) continue;
+    if (!best || Math.abs(s.rsi14 - 50) > Math.abs((best.rsi14 ?? 50) - 50)) best = s;
+  }
+  if (!best || best.rsi14 == null || !best.price) return null;
+  const overbought = best.rsi14 >= 50;
+  const dist = best.price * 0.007; // ~0.7% stop distance
+  return {
+    pair: best.pair,
+    direction: overbought ? "SHORT" : "LONG",
+    entryType: "market",
+    entry: best.price,
+    stop: overbought ? best.price + dist : best.price - dist,
+    takeProfit: overbought ? best.price - dist * 2 : best.price + dist * 2,
+    rr: 2,
+    rationale: `Test trade: ${best.pair.replace(/=X$/i, "")} is the most RSI-extreme pair (RSI ${best.rsi14}); fading the extreme.`,
+  };
+}
+
 export interface PositionContext {
   pair: string; // "USDJPY=X"
   direction: "LONG" | "SHORT";
