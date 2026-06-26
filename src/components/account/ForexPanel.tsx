@@ -1427,11 +1427,19 @@ function AutoSettingsCard({ accountId, initial }: { accountId: string; initial: 
   async function save() {
     setSaving(true);
     setMsg(null);
-    const res = await setAutoSettingsAction(accountId, s);
-    setSaving(false);
-    if (res.error) return setMsg(res.error);
-    setMsg("✓ Saved");
-    router.refresh();
+    try {
+      const res = await setAutoSettingsAction(accountId, s);
+      if (res.error) {
+        setMsg(res.error);
+        return;
+      }
+      setMsg("✓ Saved");
+      router.refresh();
+    } catch (e) {
+      setMsg(`Couldn't save: ${(e as Error).message}`);
+    } finally {
+      setSaving(false);
+    }
   }
 
   const set = (patch: Partial<AutoSettings>) => setS((p) => ({ ...p, ...patch }));
@@ -1521,11 +1529,19 @@ function AiInstructionCard({ accountId, initial }: { accountId: string; initial:
   async function save() {
     setSaving(true);
     setMsg(null);
-    const res = await setAiInstructionAction(accountId, value);
-    setSaving(false);
-    if (res.error) return setMsg(res.error);
-    setMsg("✓ Saved — the AI scanner will use this on its next run.");
-    router.refresh();
+    try {
+      const res = await setAiInstructionAction(accountId, value);
+      if (res.error) {
+        setMsg(res.error);
+        return;
+      }
+      setMsg("✓ Saved — the AI scanner will use this on its next run.");
+      router.refresh();
+    } catch (e) {
+      setMsg(`Couldn't save: ${(e as Error).message}`);
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (

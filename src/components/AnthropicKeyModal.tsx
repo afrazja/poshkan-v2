@@ -25,21 +25,34 @@ export default function AnthropicKeyModal({ onClose }: { onClose: () => void }) 
   async function save() {
     setBusy(true);
     setMsg(null);
-    const res = await setAnthropicKeyAction(key);
-    setBusy(false);
-    if (res.error) return setMsg(res.error);
-    setKey("");
-    setMsg("✓ Saved");
-    refresh();
+    try {
+      const res = await setAnthropicKeyAction(key);
+      if (res.error) {
+        setMsg(res.error);
+        return;
+      }
+      setKey("");
+      setMsg("✓ Saved");
+      refresh();
+    } catch (e) {
+      setMsg(`Couldn't save: ${(e as Error).message}`);
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function clear() {
     setBusy(true);
     setMsg(null);
-    await clearAnthropicKeyAction();
-    setBusy(false);
-    setMsg("Removed");
-    refresh();
+    try {
+      await clearAnthropicKeyAction();
+      setMsg("Removed");
+      refresh();
+    } catch (e) {
+      setMsg(`Couldn't remove: ${(e as Error).message}`);
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
