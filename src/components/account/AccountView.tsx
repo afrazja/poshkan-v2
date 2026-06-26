@@ -390,6 +390,7 @@ export default function AccountView({
           orders={initialFxOrders}
           tpLevels={initialFxTpLevels}
           leverage={account.leverage}
+          aiInstruction={account.ai_instruction}
         />
       )}
 

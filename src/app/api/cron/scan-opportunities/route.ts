@@ -59,25 +59,14 @@ export async function GET(request: Request) {
   // ?force=1 — testing: place a trade even if the AI finds nothing premium, and
   // bypass the dedup / same-pair / daily-cap guards below.
   const force = new URL(request.url).searchParams.get("force") === "1";
-  const analysis = await analyzeMarket(summaries);
-  let setup = analysis.setup;
-  if (!setup && force) setup = fallbackSetup(summaries);
-  if (!setup) {
-    return NextResponse.json({
-      setup: null,
-      autoEnabled: AUTO_ENABLED,
-      autoAccounts: AUTO_ACCOUNTS.size,
-      aiError: analysis.error,
-    });
-  }
-
-  const symbol = setup.pair.toUpperCase();
-  const liveRate = summaries.find((s) => s.pair.toUpperCase() === symbol)?.price ?? setup.entry;
 
   // Recipients: forex accounts whose owner has push enabled.
   const db = createAdminClient();
   const [{ data: accounts }, { data: subs }] = await Promise.all([
-    db.from("accounts").select("id, user_id, name, cash_balance, leverage").eq("type", "forex"),
+    db
+      .from("accounts")
+      .select("id, user_id, name, cash_balance, leverage, ai_instruction")
+      .eq("type", "forex"),
     db.from("push_subscriptions").select("user_id"),
   ]);
   const pushUsers = new Set((subs ?? []).map((r) => r.user_id));
@@ -87,10 +76,28 @@ export async function GET(request: Request) {
   const dayStart = new Date();
   dayStart.setUTCHours(0, 0, 0, 0);
 
+  // Per-account analysis: an account with a custom instruction gets its own pass;
+  // accounts without one share a single cached default-strategy analysis.
+  let defaultAnalysis: Awaited<ReturnType<typeof analyzeMarket>> | null = null;
+  const analysisFor = async (instruction?: string | null) => {
+    if (instruction && instruction.trim()) return analyzeMarket(summaries, instruction);
+    if (!defaultAnalysis) defaultAnalysis = await analyzeMarket(summaries);
+    return defaultAnalysis;
+  };
+
   let pushed = 0;
   let placed = 0;
+  let aiError: string | undefined;
 
   for (const acc of targets) {
+    const analysis = await analysisFor((acc as { ai_instruction?: string | null }).ai_instruction);
+    if (analysis.error) aiError = analysis.error;
+    let setup = analysis.setup;
+    if (!setup && force) setup = fallbackSetup(summaries);
+    if (!setup) continue;
+    const symbol = setup.pair.toUpperCase();
+    const liveRate = summaries.find((s) => s.pair.toUpperCase() === symbol)?.price ?? setup.entry;
+
     // Don't re-act on the same setup within 12h.
     const { data: recent } = await db
       .from("fx_scan_alerts")
@@ -202,12 +209,11 @@ export async function GET(request: Request) {
   }
 
   return NextResponse.json({
-    setup: symbol,
-    direction: setup.direction,
     targets: targets.length,
     alerted: pushed,
     autoPlaced: placed,
     autoEnabled: AUTO_ENABLED,
+    aiError,
   });
   } catch (e) {
     return NextResponse.json(

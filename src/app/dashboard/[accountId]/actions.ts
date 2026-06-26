@@ -669,6 +669,26 @@ export async function sendTestNotificationAction(): Promise<{ sent?: number; err
   }
 }
 
+// Save the per-account custom AI trading instruction (blank = built-in strategy).
+export async function setAiInstructionAction(
+  accountId: string,
+  instruction: string
+): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated" };
+  const trimmed = instruction.trim().slice(0, 4000);
+  const { error } = await supabase
+    .from("accounts")
+    .update({ ai_instruction: trimmed || null })
+    .eq("id", accountId);
+  if (error) return { error: error.message };
+  revalidatePath(`/dashboard/${accountId}`);
+  return {};
+}
+
 // AI coach: Claude reviews the user's journaled reasoning against outcomes.
 export async function reviewJournalAction(): Promise<{ review?: string; error?: string }> {
   const supabase = await createClient();

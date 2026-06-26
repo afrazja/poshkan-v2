@@ -30,6 +30,7 @@ import {
   setFxTakeProfitLevelsAction,
   fillFxTpLevelsAction,
   setAccountLeverageAction,
+  setAiInstructionAction,
 } from "@/app/dashboard/[accountId]/actions";
 import Modal from "@/components/Modal";
 import PriceChart from "./PriceChart";
@@ -47,6 +48,7 @@ export default function ForexPanel({
   orders = [],
   tpLevels = [],
   leverage = FX_LEVERAGE,
+  aiInstruction = null,
 }: {
   accountId: string;
   cash: number;
@@ -55,6 +57,7 @@ export default function ForexPanel({
   orders?: FxOrder[];
   tpLevels?: FxTpLevel[];
   leverage?: number;
+  aiInstruction?: string | null;
 }) {
   const router = useRouter();
   const [trade, setTrade] = useState<string | null>(null); // pair symbol
@@ -212,6 +215,8 @@ export default function ForexPanel({
           </button>
         </p>
       </div>
+
+      <AiInstructionCard accountId={accountId} initial={aiInstruction ?? ""} />
 
       {/* Pending entry orders */}
       {pendingOrders.length > 0 && (
@@ -1363,6 +1368,59 @@ function Row({ label, value, bold }: { label: string; value: string; bold?: bool
     <div className="flex justify-between">
       <span className="text-muted">{label}</span>
       <span className={bold ? "font-semibold" : ""}>{value}</span>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Editable per-account AI trading instructions for the hourly scanner.
+const AI_EXAMPLE = `e.g. Only trade EUR/USD and GBP/USD.
+Trade with the daily trend — enter on a pullback to the 20-period SMA on the 1h.
+Put the stop just beyond the recent swing; target at least 2:1 reward-to-risk.
+Skip trades when RSI is already overbought/oversold, and avoid the Asian session.`;
+
+function AiInstructionCard({ accountId, initial }: { accountId: string; initial: string }) {
+  const router = useRouter();
+  const [value, setValue] = useState(initial);
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+  const dirty = value !== initial;
+
+  async function save() {
+    setSaving(true);
+    setMsg(null);
+    const res = await setAiInstructionAction(accountId, value);
+    setSaving(false);
+    if (res.error) return setMsg(res.error);
+    setMsg("✓ Saved — the AI scanner will use this on its next run.");
+    router.refresh();
+  }
+
+  return (
+    <div className="rounded-2xl border border-border bg-card p-4">
+      <div className="mb-1 flex items-center justify-between gap-2">
+        <h2 className="text-sm font-semibold">🤖 AI trading instructions</h2>
+        <button
+          onClick={save}
+          disabled={saving || !dirty}
+          className="rounded-lg bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50"
+        >
+          {saving ? "Saving…" : "Save"}
+        </button>
+      </div>
+      <p className="mb-2 text-xs text-muted">
+        Tell the hourly AI scanner how to trade this account, in plain English. Leave blank to use
+        Poshkan&apos;s built-in strategy. Risk limits (≥2:1 reward-to-risk, position caps, daily
+        loss-limit) always apply on top of your instructions.
+      </p>
+      <textarea
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        rows={5}
+        placeholder={AI_EXAMPLE}
+        className="w-full resize-y rounded-lg border border-border bg-input px-3 py-2 text-sm outline-none focus:border-primary"
+      />
+      {msg && <p className="mt-1 text-xs text-muted">{msg}</p>}
     </div>
   );
 }
