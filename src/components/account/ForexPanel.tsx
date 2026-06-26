@@ -87,6 +87,7 @@ export default function ForexPanel({
   const [editSltp, setEditSltp] = useState<FxPosition | null>(null);
   const [chartPos, setChartPos] = useState<FxPosition | null>(null);
   const [editOrder, setEditOrder] = useState<FxOrder | null>(null);
+  const [aiOpen, setAiOpen] = useState(false);
   const [pairQuery, setPairQuery] = useState("");
   const [showLeverage, setShowLeverage] = useState(false);
 
@@ -237,8 +238,20 @@ export default function ForexPanel({
         </p>
       </div>
 
-      <AutoSettingsCard accountId={accountId} initial={autoSettings} />
-      <AiInstructionCard accountId={accountId} initial={aiInstruction ?? ""} />
+      {/* Entry point to the AI controls (kept out of the main trading view) */}
+      <button
+        onClick={() => setAiOpen(true)}
+        className="flex w-full items-center justify-between rounded-2xl border border-border bg-card p-4 text-left transition hover:border-primary/60"
+      >
+        <span>
+          <span className="block text-sm font-semibold">🤖 AI auto-trading &amp; strategy</span>
+          <span className="block text-xs text-muted">
+            {autoSettings.enabled ? "Autonomous trading is ON" : "Autonomous trading is off"} · tap to set
+            limits and the AI strategy
+          </span>
+        </span>
+        <span className="text-lg text-muted">›</span>
+      </button>
 
       {/* Pending entry orders */}
       {pendingOrders.length > 0 && (
@@ -618,6 +631,14 @@ export default function ForexPanel({
           rate={quotes[editOrder.symbol.toUpperCase()]?.price}
           onClose={() => setEditOrder(null)}
         />
+      )}
+      {aiOpen && (
+        <Modal title="AI auto-trading & strategy" onClose={() => setAiOpen(false)} wide>
+          <div className="space-y-4">
+            <AutoSettingsCard accountId={accountId} initial={autoSettings} />
+            <AiInstructionCard accountId={accountId} initial={aiInstruction ?? ""} />
+          </div>
+        </Modal>
       )}
     </div>
   );
