@@ -9,7 +9,7 @@ import Avatar from "./Avatar";
 import ThemeToggle from "./ThemeToggle";
 import ChangePasswordModal from "./ChangePasswordModal";
 import ApiAccessModal from "./ApiAccessModal";
-import { savePushSubscriptionAction } from "@/app/dashboard/[accountId]/actions";
+import { savePushSubscriptionAction, sendTestNotificationAction } from "@/app/dashboard/[accountId]/actions";
 
 function urlBase64ToUint8Array(base64: string): Uint8Array {
   const padding = "=".repeat((4 - (base64.length % 4)) % 4);
@@ -51,6 +51,12 @@ export default function TopBar({ username, email }: { username: string; email: s
     } catch (e) {
       setPushMsg(`Failed: ${(e as Error).message}`);
     }
+  }
+
+  async function testPush() {
+    setPushMsg("Sending test…");
+    const res = await sendTestNotificationAction();
+    setPushMsg(res.error ?? `✓ Test sent to ${res.sent} device(s) — check your phone`);
   }
   const ref = useRef<HTMLDivElement>(null);
 
@@ -141,6 +147,12 @@ export default function TopBar({ username, email }: { username: string; email: s
                   className="w-full rounded-md px-3 py-2 text-left text-sm hover:bg-background"
                 >
                   Enable notifications
+                </button>
+                <button
+                  onClick={testPush}
+                  className="w-full rounded-md px-3 py-2 text-left text-sm hover:bg-background"
+                >
+                  Send test notification
                 </button>
                 <Link
                   href="/help"

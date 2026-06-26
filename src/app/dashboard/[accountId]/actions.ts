@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { sendPushToUser } from "@/lib/push";
 import { getQuote, getQuotes } from "@/lib/marketdata";
 import { assetTypeError } from "@/lib/assets";
 import { marginFor, sltpError, autoCloseReason } from "@/lib/forex";
@@ -644,6 +645,28 @@ export async function createJournalEntryAction(input: {
   });
   if (error) return { error: error.message };
   return {};
+}
+
+// Send a test push to the current user's devices — verifies push delivery.
+export async function sendTestNotificationAction(): Promise<{ sent?: number; error?: string }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated" };
+  try {
+    const sent = await sendPushToUser(user.id, {
+      title: "🔔 Poshkan test",
+      body: "Push notifications are working on this device.",
+      url: "/dashboard",
+    });
+    if (sent === 0) {
+      return { error: "No device received it — tap 'Enable notifications' first, or push isn't configured (VAPID)." };
+    }
+    return { sent };
+  } catch (e) {
+    return { error: `Push failed: ${(e as Error).message}` };
+  }
 }
 
 // AI coach: Claude reviews the user's journaled reasoning against outcomes.

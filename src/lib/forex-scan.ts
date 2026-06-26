@@ -111,26 +111,30 @@ Use "limit" with an entry price for pullback/breakout entries; "market" to take 
 
 /** Ask Claude for the single best setup across the provided pair summaries. */
 export async function analyzeMarket(summaries: PairSummary[]): Promise<Setup | null> {
-  const { default: Anthropic } = await import("@anthropic-ai/sdk");
-  const client = new Anthropic();
-
-  const response = await client.messages.create({
-    model: "claude-opus-4-8",
-    max_tokens: 1500,
-    thinking: { type: "adaptive" },
-    system: SYSTEM,
-    messages: [
-      {
-        role: "user",
-        content: `Here are the current daily/hourly readings for the majors. Pick the single best setup or none.\n\n${JSON.stringify(summaries)}`,
-      },
-    ],
-  });
-
-  const text = response.content
-    .map((b) => (b.type === "text" ? b.text : ""))
-    .join("")
-    .trim();
+  let text: string;
+  try {
+    const { default: Anthropic } = await import("@anthropic-ai/sdk");
+    const client = new Anthropic();
+    const response = await client.messages.create({
+      model: "claude-opus-4-8",
+      max_tokens: 1500,
+      thinking: { type: "adaptive" },
+      system: SYSTEM,
+      messages: [
+        {
+          role: "user",
+          content: `Here are the current daily/hourly readings for the majors. Pick the single best setup or none.\n\n${JSON.stringify(summaries)}`,
+        },
+      ],
+    });
+    text = response.content
+      .map((b) => (b.type === "text" ? b.text : ""))
+      .join("")
+      .trim();
+  } catch {
+    // Anthropic auth/API failure → treat as "no setup" so the cron never crashes.
+    return null;
+  }
 
   try {
     const json = text.startsWith("{") ? text : text.slice(text.indexOf("{"), text.lastIndexOf("}") + 1);
