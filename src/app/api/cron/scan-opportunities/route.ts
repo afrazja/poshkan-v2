@@ -45,6 +45,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  try {
   // Skip silently when the forex market is closed (weekends/holidays).
   const probe = await getQuote("EURUSD=X");
   if (!probe?.isMarketOpen) return NextResponse.json({ skipped: "market closed", autoEnabled: AUTO_ENABLED });
@@ -202,4 +203,10 @@ export async function GET(request: Request) {
     autoPlaced: placed,
     autoEnabled: AUTO_ENABLED,
   });
+  } catch (e) {
+    return NextResponse.json(
+      { error: String((e as { message?: string })?.message ?? e) },
+      { status: 500 }
+    );
+  }
 }
