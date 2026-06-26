@@ -719,7 +719,7 @@ export async function reviewJournalAction(): Promise<{ review?: string; error?: 
   const client = new Anthropic();
   try {
     const response = await client.messages.create({
-      model: "claude-opus-4-8",
+      model: "claude-sonnet-4-6",
       max_tokens: 2000,
       thinking: { type: "adaptive" },
       system:
