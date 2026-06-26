@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { sendPushToUser } from "@/lib/push";
+import { encryptSecret, decryptSecret } from "@/lib/crypto";
+import { getUserAnthropicKey } from "@/lib/anthropic-key";
 import { getQuote, getQuotes } from "@/lib/marketdata";
 import { assetTypeError } from "@/lib/assets";
 import { marginFor, sltpError, autoCloseReason } from "@/lib/forex";
@@ -724,6 +726,57 @@ export async function setAutoSettingsAction(
   return {};
 }
 
+// Save the user's own Anthropic API key (encrypted at rest). Powers all AI features.
+export async function setAnthropicKeyAction(key: string): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated" };
+  const k = key.trim();
+  if (!/^sk-ant-/.test(k)) {
+    return { error: "That doesn't look like an Anthropic key — it should start with sk-ant-." };
+  }
+  let enc: string;
+  try {
+    enc = encryptSecret(k);
+  } catch {
+    return { error: "Server can't store keys yet (ENCRYPTION_KEY not configured)." };
+  }
+  const { error } = await supabase.from("profiles").update({ anthropic_api_key: enc }).eq("id", user.id);
+  if (error) return { error: error.message };
+  return {};
+}
+
+export async function clearAnthropicKeyAction(): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated" };
+  const { error } = await supabase.from("profiles").update({ anthropic_api_key: null }).eq("id", user.id);
+  if (error) return { error: error.message };
+  return {};
+}
+
+// Status for the UI — whether a key is saved, and its last 4 chars (never the key).
+export async function getAnthropicKeyStatusAction(): Promise<{ set: boolean; last4?: string }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { set: false };
+  const { data } = await supabase
+    .from("profiles")
+    .select("anthropic_api_key")
+    .eq("id", user.id)
+    .maybeSingle();
+  const enc = (data as { anthropic_api_key?: string | null } | null)?.anthropic_api_key;
+  if (!enc) return { set: false };
+  const dec = decryptSecret(enc);
+  return { set: true, last4: dec ? dec.slice(-4) : undefined };
+}
+
 // AI coach: Claude reviews the user's journaled reasoning against outcomes.
 export async function reviewJournalAction(): Promise<{ review?: string; error?: string }> {
   const supabase = await createClient();
@@ -731,8 +784,9 @@ export async function reviewJournalAction(): Promise<{ review?: string; error?: 
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return { error: "Not authenticated" };
-  if (!process.env.ANTHROPIC_API_KEY) {
-    return { error: "ANTHROPIC_API_KEY is not configured on the server." };
+  const apiKey = (await getUserAnthropicKey(supabase, user.id)) || process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) {
+    return { error: "Add your Anthropic API key in Settings to use the AI coach." };
   }
 
   const { data: entries } = await supabase
@@ -794,7 +848,7 @@ export async function reviewJournalAction(): Promise<{ review?: string; error?: 
   }));
 
   const { default: Anthropic } = await import("@anthropic-ai/sdk");
-  const client = new Anthropic();
+  const client = new Anthropic({ apiKey });
   try {
     const response = await client.messages.create({
       model: "claude-sonnet-4-6",

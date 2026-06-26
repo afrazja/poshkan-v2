@@ -125,13 +125,14 @@ ${OUTPUT_FORMAT}`;
 /** Ask Claude for the single best setup across the provided pair summaries. */
 export async function analyzeMarket(
   summaries: PairSummary[],
-  instruction?: string | null
+  instruction?: string | null,
+  apiKey?: string
 ): Promise<{ setup: Setup | null; error?: string }> {
   const system = instruction?.trim() ? customSystem(instruction) : SYSTEM;
   let text: string;
   try {
     const { default: Anthropic } = await import("@anthropic-ai/sdk");
-    const client = new Anthropic();
+    const client = new Anthropic(apiKey ? { apiKey } : {});
     const response = await client.messages.create({
       model: "claude-opus-4-8",
       max_tokens: 1500,
@@ -204,10 +205,10 @@ export interface PositionContext {
 }
 
 /** Ask Claude to explain the strategy behind one specific position, on demand. */
-export async function explainPosition(ctx: PositionContext): Promise<string> {
+export async function explainPosition(ctx: PositionContext, apiKey?: string): Promise<string> {
   const summary = await buildSummary(ctx.pair);
   const { default: Anthropic } = await import("@anthropic-ai/sdk");
-  const client = new Anthropic();
+  const client = new Anthropic(apiKey ? { apiKey } : {});
 
   const isOpen = ctx.status === "open";
   const system = `You are a professional forex analyst explaining the strategy behind ONE specific ${isOpen ? "open" : "closed"} position to the trader who holds it. Write 3-5 short sentences in plain language. Cover: the technical read (trend via SMA20/SMA50, RSI14, the 20-bar support/resistance), why the stop-loss and take-profit sit where they do (structure + reward:risk), and what price action would confirm or invalidate the idea. Reference the actual numbers. No preamble, no markdown headers or bullet lists — just the explanation as a short paragraph.`;

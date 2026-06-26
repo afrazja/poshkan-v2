@@ -9,6 +9,7 @@ import Avatar from "./Avatar";
 import ThemeToggle from "./ThemeToggle";
 import ChangePasswordModal from "./ChangePasswordModal";
 import ApiAccessModal from "./ApiAccessModal";
+import AnthropicKeyModal from "./AnthropicKeyModal";
 import { savePushSubscriptionAction, sendTestNotificationAction } from "@/app/dashboard/[accountId]/actions";
 
 function urlBase64ToUint8Array(base64: string): Uint8Array {
@@ -24,6 +25,7 @@ export default function TopBar({ username, email }: { username: string; email: s
   const [avatarOpen, setAvatarOpen] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showApiAccess, setShowApiAccess] = useState(false);
+  const [showAnthropicKey, setShowAnthropicKey] = useState(false);
   const [pushMsg, setPushMsg] = useState<string | null>(null);
 
   async function enablePush() {
@@ -143,6 +145,15 @@ export default function TopBar({ username, email }: { username: string; email: s
                   Claude API access
                 </button>
                 <button
+                  onClick={() => {
+                    setShowAnthropicKey(true);
+                    setSettingsOpen(false);
+                  }}
+                  className="w-full rounded-md px-3 py-2 text-left text-sm hover:bg-background"
+                >
+                  Your Claude API key (for AI)
+                </button>
+                <button
                   onClick={enablePush}
                   className="w-full rounded-md px-3 py-2 text-left text-sm hover:bg-background"
                 >
@@ -198,6 +209,7 @@ export default function TopBar({ username, email }: { username: string; email: s
 
       {showPassword && <ChangePasswordModal onClose={() => setShowPassword(false)} />}
       {showApiAccess && <ApiAccessModal onClose={() => setShowApiAccess(false)} />}
+      {showAnthropicKey && <AnthropicKeyModal onClose={() => setShowAnthropicKey(false)} />}
     </>
   );
 }

@@ -4,6 +4,7 @@ import { getQuote } from "@/lib/marketdata";
 import { marginFor } from "@/lib/forex";
 import { MAJORS, buildSummary, analyzeMarket, fallbackSetup, type PairSummary } from "@/lib/forex-scan";
 import { sendPushToUser } from "@/lib/push";
+import { getUserAnthropicKey } from "@/lib/anthropic-key";
 
 export const maxDuration = 60;
 
@@ -73,13 +74,23 @@ export async function GET(request: Request) {
   const dayStart = new Date();
   dayStart.setUTCHours(0, 0, 0, 0);
 
-  // Per-account analysis: an account with a custom instruction gets its own pass;
-  // accounts without one share a single cached default-strategy analysis.
-  let defaultAnalysis: Awaited<ReturnType<typeof analyzeMarket>> | null = null;
-  const analysisFor = async (instruction?: string | null) => {
-    if (instruction && instruction.trim()) return analyzeMarket(summaries, instruction);
-    if (!defaultAnalysis) defaultAnalysis = await analyzeMarket(summaries);
-    return defaultAnalysis;
+  // Each user's AI calls bill THEIR own Anthropic key (env key as fallback).
+  const keyByUser = new Map<string, string | undefined>();
+  await Promise.all(
+    Array.from(new Set(targets.map((t) => t.user_id))).map(async (uid) => {
+      keyByUser.set(uid, (await getUserAnthropicKey(db, uid)) || process.env.ANTHROPIC_API_KEY || undefined);
+    })
+  );
+
+  // Analyze per (owner, instruction); cache so a user's multiple accounts reuse one call.
+  const analysisCache = new Map<string, Awaited<ReturnType<typeof analyzeMarket>>>();
+  const analysisFor = async (ownerId: string, instruction?: string | null) => {
+    const cacheKey = `${ownerId}|${instruction ?? ""}`;
+    const hit = analysisCache.get(cacheKey);
+    if (hit) return hit;
+    const result = await analyzeMarket(summaries, instruction, keyByUser.get(ownerId));
+    analysisCache.set(cacheKey, result);
+    return result;
   };
 
   let pushed = 0;
@@ -87,7 +98,7 @@ export async function GET(request: Request) {
   let aiError: string | undefined;
 
   for (const acc of targets) {
-    const analysis = await analysisFor((acc as { ai_instruction?: string | null }).ai_instruction);
+    const analysis = await analysisFor(acc.user_id, (acc as { ai_instruction?: string | null }).ai_instruction);
     if (analysis.error) aiError = analysis.error;
     let setup = analysis.setup;
     if (!setup && force) setup = fallbackSetup(summaries);
