@@ -202,7 +202,9 @@ export async function explainPosition(ctx: PositionContext): Promise<string> {
   ].filter(Boolean);
 
   const response = await client.messages.create({
-    model: "claude-opus-4-8",
+    // Sonnet here (explanatory read only) — the trade DECISION in analyzeMarket
+    // stays on Opus. Cuts cost on this on-demand call without affecting trades.
+    model: "claude-sonnet-4-6",
     max_tokens: 700,
     thinking: { type: "adaptive" },
     system,
