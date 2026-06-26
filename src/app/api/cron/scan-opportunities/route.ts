@@ -59,10 +59,16 @@ export async function GET(request: Request) {
   // ?force=1 — testing: place a trade even if the AI finds nothing premium, and
   // bypass the dedup / same-pair / daily-cap guards below.
   const force = new URL(request.url).searchParams.get("force") === "1";
-  let setup = await analyzeMarket(summaries);
+  const analysis = await analyzeMarket(summaries);
+  let setup = analysis.setup;
   if (!setup && force) setup = fallbackSetup(summaries);
   if (!setup) {
-    return NextResponse.json({ setup: null, autoEnabled: AUTO_ENABLED, autoAccounts: AUTO_ACCOUNTS.size });
+    return NextResponse.json({
+      setup: null,
+      autoEnabled: AUTO_ENABLED,
+      autoAccounts: AUTO_ACCOUNTS.size,
+      aiError: analysis.error,
+    });
   }
 
   const symbol = setup.pair.toUpperCase();

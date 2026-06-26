@@ -110,7 +110,9 @@ Respond with ONLY a JSON object, no prose, no markdown fences:
 Use "limit" with an entry price for pullback/breakout entries; "market" to take it now. Prices use the pair's natural precision.`;
 
 /** Ask Claude for the single best setup across the provided pair summaries. */
-export async function analyzeMarket(summaries: PairSummary[]): Promise<Setup | null> {
+export async function analyzeMarket(
+  summaries: PairSummary[]
+): Promise<{ setup: Setup | null; error?: string }> {
   let text: string;
   try {
     const { default: Anthropic } = await import("@anthropic-ai/sdk");
@@ -131,23 +133,23 @@ export async function analyzeMarket(summaries: PairSummary[]): Promise<Setup | n
       .map((b) => (b.type === "text" ? b.text : ""))
       .join("")
       .trim();
-  } catch {
-    // Anthropic auth/API failure → treat as "no setup" so the cron never crashes.
-    return null;
+  } catch (e) {
+    // Anthropic auth/API failure → no setup, but surface WHY (don't crash the cron).
+    return { setup: null, error: String((e as { message?: string })?.message ?? e) };
   }
 
   try {
     const json = text.startsWith("{") ? text : text.slice(text.indexOf("{"), text.lastIndexOf("}") + 1);
     const parsed = JSON.parse(json) as { setup: Setup | null };
     const s = parsed.setup;
-    if (!s || !s.pair || !s.direction || !s.entry || !s.stop || !s.takeProfit) return null;
+    if (!s || !s.pair || !s.direction || !s.entry || !s.stop || !s.takeProfit) return { setup: null };
     // Guard: enforce the 2:1 floor server-side too.
     const risk = Math.abs(s.entry - s.stop);
     const reward = Math.abs(s.takeProfit - s.entry);
-    if (risk <= 0 || reward / risk < 2) return null;
-    return s;
+    if (risk <= 0 || reward / risk < 2) return { setup: null };
+    return { setup: s };
   } catch {
-    return null;
+    return { setup: null };
   }
 }
 
