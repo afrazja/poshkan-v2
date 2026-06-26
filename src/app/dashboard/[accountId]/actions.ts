@@ -689,6 +689,41 @@ export async function setAiInstructionAction(
   return {};
 }
 
+// Save per-account autonomous-trading settings (risk %, caps, frequency, on/off).
+export async function setAutoSettingsAction(
+  accountId: string,
+  s: {
+    enabled: boolean;
+    riskPct: number; // percent, e.g. 1 = 1%
+    maxOpen: number;
+    maxPerDay: number;
+    dailyLossPct: number; // percent
+    minMinutes: number;
+  }
+): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated" };
+  const clamp = (n: number, lo: number, hi: number) =>
+    Math.min(hi, Math.max(lo, Number.isFinite(n) ? n : lo));
+  const { error } = await supabase
+    .from("accounts")
+    .update({
+      auto_trade_enabled: !!s.enabled,
+      auto_risk_pct: clamp(s.riskPct, 0.1, 10) / 100, // store as fraction
+      auto_max_open: Math.round(clamp(s.maxOpen, 1, 20)),
+      auto_max_per_day: Math.round(clamp(s.maxPerDay, 1, 50)),
+      auto_daily_loss_pct: clamp(s.dailyLossPct, 0.5, 50) / 100,
+      auto_min_minutes: Math.round(clamp(s.minMinutes, 5, 1440)),
+    })
+    .eq("id", accountId);
+  if (error) return { error: error.message };
+  revalidatePath(`/dashboard/${accountId}`);
+  return {};
+}
+
 // AI coach: Claude reviews the user's journaled reasoning against outcomes.
 export async function reviewJournalAction(): Promise<{ review?: string; error?: string }> {
   const supabase = await createClient();

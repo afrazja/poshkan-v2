@@ -391,6 +391,14 @@ export default function AccountView({
           tpLevels={initialFxTpLevels}
           leverage={account.leverage}
           aiInstruction={account.ai_instruction}
+          autoSettings={{
+            enabled: !!account.auto_trade_enabled,
+            riskPct: (account.auto_risk_pct ?? 0.01) * 100,
+            maxOpen: account.auto_max_open ?? 3,
+            maxPerDay: account.auto_max_per_day ?? 2,
+            dailyLossPct: (account.auto_daily_loss_pct ?? 0.03) * 100,
+            minMinutes: account.auto_min_minutes ?? 60,
+          }}
         />
       )}
 

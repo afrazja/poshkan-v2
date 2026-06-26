@@ -11,21 +11,16 @@ const fmtPair = (s: string) => s.replace(/=X$/i, "");
 const fmtRate = (p: number) => (p >= 20 ? p.toFixed(3) : p.toFixed(5));
 const isUsdBase = (pair: string) => /^USD/i.test(pair.replace(/=X$/i, ""));
 
-// ── Autonomous trading (OFF unless explicitly enabled) ───────────────────────
-// AUTO_TRADE_ENABLED=true is the master switch (kill-switch when unset/false).
-// AUTO_TRADE_ACCOUNT_IDS is a comma-separated allowlist — only these forex
-// accounts ever auto-trade; everyone else stays alert-only. Conservative caps.
-const AUTO_ENABLED = process.env.AUTO_TRADE_ENABLED === "true";
-const AUTO_ACCOUNTS = new Set(
-  (process.env.AUTO_TRADE_ACCOUNT_IDS ?? "")
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean)
-);
-const AUTO_RISK_PCT = 0.01; // 1% of cash risked per auto-trade
-const AUTO_MAX_OPEN = 3; // max OPEN (filled) positions to hold; pending orders don't count
-const AUTO_MAX_PER_DAY = 2; // max new auto-trades per account per day
-const AUTO_DAILY_LOSS_PCT = 0.03; // halt new auto-trades once realized losses today exceed 3% of cash
+// ── Autonomous trading ───────────────────────────────────────────────────────
+// Per-account settings (accounts.auto_*) drive this now — set from the UI.
+// AUTO_TRADE_ENABLED="false" is a global emergency kill-switch over all accounts.
+const GLOBAL_KILL = process.env.AUTO_TRADE_ENABLED === "false";
+// Fallback defaults if a column is somehow null.
+const DEF_RISK_PCT = 0.01;
+const DEF_MAX_OPEN = 3;
+const DEF_MAX_PER_DAY = 2;
+const DEF_DAILY_LOSS_PCT = 0.03;
+const DEF_MIN_MINUTES = 60;
 
 // Risk a % of account cash on the stop distance; round to a 1k-unit lot.
 function suggestUnits(cash: number, entry: number, stop: number, pair: string, riskPct = 0.015): number {
@@ -48,13 +43,13 @@ export async function GET(request: Request) {
   try {
   // Skip silently when the forex market is closed (weekends/holidays).
   const probe = await getQuote("EURUSD=X");
-  if (!probe?.isMarketOpen) return NextResponse.json({ skipped: "market closed", autoEnabled: AUTO_ENABLED });
+  if (!probe?.isMarketOpen) return NextResponse.json({ skipped: "market closed", globalKill: GLOBAL_KILL });
 
   // Build readings for the majors, then ask Claude for the best setup (or none).
   const summaries = (await Promise.all(MAJORS.map((p) => buildSummary(p)))).filter(
     (s): s is PairSummary => s != null
   );
-  if (summaries.length === 0) return NextResponse.json({ skipped: "no data", autoEnabled: AUTO_ENABLED });
+  if (summaries.length === 0) return NextResponse.json({ skipped: "no data", globalKill: GLOBAL_KILL });
 
   // ?force=1 — testing: place a trade even if the AI finds nothing premium, and
   // bypass the dedup / same-pair / daily-cap guards below.
@@ -65,7 +60,9 @@ export async function GET(request: Request) {
   const [{ data: accounts }, { data: subs }] = await Promise.all([
     db
       .from("accounts")
-      .select("id, user_id, name, cash_balance, leverage, ai_instruction")
+      .select(
+        "id, user_id, name, cash_balance, leverage, ai_instruction, auto_trade_enabled, auto_risk_pct, auto_max_open, auto_max_per_day, auto_daily_loss_pct, auto_min_minutes"
+      )
       .eq("type", "forex"),
     db.from("push_subscriptions").select("user_id"),
   ]);
@@ -109,7 +106,20 @@ export async function GET(request: Request) {
       .limit(1);
     if (!force && recent && recent.length) continue;
 
-    const autoTrade = AUTO_ENABLED && AUTO_ACCOUNTS.has(acc.id);
+    const a = acc as {
+      auto_trade_enabled?: boolean;
+      auto_risk_pct?: number;
+      auto_max_open?: number;
+      auto_max_per_day?: number;
+      auto_daily_loss_pct?: number;
+      auto_min_minutes?: number;
+    };
+    const autoTrade = !GLOBAL_KILL && !!a.auto_trade_enabled;
+    const riskPct = Number(a.auto_risk_pct) || DEF_RISK_PCT;
+    const maxOpen = Number(a.auto_max_open) || DEF_MAX_OPEN;
+    const maxPerDay = Number(a.auto_max_per_day) || DEF_MAX_PER_DAY;
+    const dailyLossPct = Number(a.auto_daily_loss_pct) || DEF_DAILY_LOSS_PCT;
+    const minMinutes = Number(a.auto_min_minutes) || DEF_MIN_MINUTES;
 
     // Skip if they already hold a position or pending order on this pair.
     const [{ data: pos }, { data: ord }] = await Promise.all([
@@ -122,7 +132,7 @@ export async function GET(request: Request) {
     // Position cap: auto-trading counts only OPEN (filled) positions, so pending
     // orders don't block it; alert-only uses the broader open + pending count.
     const countForCap = autoTrade ? (pos ?? []).length : held.length;
-    const cap = autoTrade ? AUTO_MAX_OPEN : 3;
+    const cap = autoTrade ? maxOpen : 3;
     if (countForCap >= cap) continue;
 
     // ── Autonomous execution path ──
@@ -144,14 +154,25 @@ export async function GET(request: Request) {
         .neq("status", "open")
         .gte("closed_at", dayStart.toISOString());
       const realizedToday = (closedToday ?? []).reduce((sum, r) => sum + Number(r.pnl ?? 0), 0);
-      const lossLimitHit = realizedToday <= -Math.abs(cash * AUTO_DAILY_LOSS_PCT);
+      const lossLimitHit = realizedToday <= -Math.abs(cash * dailyLossPct);
+
+      // Frequency throttle: require minMinutes since the last auto-trade.
+      const { data: lastExec } = await db
+        .from("fx_scan_alerts")
+        .select("alerted_at")
+        .eq("account_id", acc.id)
+        .eq("executed", true)
+        .order("alerted_at", { ascending: false })
+        .limit(1);
+      const lastAt = lastExec?.[0]?.alerted_at ? new Date(lastExec[0].alerted_at as string).getTime() : 0;
+      const tooSoon = Date.now() - lastAt < minMinutes * 60_000;
 
       const lev = Number(acc.leverage) || 1;
-      const units = suggestUnits(cash, setup.entry, setup.stop, setup.pair, AUTO_RISK_PCT);
+      const units = suggestUnits(cash, setup.entry, setup.stop, setup.pair, riskPct);
       const margin = marginFor(units, liveRate, lev, setup.pair);
 
       if (
-        (force || (tradedToday < AUTO_MAX_PER_DAY && !lossLimitHit)) &&
+        (force || (tradedToday < maxPerDay && !lossLimitHit && !tooSoon)) &&
         units > 0 &&
         margin <= cash
       ) {
@@ -212,7 +233,7 @@ export async function GET(request: Request) {
     targets: targets.length,
     alerted: pushed,
     autoPlaced: placed,
-    autoEnabled: AUTO_ENABLED,
+    globalKill: GLOBAL_KILL,
     aiError,
   });
   } catch (e) {
