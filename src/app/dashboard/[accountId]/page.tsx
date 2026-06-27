@@ -80,7 +80,6 @@ export default async function AccountPage({
       initialFxPositions={(fxPositions ?? []) as FxPosition[]}
       initialFxOrders={(fxOrders ?? []) as FxOrder[]}
       initialFxTpLevels={(fxTpLevels ?? []) as unknown as FxTpLevel[]}
-      smcAllowed={smcAllowed}
       smcSettings={smc?.settings ?? null}
       smcSignals={smc?.signals ?? []}
     />

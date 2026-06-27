@@ -8,7 +8,7 @@ import { FX_PAIRS, floatingPnl } from "@/lib/forex";
 import ForexPanel from "./ForexPanel";
 import ForexPerformance from "./ForexPerformance";
 import LeveragePanel from "./LeveragePanel";
-import SmcScanner from "./SmcScanner";
+import ScannersSection from "./ScannersSection";
 import type { SmcSettings, SmcSignal } from "@/app/dashboard/[accountId]/smc-actions";
 import { useQuotes } from "@/lib/useQuotes";
 import { realizedPnl } from "@/lib/pnl";
@@ -50,7 +50,6 @@ export default function AccountView({
   initialFxPositions = [],
   initialFxOrders = [],
   initialFxTpLevels = [],
-  smcAllowed = false,
   smcSettings = null,
   smcSignals = [],
 }: {
@@ -62,7 +61,6 @@ export default function AccountView({
   initialFxPositions?: FxPosition[];
   initialFxOrders?: FxOrder[];
   initialFxTpLevels?: FxTpLevel[];
-  smcAllowed?: boolean;
   smcSettings?: SmcSettings | null;
   smcSignals?: SmcSignal[];
 }) {
@@ -400,15 +398,6 @@ export default function AccountView({
           orders={initialFxOrders}
           tpLevels={initialFxTpLevels}
           leverage={account.leverage}
-          aiInstruction={account.ai_instruction}
-          autoSettings={{
-            enabled: !!account.auto_trade_enabled,
-            riskPct: (account.auto_risk_pct ?? 0.01) * 100,
-            maxOpen: account.auto_max_open ?? 3,
-            maxPerDay: account.auto_max_per_day ?? 2,
-            dailyLossPct: (account.auto_daily_loss_pct ?? 0.03) * 100,
-            minMinutes: account.auto_min_minutes ?? 60,
-          }}
         />
       )}
 
@@ -445,12 +434,24 @@ export default function AccountView({
         />
       )}
 
-      {/* SMC strategy scanner — crypto accounts */}
-      {!isForex && smcAllowed && (
-        <div className="mt-4">
-          <SmcScanner accountId={account.id} initialSettings={smcSettings} initialSignals={smcSignals} />
-        </div>
-      )}
+      {/* Scanners — automated strategy scanners (all account types) */}
+      <div className="mt-4">
+        <ScannersSection
+          accountId={account.id}
+          accountType={account.type}
+          autoSettings={{
+            enabled: !!account.auto_trade_enabled,
+            riskPct: (account.auto_risk_pct ?? 0.01) * 100,
+            maxOpen: account.auto_max_open ?? 3,
+            maxPerDay: account.auto_max_per_day ?? 2,
+            dailyLossPct: (account.auto_daily_loss_pct ?? 0.03) * 100,
+            minMinutes: account.auto_min_minutes ?? 60,
+          }}
+          aiInstruction={account.ai_instruction}
+          smcSettings={smcSettings}
+          smcSignals={smcSignals}
+        />
+      </div>
 
       {/* Selected symbol detail popup */}
       {!isForex && selected && (
