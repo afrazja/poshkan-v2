@@ -183,7 +183,8 @@ export async function openFxPositionAction(input: {
     .eq("id", input.accountId)
     .single();
   if (!account) return { error: "Account not found" };
-  if (account.type !== "forex") return { error: "Forex positions require a forex account" };
+  // Leveraged long/short works for any market — the symbol just has to match the
+  // account's asset class (stocks↔stocks, crypto↔crypto, forex↔pairs).
   const typeErr = assetTypeError(account.type, input.symbol);
   if (typeErr) return { error: typeErr };
 
@@ -274,7 +275,9 @@ export async function placeFxOrderAction(input: {
     .select("type")
     .eq("id", input.accountId)
     .single();
-  if (!account || account.type !== "forex") return { error: "Forex orders require a forex account" };
+  if (!account) return { error: "Account not found" };
+  const typeErr = assetTypeError(account.type, input.symbol);
+  if (typeErr) return { error: typeErr };
 
   let rate: number;
   try {
