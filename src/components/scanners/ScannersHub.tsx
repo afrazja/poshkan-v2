@@ -19,12 +19,20 @@ export interface ScanAcct {
 export default function ScannersHub({ accounts }: { accounts: ScanAcct[] }) {
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold">📡 Scanners</h1>
-        <p className="mt-1 text-sm text-muted">
-          Automated strategy scanners that watch the market for you — alert you or trade on their own.
-          Both run on any account; pick which account to configure each on. Free.
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-xl font-semibold">📡 Scanners</h1>
+          <p className="mt-1 text-sm text-muted">
+            Automated strategy scanners that watch the market for you — alert you or trade on their own.
+            Both run on any account; pick which account to configure each on. Free.
+          </p>
+        </div>
+        <Link
+          href="/dashboard"
+          className="shrink-0 text-sm text-muted hover:text-foreground hover:underline"
+        >
+          ← Your accounts
+        </Link>
       </div>
 
       <StrategyBlock
