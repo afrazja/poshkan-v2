@@ -8,8 +8,6 @@ import { FX_PAIRS, floatingPnl } from "@/lib/forex";
 import ForexPanel from "./ForexPanel";
 import ForexPerformance from "./ForexPerformance";
 import LeveragePanel from "./LeveragePanel";
-import ScannersSection from "./ScannersSection";
-import type { SmcSettings, SmcSignal } from "@/app/dashboard/[accountId]/smc-actions";
 import { useQuotes } from "@/lib/useQuotes";
 import { realizedPnl } from "@/lib/pnl";
 import {
@@ -48,8 +46,6 @@ export default function AccountView({
   initialFxPositions = [],
   initialFxOrders = [],
   initialFxTpLevels = [],
-  smcSettings = null,
-  smcSignals = [],
 }: {
   account: Account;
   initialPositions: Position[];
@@ -59,8 +55,6 @@ export default function AccountView({
   initialFxPositions?: FxPosition[];
   initialFxOrders?: FxOrder[];
   initialFxTpLevels?: FxTpLevel[];
-  smcSettings?: SmcSettings | null;
-  smcSignals?: SmcSignal[];
 }) {
   const router = useRouter();
   const [selected, setSelected] = useState<{ symbol: string; name: string } | null>(null);
@@ -382,25 +376,6 @@ export default function AccountView({
           quotes={quotes}
         />
       )}
-
-      {/* Scanners — automated strategy scanners (all account types) */}
-      <div className="mt-4">
-        <ScannersSection
-          accountId={account.id}
-          accountType={account.type}
-          autoSettings={{
-            enabled: !!account.auto_trade_enabled,
-            riskPct: (account.auto_risk_pct ?? 0.01) * 100,
-            maxOpen: account.auto_max_open ?? 3,
-            maxPerDay: account.auto_max_per_day ?? 2,
-            dailyLossPct: (account.auto_daily_loss_pct ?? 0.03) * 100,
-            minMinutes: account.auto_min_minutes ?? 60,
-          }}
-          aiInstruction={account.ai_instruction}
-          smcSettings={smcSettings}
-          smcSignals={smcSignals}
-        />
-      </div>
 
       {/* Selected symbol detail popup */}
       {!isForex && selected && (

@@ -1,7 +1,6 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import AccountView from "@/components/account/AccountView";
-import { getSmcData } from "./smc-actions";
 import type { Account, Position, WatchlistItem, Transaction, Order, FxPosition, FxOrder, FxTpLevel } from "@/lib/types";
 
 export default async function AccountPage({
@@ -66,9 +65,6 @@ export default async function AccountPage({
     .eq("fx_positions.account_id", accountId)
     .eq("status", "pending");
 
-  // Scanner data for this account (both scanners run on every market now).
-  const smc = await getSmcData(accountId);
-
   return (
     <AccountView
       account={account as Account}
@@ -79,8 +75,6 @@ export default async function AccountPage({
       initialFxPositions={(fxPositions ?? []) as FxPosition[]}
       initialFxOrders={(fxOrders ?? []) as FxOrder[]}
       initialFxTpLevels={(fxTpLevels ?? []) as unknown as FxTpLevel[]}
-      smcSettings={smc?.settings ?? null}
-      smcSignals={smc?.signals ?? []}
     />
   );
 }
