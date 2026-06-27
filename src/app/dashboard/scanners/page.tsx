@@ -51,6 +51,7 @@ export default async function ScannersPage() {
       minMinutes: a.auto_min_minutes ?? 60,
     },
     aiInstruction: a.ai_instruction ?? null,
+    aiSymbols: a.ai_symbols ?? null,
     smcSettings: smcSettingsBy[a.id] ?? null,
     smcSignals: smcSignalsBy[a.id] ?? [],
   }));

@@ -12,6 +12,7 @@ export interface ScanAcct {
   type: string;
   autoSettings: AutoSettings;
   aiInstruction: string | null;
+  aiSymbols: string[] | null;
   smcSettings: SmcSettings | null;
   smcSignals: SmcSignal[];
 }
@@ -38,7 +39,13 @@ export default function ScannersHub({ accounts }: { accounts: ScanAcct[] }) {
       <StrategyBlock
         accounts={accounts}
         render={(a) => (
-          <AiScanner accountId={a.id} autoSettings={a.autoSettings} aiInstruction={a.aiInstruction} />
+          <AiScanner
+            accountId={a.id}
+            accountType={a.type}
+            autoSettings={a.autoSettings}
+            aiInstruction={a.aiInstruction}
+            aiSymbols={a.aiSymbols}
+          />
         )}
       />
 

@@ -23,6 +23,7 @@ export interface Account {
   cash_balance: number;
   leverage?: number; // forex accounts only; defaults to 30
   ai_instruction?: string | null; // forex scanner: custom strategy (blank = default)
+  ai_symbols?: string[] | null; // AI scanner: chosen symbols (blank = market default)
   // Autonomous-trading settings (forex scanner), user-controlled:
   auto_trade_enabled?: boolean;
   auto_risk_pct?: number;

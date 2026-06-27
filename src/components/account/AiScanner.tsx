@@ -2,8 +2,15 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { setAiInstructionAction, setAutoSettingsAction } from "@/app/dashboard/[accountId]/actions";
+import {
+  setAiInstructionAction,
+  setAutoSettingsAction,
+  setAiSymbolsAction,
+} from "@/app/dashboard/[accountId]/actions";
 import ScannerCard from "./ScannerCard";
+import SymbolSearch from "@/components/SymbolSearch";
+import { marketUniverse, symbolLabel, assetTypeError } from "@/lib/assets";
+import { FX_PAIRS } from "@/lib/forex";
 
 export interface AutoSettings {
   enabled: boolean;
@@ -26,21 +33,147 @@ export const DEFAULT_AUTO_SETTINGS: AutoSettings = {
 // The AI (forex) scanner: autonomous-trading limits + plain-English strategy.
 export default function AiScanner({
   accountId,
+  accountType,
   autoSettings = DEFAULT_AUTO_SETTINGS,
   aiInstruction = null,
+  aiSymbols = null,
   defaultOpen = false,
 }: {
   accountId: string;
+  accountType: string;
   autoSettings?: AutoSettings;
   aiInstruction?: string | null;
+  aiSymbols?: string[] | null;
   defaultOpen?: boolean;
 }) {
   return (
     <ScannerCard icon="🤖" name="AI Scanner" defaultOpen={defaultOpen}>
       <AutoSettingsCard accountId={accountId} initial={autoSettings} />
       <div className="my-4 border-t border-border" />
+      <AiSymbolsCard accountId={accountId} accountType={accountType} initial={aiSymbols ?? []} />
+      <div className="my-4 border-t border-border" />
       <AiInstructionCard accountId={accountId} initial={aiInstruction ?? ""} />
     </ScannerCard>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Which symbols the AI scanner analyzes (validated to the account's asset class).
+function AiSymbolsCard({
+  accountId,
+  accountType,
+  initial,
+}: {
+  accountId: string;
+  accountType: string;
+  initial: string[];
+}) {
+  const router = useRouter();
+  const [symbols, setSymbols] = useState<string[]>(initial);
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+  const dirty = JSON.stringify(symbols) !== JSON.stringify(initial);
+  const presets = marketUniverse(accountType);
+
+  const add = (s: string) =>
+    setSymbols((p) => (p.includes(s) || assetTypeError(accountType, s) ? p : [...p, s]));
+  const toggle = (s: string) =>
+    setSymbols((p) => (p.includes(s) ? p.filter((x) => x !== s) : [...p, s]));
+  const remove = (s: string) => setSymbols((p) => p.filter((x) => x !== s));
+
+  async function save() {
+    setSaving(true);
+    setMsg(null);
+    try {
+      const res = await setAiSymbolsAction(accountId, symbols);
+      if (res.error) {
+        setMsg(res.error);
+        return;
+      }
+      setMsg("✓ Saved");
+      router.refresh();
+    } catch (e) {
+      setMsg(`Couldn't save: ${(e as Error).message}`);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div>
+      <div className="mb-1 flex items-center justify-between gap-2">
+        <h3 className="text-sm font-semibold">Symbols to scan ({accountType})</h3>
+        <button
+          onClick={save}
+          disabled={saving || !dirty}
+          className="rounded-lg bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50"
+        >
+          {saving ? "Saving…" : "Save"}
+        </button>
+      </div>
+      <p className="mb-2 text-xs text-muted">
+        Pick which {accountType} symbols the AI analyzes. Leave empty to use the market default.
+      </p>
+      <div className="mb-2 flex flex-wrap gap-1.5">
+        {symbols.length === 0 ? (
+          <span className="text-xs text-muted">Empty — using the market default.</span>
+        ) : (
+          symbols.map((s) => (
+            <span
+              key={s}
+              className="flex items-center gap-1 rounded-lg border border-primary/40 bg-primary/10 px-2 py-1 text-xs text-primary"
+            >
+              {symbolLabel(s)}
+              <button
+                onClick={() => remove(s)}
+                aria-label={`Remove ${s}`}
+                className="text-primary/70 hover:text-negative"
+              >
+                ×
+              </button>
+            </span>
+          ))
+        )}
+      </div>
+      {accountType === "forex" ? (
+        <div className="flex max-h-36 flex-wrap gap-1.5 overflow-y-auto rounded-lg border border-border bg-background p-2">
+          {FX_PAIRS.map((p) => (
+            <button
+              key={p.symbol}
+              onClick={() => toggle(p.symbol)}
+              className={`rounded-lg border px-2 py-1 text-xs ${
+                symbols.includes(p.symbol) ? "border-primary bg-primary/10 text-primary" : "border-border"
+              }`}
+            >
+              {symbolLabel(p.symbol)}
+            </button>
+          ))}
+        </div>
+      ) : (
+        <>
+          <SymbolSearch
+            assetType={accountType}
+            placeholder={accountType === "crypto" ? "Add a crypto…" : "Add a stock…"}
+            onSelect={(r) => add(r.symbol)}
+          />
+          <div className="mt-1.5 flex flex-wrap gap-1.5">
+            {presets.map((s) => (
+              <button
+                key={s}
+                onClick={() => toggle(s)}
+                className={`rounded-lg border px-2 py-1 text-[11px] ${
+                  symbols.includes(s) ? "border-primary bg-primary/10 text-primary" : "border-border text-muted"
+                }`}
+              >
+                {symbols.includes(s) ? "✓ " : "+ "}
+                {symbolLabel(s)}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+      {msg && <p className="mt-1 text-xs text-muted">{msg}</p>}
+    </div>
   );
 }
 

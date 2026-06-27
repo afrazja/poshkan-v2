@@ -5,6 +5,7 @@ import { marginFor } from "@/lib/forex";
 import { aiUniverse, buildSummary, analyzeMarket, fallbackSetup, type PairSummary } from "@/lib/forex-scan";
 import { sendPushToUser } from "@/lib/push";
 import { getUserAnthropicKey } from "@/lib/anthropic-key";
+import { assetTypeError } from "@/lib/assets";
 
 export const maxDuration = 60;
 
@@ -48,6 +49,7 @@ interface AccRow {
   cash_balance: number;
   leverage: number;
   ai_instruction: string | null;
+  ai_symbols?: string[] | null;
   auto_trade_enabled?: boolean;
   auto_risk_pct?: number;
   auto_max_open?: number;
@@ -75,7 +77,7 @@ export async function GET(request: Request) {
       db
         .from("accounts")
         .select(
-          "id, user_id, name, type, cash_balance, leverage, ai_instruction, auto_trade_enabled, auto_risk_pct, auto_max_open, auto_max_per_day, auto_daily_loss_pct, auto_min_minutes"
+          "id, user_id, name, type, cash_balance, leverage, ai_instruction, ai_symbols, auto_trade_enabled, auto_risk_pct, auto_max_open, auto_max_per_day, auto_daily_loss_pct, auto_min_minutes"
         ),
       db.from("push_subscriptions").select("user_id"),
     ]);
@@ -91,11 +93,20 @@ export async function GET(request: Request) {
       })
     );
 
-    // Build readings once per market — only for markets that are open and have a target.
+    // Each account's chosen symbols (validated to its asset class; default = market universe).
+    const accSymbols = (a: AccRow): string[] => {
+      const list = a.ai_symbols && a.ai_symbols.length ? a.ai_symbols : aiUniverse(a.type);
+      return list.filter((x) => assetTypeError(a.type, x) === null);
+    };
+
+    // Build readings once per market — the union of all accounts' chosen symbols.
     const summariesByMarket = new Map<string, PairSummary[]>();
     for (const market of MARKETS) {
-      if (!targets.some((t) => t.type === market)) continue;
-      const universe = aiUniverse(market);
+      const marketAccts = targets.filter((t) => t.type === market);
+      if (marketAccts.length === 0) continue;
+      const symSet = new Set<string>();
+      for (const a of marketAccts) for (const s of accSymbols(a)) symSet.add(s);
+      const universe = Array.from(symSet);
       if (universe.length === 0) continue;
       if (market !== "crypto") {
         const probe = await getQuote(universe[0]).catch(() => null);
@@ -115,13 +126,16 @@ export async function GET(request: Request) {
 
     // Analyze per (owner, market, instruction) — cache so a user's accounts reuse one call.
     const analysisCache = new Map<string, Awaited<ReturnType<typeof analyzeMarket>>>();
-    const analysisFor = async (ownerId: string, market: string, instruction?: string | null) => {
-      const sums = summariesByMarket.get(market);
-      if (!sums) return { setup: null };
-      const cacheKey = `${ownerId}|${market}|${instruction ?? ""}`;
+    const analysisFor = async (acc: AccRow) => {
+      const all = summariesByMarket.get(acc.type);
+      if (!all) return { setup: null };
+      const want = new Set(accSymbols(acc).map((s) => s.toUpperCase()));
+      const sums = all.filter((s) => want.has(s.pair.toUpperCase()));
+      if (sums.length === 0) return { setup: null };
+      const cacheKey = `${acc.user_id}|${acc.type}|${acc.ai_instruction ?? ""}|${[...want].sort().join(",")}`;
       const hit = analysisCache.get(cacheKey);
       if (hit) return hit;
-      const result = await analyzeMarket(sums, instruction, keyByUser.get(ownerId), market);
+      const result = await analyzeMarket(sums, acc.ai_instruction, keyByUser.get(acc.user_id), acc.type);
       analysisCache.set(cacheKey, result);
       return result;
     };
@@ -135,7 +149,7 @@ export async function GET(request: Request) {
       const sums = summariesByMarket.get(market);
       if (!sums) continue; // market closed / unsupported this run
 
-      const analysis = await analysisFor(acc.user_id, market, acc.ai_instruction);
+      const analysis = await analysisFor(acc);
       if (analysis.error) aiError = analysis.error;
       let setup = analysis.setup;
       if (!setup && force) setup = fallbackSetup(sums);

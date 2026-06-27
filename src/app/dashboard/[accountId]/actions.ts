@@ -694,6 +694,30 @@ export async function setAiInstructionAction(
   return {};
 }
 
+// Save the AI scanner's chosen symbols (validated to the account's asset class).
+export async function setAiSymbolsAction(
+  accountId: string,
+  symbols: string[]
+): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated" };
+  const { data: account } = await supabase.from("accounts").select("type").eq("id", accountId).single();
+  if (!account) return { error: "Account not found" };
+  const clean = Array.from(new Set(symbols.map((s) => s.trim().toUpperCase()).filter(Boolean)))
+    .filter((s) => assetTypeError(account.type, s) === null)
+    .slice(0, 30);
+  const { error } = await supabase
+    .from("accounts")
+    .update({ ai_symbols: clean.length ? clean : null })
+    .eq("id", accountId);
+  if (error) return { error: error.message };
+  revalidatePath(`/dashboard/${accountId}`);
+  return {};
+}
+
 // Save per-account autonomous-trading settings (risk %, caps, frequency, on/off).
 export async function setAutoSettingsAction(
   accountId: string,

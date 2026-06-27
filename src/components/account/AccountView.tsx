@@ -594,8 +594,10 @@ export default function AccountView({
         <Modal title={`${account.name} · scanner`} onClose={() => setScannerModal(null)} wide>
           <AiScanner
             accountId={account.id}
+            accountType={account.type}
             autoSettings={autoSettings}
             aiInstruction={aiInstruction}
+            aiSymbols={account.ai_symbols}
             defaultOpen
           />
         </Modal>
