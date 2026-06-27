@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { formatCurrency, formatPercent, changeColor } from "@/lib/format";
 import AreaChart, { type ChartPoint } from "./AreaChart";
+import { ChartSkeleton } from "@/components/Skeleton";
 
 interface Candle {
   datetime: string;
@@ -95,9 +96,7 @@ export default function PriceChart({ symbol, height = 220 }: { symbol: string; h
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center text-xs text-muted" style={{ height }}>
-          Loading chart…
-        </div>
+        <ChartSkeleton height={height} />
       ) : error ? (
         <div className="flex items-center justify-center px-6 text-center text-xs text-muted" style={{ height }}>
           {/credit|limit|run out/i.test(error)

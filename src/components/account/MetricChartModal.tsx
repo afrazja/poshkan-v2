@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Modal from "@/components/Modal";
 import AreaChart, { type ChartPoint } from "./AreaChart";
+import { ChartSkeleton } from "@/components/Skeleton";
 import { formatCurrency, formatSignedCurrency, formatPercent, changeColor } from "@/lib/format";
 
 const RANGES = ["1M", "3M", "6M", "1Y"] as const;
@@ -77,7 +78,7 @@ export default function MetricChartModal({
       </div>
 
       {loading ? (
-        <div className="flex h-[240px] items-center justify-center text-sm text-muted">Loading…</div>
+        <ChartSkeleton height={240} />
       ) : error ? (
         <div className="flex h-[240px] items-center justify-center text-sm text-muted">Chart unavailable</div>
       ) : points.length < 2 ? (

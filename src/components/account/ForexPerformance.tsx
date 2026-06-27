@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { FxPosition } from "@/lib/types";
 import AreaChart, { type ChartPoint } from "./AreaChart";
+import { ChartSkeleton } from "@/components/Skeleton";
 import { formatCurrency, formatSignedCurrency, formatPercent, changeColor } from "@/lib/format";
 import { pairName } from "@/lib/forex";
 
@@ -109,7 +110,7 @@ export default function ForexPerformance({
       <div className="rounded-2xl border border-border bg-card p-4">
         <div className="mb-2 text-sm font-semibold">Account value over time</div>
         {loading ? (
-          <div className="flex h-[220px] items-center justify-center text-sm text-muted">Loading…</div>
+          <ChartSkeleton height={220} />
         ) : hasHistory ? (
           <AreaChart points={points} height={220} formatValue={formatCurrency} formatAxisValue={axisCurrency} />
         ) : (

@@ -6,6 +6,7 @@ import { pairName, formatRate, floatingPnl, pips } from "@/lib/forex";
 import { formatSignedCurrency, changeColor } from "@/lib/format";
 import Modal from "@/components/Modal";
 import CandleChart, { type OhlcPoint, type LevelLine } from "./CandleChart";
+import { ChartSkeleton } from "@/components/Skeleton";
 
 const RANGES = [
   { label: "1D", interval: "15min", outputsize: 96 },
@@ -145,9 +146,7 @@ export default function PositionChartModal({
         </div>
 
         {loading ? (
-          <div className="flex items-center justify-center text-xs text-muted" style={{ height: 260 }}>
-            Loading chart…
-          </div>
+          <ChartSkeleton height={260} />
         ) : error ? (
           <div className="flex items-center justify-center px-6 text-center text-xs text-muted" style={{ height: 260 }}>
             {/credit|limit|run out/i.test(error)
