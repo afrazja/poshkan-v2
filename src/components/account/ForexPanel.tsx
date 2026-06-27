@@ -174,12 +174,20 @@ export default function ForexPanel({
       <div className="rounded-2xl border border-border bg-card p-4">
         <div className="mb-3 flex items-center justify-between gap-3">
           <h2 className="text-sm font-semibold">Currency pairs</h2>
-          <input
-            value={pairQuery}
-            onChange={(e) => setPairQuery(e.target.value)}
-            placeholder="Search (e.g. JPY)…"
-            className="w-40 rounded-lg border border-border bg-input px-3 py-1.5 text-sm outline-none focus:border-primary"
-          />
+          <div className="flex items-center gap-2">
+            <input
+              value={pairQuery}
+              onChange={(e) => setPairQuery(e.target.value)}
+              placeholder="Search (e.g. JPY)…"
+              className="w-40 rounded-lg border border-border bg-input px-3 py-1.5 text-sm outline-none focus:border-primary"
+            />
+            <button
+              onClick={() => setTrade((visiblePairs[0] ?? FX_PAIRS[0]).symbol)}
+              className="whitespace-nowrap rounded-lg bg-primary px-3 py-1.5 text-sm font-semibold text-primary-foreground hover:opacity-90"
+            >
+              + Open position
+            </button>
+          </div>
         </div>
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
           {visiblePairs.map((p) => {
