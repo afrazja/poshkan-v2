@@ -8,6 +8,9 @@ import { FX_PAIRS, floatingPnl } from "@/lib/forex";
 import ForexPanel from "./ForexPanel";
 import ForexPerformance from "./ForexPerformance";
 import LeveragePanel from "./LeveragePanel";
+import AiScanner, { type AutoSettings } from "./AiScanner";
+import SmcScanner from "./SmcScanner";
+import type { SmcSettings, SmcSignal } from "@/app/dashboard/[accountId]/smc-actions";
 import { useQuotes } from "@/lib/useQuotes";
 import { realizedPnl } from "@/lib/pnl";
 import {
@@ -46,8 +49,10 @@ export default function AccountView({
   initialFxPositions = [],
   initialFxOrders = [],
   initialFxTpLevels = [],
-  aiActive = false,
-  smcActive = false,
+  autoSettings,
+  aiInstruction = null,
+  smcSettings = null,
+  smcSignals = [],
 }: {
   account: Account;
   initialPositions: Position[];
@@ -57,14 +62,19 @@ export default function AccountView({
   initialFxPositions?: FxPosition[];
   initialFxOrders?: FxOrder[];
   initialFxTpLevels?: FxTpLevel[];
-  aiActive?: boolean;
-  smcActive?: boolean;
+  autoSettings?: AutoSettings;
+  aiInstruction?: string | null;
+  smcSettings?: SmcSettings | null;
+  smcSignals?: SmcSignal[];
 }) {
   const router = useRouter();
   const [selected, setSelected] = useState<{ symbol: string; name: string } | null>(null);
   const [trade, setTrade] = useState<{ side: "BUY" | "SELL"; symbol: string } | null>(null);
   const [cashModal, setCashModal] = useState<"DEPOSIT" | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
+  const [scannerModal, setScannerModal] = useState<"ai" | "smc" | null>(null);
+  const aiActive = !!autoSettings?.enabled;
+  const smcActive = !!smcSettings?.enabled;
   const [metricChart, setMetricChart] = useState<"holdings" | "pnl" | null>(null);
   const [tab, setTab] = useState<Tab>("holdings");
 
@@ -271,25 +281,25 @@ export default function AccountView({
         </div>
       </div>
 
-      {/* Active scanners on this account — manage/disable on the Scanners page */}
+      {/* Active scanners on this account — tap to configure/disable in place */}
       {(aiActive || smcActive) && (
         <div className="flex flex-wrap items-center gap-2 text-xs">
           <span className="text-muted">Active scanners</span>
           {aiActive && (
-            <Link
-              href="/dashboard/scanners"
+            <button
+              onClick={() => setScannerModal("ai")}
               className="rounded-full bg-emerald-500/15 px-2 py-0.5 font-medium text-emerald-600 hover:bg-emerald-500/25 dark:text-emerald-400"
             >
               🤖 AI Scanner
-            </Link>
+            </button>
           )}
           {smcActive && (
-            <Link
-              href="/dashboard/scanners"
+            <button
+              onClick={() => setScannerModal("smc")}
               className="rounded-full bg-emerald-500/15 px-2 py-0.5 font-medium text-emerald-600 hover:bg-emerald-500/25 dark:text-emerald-400"
             >
               📈 SMC Scanner
-            </Link>
+            </button>
           )}
         </div>
       )}
@@ -580,6 +590,27 @@ export default function AccountView({
         <CashModal accountId={account.id} mode={cashModal} onClose={() => setCashModal(null)} />
       )}
       {shareOpen && <ShareCardModal accountId={account.id} onClose={() => setShareOpen(false)} />}
+      {scannerModal === "ai" && (
+        <Modal title={`${account.name} · scanner`} onClose={() => setScannerModal(null)} wide>
+          <AiScanner
+            accountId={account.id}
+            autoSettings={autoSettings}
+            aiInstruction={aiInstruction}
+            defaultOpen
+          />
+        </Modal>
+      )}
+      {scannerModal === "smc" && (
+        <Modal title={`${account.name} · scanner`} onClose={() => setScannerModal(null)} wide>
+          <SmcScanner
+            accountId={account.id}
+            accountType={account.type}
+            initialSettings={smcSettings}
+            initialSignals={smcSignals}
+            defaultOpen
+          />
+        </Modal>
+      )}
       {metricChart && (
         <MetricChartModal
           accountId={account.id}

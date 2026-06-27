@@ -28,13 +28,15 @@ export default function AiScanner({
   accountId,
   autoSettings = DEFAULT_AUTO_SETTINGS,
   aiInstruction = null,
+  defaultOpen = false,
 }: {
   accountId: string;
   autoSettings?: AutoSettings;
   aiInstruction?: string | null;
+  defaultOpen?: boolean;
 }) {
   return (
-    <ScannerCard icon="🤖" name="AI Scanner">
+    <ScannerCard icon="🤖" name="AI Scanner" defaultOpen={defaultOpen}>
       <AutoSettingsCard accountId={accountId} initial={autoSettings} />
       <div className="my-4 border-t border-border" />
       <AiInstructionCard accountId={accountId} initial={aiInstruction ?? ""} />

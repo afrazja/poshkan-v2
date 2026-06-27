@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import ScannerCard from "./ScannerCard";
 import { marketUniverse, symbolLabel } from "@/lib/assets";
 import {
@@ -27,12 +28,15 @@ export default function SmcScanner({
   accountType,
   initialSettings,
   initialSignals,
+  defaultOpen = false,
 }: {
   accountId: string;
   accountType: string;
   initialSettings: SmcSettings | null;
   initialSignals: SmcSignal[];
+  defaultOpen?: boolean;
 }) {
+  const router = useRouter();
   const universe = marketUniverse(accountType);
   const [settings, setSettings] = useState<SmcSettings | null>(initialSettings);
   const [signals, setSignals] = useState<SmcSignal[]>(initialSignals);
@@ -87,6 +91,7 @@ export default function SmcScanner({
           setSettings(data.settings);
           setSignals(data.signals);
         }
+        router.refresh(); // refresh the account's active-scanner indicator
       } else {
         alert(res.error);
       }
@@ -95,7 +100,7 @@ export default function SmcScanner({
   const status = settings?.last_status ?? [];
 
   return (
-    <ScannerCard icon="📈" name="SMC Scanner">
+    <ScannerCard icon="📈" name="SMC Scanner" defaultOpen={defaultOpen}>
       <p className="text-xs text-muted">
         Deterministic H1-trend (BOS) + M5 FVG / liquidity-sweep / confirmation engine. Last run:{" "}
         {ago(settings?.last_run_at ?? null)}.

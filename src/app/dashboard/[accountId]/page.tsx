@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import AccountView from "@/components/account/AccountView";
+import { getSmcData } from "./smc-actions";
 import type { Account, Position, WatchlistItem, Transaction, Order, FxPosition, FxOrder, FxTpLevel } from "@/lib/types";
 
 export default async function AccountPage({
@@ -65,19 +66,17 @@ export default async function AccountPage({
     .eq("fx_positions.account_id", accountId)
     .eq("status", "pending");
 
-  // Active-scanner indicators for the account header.
-  const aiActive = !!(account as Account).auto_trade_enabled;
-  let smcActive = false;
-  try {
-    const { data: smc } = await supabase
-      .from("smc_settings")
-      .select("enabled")
-      .eq("account_id", accountId)
-      .maybeSingle();
-    smcActive = !!smc?.enabled;
-  } catch {
-    // smc-scanner.sql not run yet — no SMC indicator.
-  }
+  // Scanner config for this account (powers the active indicators + their popups).
+  const acc = account as Account;
+  const smc = await getSmcData(accountId);
+  const autoSettings = {
+    enabled: !!acc.auto_trade_enabled,
+    riskPct: (acc.auto_risk_pct ?? 0.01) * 100,
+    maxOpen: acc.auto_max_open ?? 3,
+    maxPerDay: acc.auto_max_per_day ?? 2,
+    dailyLossPct: (acc.auto_daily_loss_pct ?? 0.03) * 100,
+    minMinutes: acc.auto_min_minutes ?? 60,
+  };
 
   return (
     <AccountView
@@ -89,8 +88,10 @@ export default async function AccountPage({
       initialFxPositions={(fxPositions ?? []) as FxPosition[]}
       initialFxOrders={(fxOrders ?? []) as FxOrder[]}
       initialFxTpLevels={(fxTpLevels ?? []) as unknown as FxTpLevel[]}
-      aiActive={aiActive}
-      smcActive={smcActive}
+      autoSettings={autoSettings}
+      aiInstruction={acc.ai_instruction ?? null}
+      smcSettings={smc?.settings ?? null}
+      smcSignals={smc?.signals ?? []}
     />
   );
 }
