@@ -7,6 +7,7 @@ import type { Account, Position, WatchlistItem, Transaction, Order, FxPosition, 
 import { FX_PAIRS, floatingPnl } from "@/lib/forex";
 import ForexPanel from "./ForexPanel";
 import ForexPerformance from "./ForexPerformance";
+import LeveragePanel from "./LeveragePanel";
 import { useQuotes } from "@/lib/useQuotes";
 import { realizedPnl } from "@/lib/pnl";
 import {
@@ -96,6 +97,7 @@ export default function AccountView({
     positions.forEach((p) => s.add(p.symbol.toUpperCase()));
     watchlist.forEach((w) => s.add(w.symbol.toUpperCase()));
     orders.forEach((o) => s.add(o.symbol.toUpperCase()));
+    fxPositions.filter((p) => p.status === "open").forEach((p) => s.add(p.symbol.toUpperCase()));
     if (selected) s.add(selected.symbol.toUpperCase());
     if (tab === "insights") s.add("SPY"); // benchmark
     return Array.from(s);
@@ -421,6 +423,18 @@ export default function AccountView({
           onSelect={(r) => selectSymbol(r.symbol, r.name)}
         />
       </div>
+      )}
+
+      {/* Leveraged long/short (shorting) for stock & crypto accounts */}
+      {!isForex && (
+        <LeveragePanel
+          accountId={account.id}
+          accountType={account.type}
+          cash={cash}
+          leverage={account.leverage}
+          positions={fxPositions}
+          quotes={quotes}
+        />
       )}
 
       {/* Selected symbol detail popup */}
