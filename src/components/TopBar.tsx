@@ -19,10 +19,19 @@ function urlBase64ToUint8Array(base64: string): Uint8Array {
   return Uint8Array.from([...raw].map((c) => c.charCodeAt(0)));
 }
 
-export default function TopBar({ username, email }: { username: string; email: string }) {
+export default function TopBar({
+  username,
+  email,
+  accounts = [],
+}: {
+  username: string;
+  email: string;
+  accounts?: { id: string; name: string; type: string }[];
+}) {
   const router = useRouter();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [avatarOpen, setAvatarOpen] = useState(false);
+  const [accountsOpen, setAccountsOpen] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showApiAccess, setShowApiAccess] = useState(false);
   const [showAnthropicKey, setShowAnthropicKey] = useState(false);
@@ -61,12 +70,16 @@ export default function TopBar({ username, email }: { username: string; email: s
     setPushMsg(res.error ?? `✓ Test sent to ${res.sent} device(s) — check your phone`);
   }
   const ref = useRef<HTMLDivElement>(null);
+  const accRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     function onClick(e: MouseEvent) {
       if (ref.current && !ref.current.contains(e.target as Node)) {
         setSettingsOpen(false);
         setAvatarOpen(false);
+      }
+      if (accRef.current && !accRef.current.contains(e.target as Node)) {
+        setAccountsOpen(false);
       }
     }
     document.addEventListener("mousedown", onClick);
@@ -92,6 +105,43 @@ export default function TopBar({ username, email }: { username: string; email: s
             <Image src="/icons/icon-192.png" alt="Poshkan" width={32} height={32} className="rounded-lg" />
             <span className="text-lg font-bold tracking-tight">Poshkan</span>
           </Link>
+
+          {/* Account switcher — jump between accounts from anywhere */}
+          <div ref={accRef} className="relative">
+            <button
+              onClick={() => setAccountsOpen((v) => !v)}
+              className="rounded-lg px-2 py-1 text-sm font-medium text-muted transition hover:bg-background hover:text-foreground"
+            >
+              Accounts ▾
+            </button>
+            {accountsOpen && (
+              <div className="absolute left-0 z-40 mt-2 max-h-80 w-56 overflow-y-auto rounded-xl border border-border bg-card p-2 shadow-lg">
+                <Link
+                  href="/dashboard"
+                  onClick={() => setAccountsOpen(false)}
+                  className="block rounded-md px-3 py-2 text-sm font-medium hover:bg-background"
+                >
+                  All accounts
+                </Link>
+                {accounts.length > 0 && <div className="my-1 border-t border-border" />}
+                {accounts.map((a) => (
+                  <Link
+                    key={a.id}
+                    href={`/dashboard/${a.id}`}
+                    onClick={() => setAccountsOpen(false)}
+                    className="flex items-center justify-between gap-2 rounded-md px-3 py-2 text-sm hover:bg-background"
+                  >
+                    <span className="truncate">{a.name}</span>
+                    <span className="shrink-0 text-xs capitalize text-muted">{a.type}</span>
+                  </Link>
+                ))}
+                {accounts.length === 0 && (
+                  <p className="px-3 py-1.5 text-xs text-muted">No accounts yet</p>
+                )}
+              </div>
+            )}
+          </div>
+
           <Link
             href="/dashboard/leaderboard"
             className="rounded-lg px-2 py-1 text-sm font-medium text-muted transition hover:bg-background hover:text-foreground"
