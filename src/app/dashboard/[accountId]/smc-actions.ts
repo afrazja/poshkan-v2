@@ -2,7 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { marketUniverse } from "@/lib/assets";
+import { marketUniverse, assetTypeError } from "@/lib/assets";
+import { backtestSmc, type BtResult } from "@/lib/smc-backtest";
+import { DEFAULT_PARAMS, type SmcParams } from "@/lib/smc";
 
 export interface SmcSettings {
   account_id: string;
@@ -56,6 +58,34 @@ async function guard(accountId: string) {
     .single();
   if (!account) return null;
   return { supabase, type: (account.type as string) ?? "" };
+}
+
+// Backtest the SMC strategy on the chosen symbols over the available history.
+export async function backtestSmcAction(input: {
+  accountId: string;
+  symbols: string[];
+  tpRR?: number;
+  slMode?: "swing" | "fvg";
+}): Promise<{ result?: BtResult; error?: string }> {
+  const g = await guard(input.accountId);
+  if (!g) return { error: "Not authorized" };
+  const symbols = Array.from(
+    new Set((input.symbols ?? []).map((s) => s.trim().toUpperCase()).filter(Boolean))
+  )
+    .filter((s) => assetTypeError(g.type, s) === null)
+    .slice(0, 8);
+  if (symbols.length === 0) return { error: "Pick at least one valid symbol to backtest." };
+  try {
+    const params: SmcParams = {
+      ...DEFAULT_PARAMS,
+      tpRR: Number(input.tpRR) || DEFAULT_PARAMS.tpRR,
+      slMode: input.slMode === "fvg" ? "fvg" : "swing",
+    };
+    const result = await backtestSmc(symbols, params);
+    return { result };
+  } catch (e) {
+    return { error: `Backtest failed: ${(e as Error).message}` };
+  }
 }
 
 export async function getSmcData(

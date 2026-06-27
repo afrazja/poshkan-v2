@@ -6,13 +6,16 @@ import ScannerCard from "./ScannerCard";
 import SymbolSearch from "@/components/SymbolSearch";
 import { marketUniverse, symbolLabel, assetTypeError } from "@/lib/assets";
 import { FX_PAIRS } from "@/lib/forex";
+import AreaChart from "./AreaChart";
 import {
   getSmcData,
   saveSmcSettings,
+  backtestSmcAction,
   type SmcSettings,
   type SmcSignal,
   type SmcStatusItem,
 } from "@/app/dashboard/[accountId]/smc-actions";
+import type { BtResult } from "@/lib/smc-backtest";
 
 const fmtNum = (n: number | null | undefined) =>
   n == null ? "—" : n >= 100 ? n.toFixed(2) : n >= 1 ? n.toFixed(3) : n.toFixed(5);
@@ -44,6 +47,24 @@ export default function SmcScanner({
   const [signals, setSignals] = useState<SmcSignal[]>(initialSignals);
   const [saving, startSave] = useTransition();
   const [saved, setSaved] = useState(false);
+  const [bt, setBt] = useState<BtResult | null>(null);
+  const [btLoading, setBtLoading] = useState(false);
+  const [btErr, setBtErr] = useState<string | null>(null);
+
+  async function runBacktest() {
+    setBtLoading(true);
+    setBtErr(null);
+    setBt(null);
+    try {
+      const res = await backtestSmcAction({ accountId, symbols, tpRR: Number(tpRR), slMode });
+      if (res.error) setBtErr(res.error);
+      else setBt(res.result ?? null);
+    } catch (e) {
+      setBtErr(`Backtest failed: ${(e as Error).message}`);
+    } finally {
+      setBtLoading(false);
+    }
+  }
 
   // Editable form state (defaults mirror the spec).
   const [enabled, setEnabled] = useState(initialSettings?.enabled ?? false);
@@ -252,6 +273,72 @@ export default function SmcScanner({
         </button>
       </div>
 
+      {/* Backtest */}
+      <div className="mt-3 rounded-lg border border-border bg-background p-3">
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-sm font-semibold">Backtest</span>
+          <button
+            onClick={runBacktest}
+            disabled={btLoading || symbols.length === 0}
+            className="rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50"
+          >
+            {btLoading ? "Running…" : "Run backtest"}
+          </button>
+        </div>
+        <p className="mt-1 text-[11px] text-muted">
+          Replays this exact strategy on the last ~10 days of 5-min data for your watched symbols. R = risk
+          multiple (a win is +{tpRR}R, a loss −1R).
+        </p>
+        {btErr && <p className="mt-2 text-xs text-negative">{btErr}</p>}
+        {bt &&
+          (bt.n === 0 ? (
+            <p className="mt-2 text-xs text-muted">No signals fired in the backtest window.</p>
+          ) : (
+            <div className="mt-3 space-y-3">
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                <BtStat
+                  label="Net R"
+                  value={`${bt.totalR >= 0 ? "+" : ""}${bt.totalR}R`}
+                  cls={bt.totalR >= 0 ? "text-emerald-500" : "text-rose-500"}
+                />
+                <BtStat label="Win rate" value={`${Math.round(bt.winRate * 100)}% (${bt.n})`} />
+                <BtStat
+                  label="Profit factor"
+                  value={bt.profitFactor === -1 ? "∞" : bt.profitFactor.toFixed(2)}
+                />
+                <BtStat label="Max drawdown" value={`−${bt.maxDrawdownR}R`} />
+              </div>
+              {bt.equity.length >= 2 && (
+                <AreaChart
+                  points={bt.equity.map((e) => ({ label: e.t, value: e.value }))}
+                  height={160}
+                  formatValue={(n) => `${n >= 0 ? "+" : ""}${n.toFixed(1)}R`}
+                  baseline={0}
+                />
+              )}
+              <div className="space-y-1">
+                {bt.perSymbol
+                  .filter((p) => p.n > 0)
+                  .map((p) => (
+                    <div
+                      key={p.symbol}
+                      className="flex items-center justify-between rounded-lg border border-border px-2 py-1 text-xs"
+                    >
+                      <span className="font-medium">{symbolLabel(p.symbol)}</span>
+                      <span className="text-muted">
+                        {p.n} trades · {Math.round(p.winRate * 100)}% ·{" "}
+                        <span className={p.totalR >= 0 ? "text-emerald-500" : "text-rose-500"}>
+                          {p.totalR >= 0 ? "+" : ""}
+                          {Math.round(p.totalR * 10) / 10}R
+                        </span>
+                      </span>
+                    </div>
+                  ))}
+              </div>
+            </div>
+          ))}
+      </div>
+
       {/* Live per-symbol read */}
       {status.length > 0 && (
         <div className="mt-3 space-y-1.5">
@@ -306,6 +393,15 @@ export default function SmcScanner({
         </div>
       )}
     </ScannerCard>
+  );
+}
+
+function BtStat({ label, value, cls }: { label: string; value: string; cls?: string }) {
+  return (
+    <div className="rounded-lg border border-border bg-card p-2">
+      <div className="text-[10px] uppercase tracking-wide text-muted">{label}</div>
+      <div className={`mt-0.5 text-sm font-semibold ${cls ?? ""}`}>{value}</div>
+    </div>
   );
 }
 

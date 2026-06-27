@@ -56,7 +56,7 @@ interface Swing {
 // Keep only fully-closed, grid-aligned candles. Yahoo appends a live "snapshot"
 // bar (O=H=L=C, datetime off-grid) — judging a confirmation on that bar is the
 // exact bug we hit reading SMC by hand, so it's dropped here for good.
-function realBars(cs: OhlcCandle[], stepMin: number): OhlcCandle[] {
+export function realBars(cs: OhlcCandle[], stepMin: number): OhlcCandle[] {
   return cs.filter((c) => {
     const d = new Date(c.datetime);
     if (isNaN(d.getTime())) return false;
@@ -155,9 +155,20 @@ export async function evaluateSymbol(symbol: string, params: SmcParams = DEFAULT
     getOhlc(symbol, "5min", 150),
     getQuote(symbol).catch(() => null),
   ]);
-  const h1 = realBars(h1raw, 60);
-  const m5 = realBars(m5raw, 5);
-  const price = quote?.price ?? (m5.length ? m5[m5.length - 1].close : null);
+  const res = evaluateAt(symbol, realBars(h1raw, 60), realBars(m5raw, 5), params);
+  if (quote?.price) res.price = quote.price; // live price for display only
+  return res;
+}
+
+// Pure evaluation on the given (already grid-cleaned) H1 + M5 windows — the last
+// M5 bar is treated as "now". Used live AND replayed bar-by-bar in the backtest.
+export function evaluateAt(
+  symbol: string,
+  h1: OhlcCandle[],
+  m5: OhlcCandle[],
+  params: SmcParams = DEFAULT_PARAMS
+): SmcEval {
+  const price = m5.length ? m5[m5.length - 1].close : null;
   const base: SmcEval = {
     symbol,
     trend: "neutral",
