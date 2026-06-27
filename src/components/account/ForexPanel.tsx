@@ -195,22 +195,28 @@ export default function ForexPanel({
           {visiblePairs.map((p) => {
             const quote = quotes[p.symbol];
             return (
-              <button
-                key={p.symbol}
-                onClick={() => {
-                  setSelectedPair(p.symbol);
-                  setDetail(p.symbol);
-                }}
-                className={`rounded-xl border bg-background p-3 text-left transition hover:border-primary/60 ${
-                  selectedPair === p.symbol ? "border-primary ring-1 ring-primary/30" : "border-border"
-                }`}
-              >
-                <div className="font-semibold">{p.name}</div>
-                <div className="mt-1 text-sm">{quote ? formatRate(quote.price, p.symbol) : "…"}</div>
-                <div className={`text-xs ${changeColor(quote?.percentChange ?? 0)}`}>
-                  {quote ? formatPercent(quote.percentChange) : ""}
-                </div>
-              </button>
+              <div key={p.symbol} className="relative">
+                <button
+                  onClick={() => setSelectedPair(p.symbol)}
+                  className={`w-full rounded-xl border bg-background p-3 text-left transition hover:border-primary/60 ${
+                    selectedPair === p.symbol ? "border-primary ring-1 ring-primary/30" : "border-border"
+                  }`}
+                >
+                  <div className="pr-6 font-semibold">{p.name}</div>
+                  <div className="mt-1 text-sm">{quote ? formatRate(quote.price, p.symbol) : "…"}</div>
+                  <div className={`text-xs ${changeColor(quote?.percentChange ?? 0)}`}>
+                    {quote ? formatPercent(quote.percentChange) : ""}
+                  </div>
+                </button>
+                <button
+                  onClick={() => setDetail(p.symbol)}
+                  aria-label={`${p.name} chart & news`}
+                  title="Chart & news"
+                  className="absolute right-1.5 top-1.5 rounded-md px-1.5 py-0.5 text-sm text-muted hover:bg-card hover:text-foreground"
+                >
+                  ⓘ
+                </button>
+              </div>
             );
           })}
           {visiblePairs.length === 0 && (
@@ -218,8 +224,8 @@ export default function ForexPanel({
           )}
         </div>
         <p className="mt-2 text-xs text-muted">
-          Tap a pair to see its chart &amp; news. Use “+ Open position” to trade the selected pair (
-          {pairName(selectedPair)}) with {leverage}:1 leverage.
+          Tap a pair to select it (ⓘ for its chart &amp; news). Use “+ Open position” to trade the
+          selected pair ({pairName(selectedPair)}) with {leverage}:1 leverage.
           <button
             onClick={() => setShowLeverage(true)}
             className="ml-1 font-medium text-primary hover:underline"
