@@ -2,7 +2,6 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { isSmcAllowed } from "@/lib/allowlist";
 
 export interface SmcSettings {
   account_id: string;
@@ -41,14 +40,14 @@ export interface SmcSignal {
   created_at: string;
 }
 
-// Confirm the caller is allowlisted and owns this crypto account. Returns the
-// authenticated supabase client + null on failure (feature stays invisible).
+// Confirm the caller is signed in and owns this crypto account (RLS returns only
+// the owner's account). Returns the authenticated supabase client, or null.
 async function guard(accountId: string) {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user || !isSmcAllowed(user.email)) return null;
+  if (!user) return null;
   const { data: account } = await supabase
     .from("accounts")
     .select("id, type")

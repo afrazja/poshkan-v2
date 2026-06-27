@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getQuote } from "@/lib/marketdata";
 import { marginFor } from "@/lib/forex";
-import { isSmcAllowed } from "@/lib/allowlist";
 import { evaluateSymbol, SMC_UNIVERSE, DEFAULT_PARAMS, type SmcEval, type SmcParams } from "@/lib/smc";
 import { sendPushToUser } from "@/lib/push";
 
@@ -32,7 +31,7 @@ interface AccRow {
 
 // Deterministic SMC scanner (no AI). Runs every ~5 min via the external pinger:
 //   https://www.poshkan.com/api/cron/smc-scan?key=<CRON_SECRET>
-// Only processes accounts whose owner email is in SMC_ALLOWLIST and who enabled it.
+// Processes every crypto account that has enabled the scanner (free for all users).
 export async function GET(request: Request) {
   const secret = process.env.CRON_SECRET;
   const key = new URL(request.url).searchParams.get("key");
@@ -60,18 +59,9 @@ export async function GET(request: Request) {
     .eq("type", "crypto");
   const accounts = (accData ?? []) as AccRow[];
 
-  // Allowlist gate (defense in depth — settings can only be created by allowlisted
-  // users, but re-check here so removing someone from the list halts them).
-  const emailCache = new Map<string, string | null>();
-  const allowed = new Map<string, boolean>();
-  for (const uid of new Set(accounts.map((a) => a.user_id))) {
-    const { data: u } = await db.auth.admin.getUserById(uid);
-    const email = u?.user?.email ?? null;
-    emailCache.set(uid, email);
-    allowed.set(uid, isSmcAllowed(email));
-  }
-  const live = accounts.filter((a) => allowed.get(a.user_id));
-  if (live.length === 0) return NextResponse.json({ enabled: settings.length, allowed: 0 });
+  // Every enabled crypto account is processed (feature is free for all users).
+  const live = accounts;
+  if (live.length === 0) return NextResponse.json({ enabled: settings.length, accounts: 0 });
 
   // Evaluate each universe symbol once (shared across accounts), per param-set.
   // Most accounts use defaults, so cache by the params that affect the read.
@@ -232,7 +222,7 @@ export async function GET(request: Request) {
     }
   }
 
-  return NextResponse.json({ enabled: settings.length, allowed: live.length, alerted, placed });
+  return NextResponse.json({ enabled: settings.length, accounts: live.length, alerted, placed });
 }
 
 async function logAlert(

@@ -445,7 +445,7 @@ export default function AccountView({
         />
       )}
 
-      {/* Private SMC scanner — only for allowlisted owners on crypto accounts */}
+      {/* SMC strategy scanner — crypto accounts */}
       {!isForex && smcAllowed && (
         <div className="mt-4">
           <SmcScanner accountId={account.id} initialSettings={smcSettings} initialSignals={smcSignals} />
