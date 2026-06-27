@@ -221,17 +221,21 @@ export interface OhlcCandle {
 export async function getOhlc(
   symbol: string,
   interval = "1day",
-  outputsize = 120
+  outputsize = 120,
+  lookbackDays?: number // override the history span (e.g. for backtests)
 ): Promise<OhlcCandle[]> {
   const weekly = interval === "1week" || interval.startsWith("1w");
   const intraday = !weekly && interval !== "1day" && /\d+(min|m|h)$/i.test(interval);
-  const key = `ohlc:${symbol.toUpperCase()}:${interval}:${outputsize}`;
+  const key = `ohlc:${symbol.toUpperCase()}:${interval}:${outputsize}:${lookbackDays ?? ""}`;
   return cached(key, intraday ? 60_000 : 600_000, async () => {
     let yInterval: string;
     let days: number;
     if (intraday) {
+      const isHour = interval.includes("h");
       yInterval = interval.replace("min", "m");
-      days = interval.includes("h") ? Math.ceil(outputsize / 7) + 5 : 10;
+      const base = lookbackDays ?? (isHour ? Math.ceil(outputsize / 7) + 5 : 10);
+      // Yahoo caps intraday history: ~730d for hourly, ~60d for sub-hour bars.
+      days = Math.min(base, isHour ? 720 : 59);
     } else if (weekly) {
       yInterval = "1wk";
       days = outputsize * 7 + 14;

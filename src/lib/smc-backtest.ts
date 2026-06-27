@@ -46,9 +46,11 @@ export interface BtResult {
 
 // Replay the SMC strategy over one symbol's recent history (no lookahead).
 async function backtestSymbol(symbol: string, params: SmcParams): Promise<BtSymbol> {
+  // Pull the deepest window Yahoo allows so the sample is big enough to mean
+  // something: ~58 days of 5-min entries, ~180 days of 1-hour trend context.
   const [h1raw, m5raw] = await Promise.all([
-    getOhlc(symbol, "1h", 700),
-    getOhlc(symbol, "5min", 3000),
+    getOhlc(symbol, "1h", 5000, 180),
+    getOhlc(symbol, "5min", 20000, 58),
   ]);
   const h1 = realBars(h1raw, 60);
   const m5 = realBars(m5raw, 5);

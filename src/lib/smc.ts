@@ -94,10 +94,16 @@ function trendBOS(c: OhlcCandle[], k: number): Trend {
   const { sh, sl } = swings(c, k);
   let lastBull = -1;
   let lastBear = -1;
+  // sh/sl are sorted by index ascending — walk two pointers instead of filtering
+  // the whole array each bar (O(n) vs O(n²); identical "last swing before i").
+  let hp = 0;
+  let lp = 0;
+  let priorH: Swing | undefined;
+  let priorL: Swing | undefined;
   for (let i = k; i < c.length; i++) {
+    while (hp < sh.length && sh[hp].i < i) priorH = sh[hp++];
+    while (lp < sl.length && sl[lp].i < i) priorL = sl[lp++];
     const close = c[i].close;
-    const priorH = sh.filter((s) => s.i < i).slice(-1)[0];
-    const priorL = sl.filter((s) => s.i < i).slice(-1)[0];
     if (priorH && close > priorH.price) lastBull = i;
     if (priorL && close < priorL.price) lastBear = i;
   }
