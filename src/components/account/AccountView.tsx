@@ -34,8 +34,6 @@ import {
   removeFromWatchlistAction,
   cancelOrderAction,
   fillLimitOrderAction,
-  renameAccountAction,
-  deleteAccountAction,
 } from "@/app/dashboard/[accountId]/actions";
 import { formatNumber } from "@/lib/format";
 
@@ -67,12 +65,8 @@ export default function AccountView({
   const router = useRouter();
   const [selected, setSelected] = useState<{ symbol: string; name: string } | null>(null);
   const [trade, setTrade] = useState<{ side: "BUY" | "SELL"; symbol: string } | null>(null);
-  const [cashModal, setCashModal] = useState<"DEPOSIT" | "RESET" | null>(null);
+  const [cashModal, setCashModal] = useState<"DEPOSIT" | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
-  const [manageModal, setManageModal] = useState<"rename" | "delete" | null>(null);
-  const [renameValue, setRenameValue] = useState(account.name);
-  const [manageError, setManageError] = useState<string | null>(null);
-  const [manageBusy, setManageBusy] = useState(false);
   const [metricChart, setMetricChart] = useState<"holdings" | "pnl" | null>(null);
   const [tab, setTab] = useState<Tab>("holdings");
 
@@ -202,26 +196,6 @@ export default function AccountView({
     router.refresh();
   }
 
-  async function doRename() {
-    setManageError(null);
-    setManageBusy(true);
-    const res = await renameAccountAction(account.id, renameValue);
-    setManageBusy(false);
-    if (res.error) return setManageError(res.error);
-    setManageModal(null);
-    router.refresh();
-  }
-
-  async function doDelete() {
-    setManageError(null);
-    setManageBusy(true);
-    const res = await deleteAccountAction(account.id);
-    setManageBusy(false);
-    if (res.error) return setManageError(res.error);
-    router.push("/dashboard");
-    router.refresh();
-  }
-
   // Download the current tab's table (holdings, watchlist, or history) as CSV.
   function exportCsv() {
     const esc = (v: string | number) => {
@@ -295,31 +269,6 @@ export default function AccountView({
             className="rounded-lg border border-border px-3 py-1.5 text-sm hover:bg-card"
           >
             Share
-          </button>
-          <button
-            onClick={() => setCashModal("RESET")}
-            className="rounded-lg border border-border px-3 py-1.5 text-sm text-muted hover:bg-card"
-          >
-            Reset
-          </button>
-          <button
-            onClick={() => {
-              setRenameValue(account.name);
-              setManageError(null);
-              setManageModal("rename");
-            }}
-            className="rounded-lg border border-border px-3 py-1.5 text-sm text-muted hover:bg-card"
-          >
-            Rename
-          </button>
-          <button
-            onClick={() => {
-              setManageError(null);
-              setManageModal("delete");
-            }}
-            className="rounded-lg border border-border px-3 py-1.5 text-sm text-muted hover:bg-card hover:text-negative"
-          >
-            Delete
           </button>
         </div>
       </div>
@@ -629,54 +578,6 @@ export default function AccountView({
         <CashModal accountId={account.id} mode={cashModal} onClose={() => setCashModal(null)} />
       )}
       {shareOpen && <ShareCardModal accountId={account.id} onClose={() => setShareOpen(false)} />}
-      {manageModal === "rename" && (
-        <Modal title="Rename account" onClose={() => setManageModal(null)}>
-          <div className="space-y-4">
-            {manageError && <p className="text-sm text-negative">{manageError}</p>}
-            <input
-              autoFocus
-              value={renameValue}
-              onChange={(e) => setRenameValue(e.target.value)}
-              maxLength={60}
-              className="w-full rounded-lg border border-border bg-input px-3 py-2.5 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
-            />
-            <button
-              onClick={doRename}
-              disabled={manageBusy || !renameValue.trim()}
-              className="w-full rounded-lg bg-primary py-2.5 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50"
-            >
-              {manageBusy ? "Saving…" : "Save name"}
-            </button>
-          </div>
-        </Modal>
-      )}
-      {manageModal === "delete" && (
-        <Modal title="Delete this account?" onClose={() => setManageModal(null)}>
-          <div className="space-y-4">
-            {manageError && <p className="text-sm text-negative">{manageError}</p>}
-            <p className="text-sm">
-              <strong>{account.name}</strong> and all of its holdings, watchlist, orders, and
-              transaction history will be <strong className="text-negative">permanently deleted</strong>.
-              This cannot be undone.
-            </p>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setManageModal(null)}
-                className="flex-1 rounded-lg border border-border py-2.5 text-sm font-medium hover:bg-background"
-              >
-                Keep account
-              </button>
-              <button
-                onClick={doDelete}
-                disabled={manageBusy}
-                className="flex-1 rounded-lg bg-negative py-2.5 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
-              >
-                {manageBusy ? "Deleting…" : "Delete forever"}
-              </button>
-            </div>
-          </div>
-        </Modal>
-      )}
       {metricChart && (
         <MetricChartModal
           accountId={account.id}
