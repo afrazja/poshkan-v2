@@ -126,6 +126,11 @@ export default function SmcScanner({
     });
 
   const status = settings?.last_status ?? [];
+  // Crypto scans every ~5 min; a read older than 20 min means it isn't running.
+  const lastRunMs = settings?.last_run_at
+    ? Date.now() - new Date(settings.last_run_at).getTime()
+    : Infinity;
+  const liveStale = lastRunMs > 20 * 60 * 1000;
 
   return (
     <ScannerCard icon="📈" name="SMC Scanner" defaultOpen={defaultOpen}>
@@ -352,6 +357,20 @@ export default function SmcScanner({
       {/* Live per-symbol read */}
       {status.length > 0 && (
         <div className="mt-3 space-y-1.5">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium">Live read</span>
+            <span
+              className={`text-[11px] ${liveStale ? "text-amber-600 dark:text-amber-400" : "text-muted"}`}
+            >
+              {settings?.last_run_at ? `updated ${ago(settings.last_run_at)}` : "not run yet"}
+            </span>
+          </div>
+          {liveStale && (
+            <p className="text-[11px] text-amber-600 dark:text-amber-400">
+              ⚠️ Hasn&apos;t updated recently — the scanner may not be running. A live read should refresh
+              every few minutes.
+            </p>
+          )}
           {status.map((s: SmcStatusItem) => (
             <div key={s.symbol} className="rounded-lg border border-border bg-background p-2 text-xs">
               <div className="flex items-center justify-between">
