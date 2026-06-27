@@ -5,6 +5,7 @@ import TopBar from "@/components/TopBar";
 import SiteFooter from "@/components/SiteFooter";
 import ThemeSync from "@/components/ThemeSync";
 import SessionWatcher from "@/components/SessionWatcher";
+import BottomNav from "@/components/BottomNav";
 
 export default async function DashboardLayout({
   children,
@@ -39,11 +40,12 @@ export default async function DashboardLayout({
       <SessionWatcher />
       <div className="flex min-h-screen flex-col">
         <TopBar username={username} email={user.email ?? ""} accounts={accounts ?? []} />
-        <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:px-6">
+        <main className="mx-auto w-full max-w-6xl flex-1 px-4 pt-6 pb-24 sm:px-6 sm:pb-6">
           {children}
         </main>
         <SiteFooter />
       </div>
+      <BottomNav />
     </Providers>
   );
 }

@@ -8,7 +8,7 @@ import LandingThemeToggle from "@/components/auth/LandingThemeToggle";
 export const metadata = {
   title: "Poshkan — Practice trading stocks, crypto & forex with virtual money",
   description:
-    "A risk-free trading simulator with live prices, real order types, an AI coach that reviews your trades, and a leaderboard to compete with friends. 100% virtual money.",
+    "A risk-free trading simulator with live prices, real order types, strategy scanners that find & auto-trade setups, an AI coach, and a leaderboard. 100% virtual money.",
 };
 
 export default async function LandingPage({
@@ -56,6 +56,9 @@ export default async function LandingPage({
             </p>
             <ul className="mt-8 space-y-3 text-white/90">
               <li className="flex items-center gap-3">
+                <Dot /> Strategy scanners that hunt &amp; trade setups for you
+              </li>
+              <li className="flex items-center gap-3">
                 <Dot /> Stocks, crypto &amp; forex — one playground
               </li>
               <li className="flex items-center gap-3">
@@ -76,6 +79,39 @@ export default async function LandingPage({
           Practice stocks, crypto, and forex with live prices and 100% virtual money — with an AI
           coach and a leaderboard.
         </p>
+      </section>
+
+      {/* Scanners — the hero feature */}
+      <section className="border-t border-border bg-card px-6 py-14 sm:px-12">
+        <div className="mx-auto max-w-4xl text-center">
+          <span className="inline-block rounded-full bg-primary/15 px-3 py-1 text-xs font-semibold text-primary">
+            ✦ Strategy scanners
+          </span>
+          <h2 className="mt-3 text-2xl font-bold tracking-tight sm:text-3xl">
+            Scanners that watch the market so you don&apos;t have to
+          </h2>
+          <p className="mx-auto mt-3 max-w-2xl text-sm text-muted">
+            Flip a scanner on and it hunts setups around the clock — pinging your phone, or trading on
+            its own within the risk limits you set. Pick your symbols, set your strategy, walk away.
+          </p>
+          <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <MiniFeature
+              icon="🧪"
+              title="Backtest before you trust it"
+              text="See how a strategy would've performed on recent history — win rate, net R, and an equity curve — before you risk a cent."
+            />
+            <MiniFeature
+              icon="📡"
+              title="Two engines"
+              text="A deterministic Smart-Money-Concepts scanner, and a Claude-powered AI scanner you steer in plain English."
+            />
+            <MiniFeature
+              icon="🤖"
+              title="Hands-off auto-trade"
+              text="Let it open positions on its own — capped by your risk %, max trades, and daily loss limit. You stay in control."
+            />
+          </div>
+        </div>
       </section>
 
       {/* Feature grid */}
@@ -192,6 +228,16 @@ function Alternative({ title, point, catchLine }: { title: string; point: string
         <span className="font-medium text-negative">The catch:</span>{" "}
         <span className="text-muted">{catchLine}</span>
       </p>
+    </div>
+  );
+}
+
+function MiniFeature({ icon, title, text }: { icon: string; title: string; text: string }) {
+  return (
+    <div className="rounded-2xl border border-border bg-background p-5 text-left">
+      <div className="text-2xl">{icon}</div>
+      <h3 className="mt-2 font-semibold">{title}</h3>
+      <p className="mt-1 text-sm leading-relaxed text-muted">{text}</p>
     </div>
   );
 }
