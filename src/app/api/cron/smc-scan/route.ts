@@ -3,7 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getQuote } from "@/lib/marketdata";
 import { marginFor } from "@/lib/forex";
 import { evaluateSymbol, DEFAULT_PARAMS, type SmcEval, type SmcParams } from "@/lib/smc";
-import { marketUniverse } from "@/lib/assets";
+import { marketUniverse, assetTypeError } from "@/lib/assets";
 import { sendPushToUser } from "@/lib/push";
 
 export const maxDuration = 60;
@@ -92,9 +92,9 @@ export async function GET(request: Request) {
       tpRR: Number(s.tp_rr) || DEFAULT_PARAMS.tpRR,
     };
     const universe = marketUniverse(acc.type);
-    const watch = (s.symbols && s.symbols.length ? s.symbols : universe).filter((x) =>
-      universe.includes(x)
-    );
+    const chosen = s.symbols && s.symbols.length ? s.symbols : universe;
+    // Keep any symbol that belongs to this account's asset class (not just presets).
+    const watch = chosen.filter((x) => assetTypeError(acc.type, x) === null);
     if (watch.length === 0) continue;
 
     // Skip stocks/forex when their market is closed (no fresh bars to act on).

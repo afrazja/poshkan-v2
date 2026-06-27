@@ -3,7 +3,9 @@
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import ScannerCard from "./ScannerCard";
-import { marketUniverse, symbolLabel } from "@/lib/assets";
+import SymbolSearch from "@/components/SymbolSearch";
+import { marketUniverse, symbolLabel, assetTypeError } from "@/lib/assets";
+import { FX_PAIRS } from "@/lib/forex";
 import {
   getSmcData,
   saveSmcSettings,
@@ -68,6 +70,11 @@ export default function SmcScanner({
 
   const toggleSymbol = (s: string) =>
     setSymbols((prev) => (prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]));
+  const addSymbol = (s: string) =>
+    setSymbols((prev) =>
+      prev.includes(s) || assetTypeError(accountType, s) ? prev : [...prev, s]
+    );
+  const removeSymbol = (s: string) => setSymbols((prev) => prev.filter((x) => x !== s));
 
   const save = () =>
     startSave(async () => {
@@ -136,20 +143,74 @@ export default function SmcScanner({
         </div>
 
         <div>
-          <span className="mb-1 block text-xs font-medium text-muted">Watch symbols</span>
-          <div className="flex gap-2">
-            {universe.map((s) => (
-              <button
-                key={s}
-                onClick={() => toggleSymbol(s)}
-                className={`flex-1 rounded-lg border px-2 py-1.5 text-xs ${
-                  symbols.includes(s) ? "border-primary bg-primary/10 text-primary" : "border-border"
-                }`}
-              >
-                {symbolLabel(s)}
-              </button>
-            ))}
+          <span className="mb-1 block text-xs font-medium text-muted">
+            Watch symbols ({accountType})
+          </span>
+
+          {/* Currently selected — removable */}
+          <div className="mb-2 flex flex-wrap gap-1.5">
+            {symbols.length === 0 ? (
+              <span className="text-xs text-muted">None selected — add below.</span>
+            ) : (
+              symbols.map((s) => (
+                <span
+                  key={s}
+                  className="flex items-center gap-1 rounded-lg border border-primary/40 bg-primary/10 px-2 py-1 text-xs text-primary"
+                >
+                  {symbolLabel(s)}
+                  <button
+                    onClick={() => removeSymbol(s)}
+                    aria-label={`Remove ${s}`}
+                    className="text-primary/70 hover:text-negative"
+                  >
+                    ×
+                  </button>
+                </span>
+              ))
+            )}
           </div>
+
+          {accountType === "forex" ? (
+            // Forex: choose from the currency pairs (only pairs allowed here).
+            <div className="flex max-h-36 flex-wrap gap-1.5 overflow-y-auto rounded-lg border border-border bg-background p-2">
+              {FX_PAIRS.map((p) => (
+                <button
+                  key={p.symbol}
+                  onClick={() => toggleSymbol(p.symbol)}
+                  className={`rounded-lg border px-2 py-1 text-xs ${
+                    symbols.includes(p.symbol) ? "border-primary bg-primary/10 text-primary" : "border-border"
+                  }`}
+                >
+                  {symbolLabel(p.symbol)}
+                </button>
+              ))}
+            </div>
+          ) : (
+            // Stocks / crypto: search & add ANY symbol in this asset class.
+            <>
+              <SymbolSearch
+                assetType={accountType}
+                placeholder={
+                  accountType === "crypto" ? "Add a crypto (e.g. XRP, ADA)…" : "Add a stock (e.g. TSLA)…"
+                }
+                onSelect={(r) => addSymbol(r.symbol)}
+              />
+              <div className="mt-1.5 flex flex-wrap gap-1.5">
+                {universe.map((s) => (
+                  <button
+                    key={s}
+                    onClick={() => toggleSymbol(s)}
+                    className={`rounded-lg border px-2 py-1 text-[11px] ${
+                      symbols.includes(s) ? "border-primary bg-primary/10 text-primary" : "border-border text-muted"
+                    }`}
+                  >
+                    {symbols.includes(s) ? "✓ " : "+ "}
+                    {symbolLabel(s)}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
         </div>
 
         <div className="grid grid-cols-2 gap-2">
