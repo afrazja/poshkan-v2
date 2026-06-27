@@ -1,6 +1,8 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import AccountView from "@/components/account/AccountView";
+import { isSmcAllowed } from "@/lib/allowlist";
+import { getSmcData } from "./smc-actions";
 import type { Account, Position, WatchlistItem, Transaction, Order, FxPosition, FxOrder, FxTpLevel } from "@/lib/types";
 
 export default async function AccountPage({
@@ -65,6 +67,13 @@ export default async function AccountPage({
     .eq("fx_positions.account_id", accountId)
     .eq("status", "pending");
 
+  // Private SMC scanner — gated by SMC_ALLOWLIST; invisible to everyone else.
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const smcAllowed = account.type === "crypto" && isSmcAllowed(user?.email);
+  const smc = smcAllowed ? await getSmcData(accountId) : null;
+
   return (
     <AccountView
       account={account as Account}
@@ -75,6 +84,9 @@ export default async function AccountPage({
       initialFxPositions={(fxPositions ?? []) as FxPosition[]}
       initialFxOrders={(fxOrders ?? []) as FxOrder[]}
       initialFxTpLevels={(fxTpLevels ?? []) as unknown as FxTpLevel[]}
+      smcAllowed={smcAllowed}
+      smcSettings={smc?.settings ?? null}
+      smcSignals={smc?.signals ?? []}
     />
   );
 }

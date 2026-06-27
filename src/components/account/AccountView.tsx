@@ -8,6 +8,8 @@ import { FX_PAIRS, floatingPnl } from "@/lib/forex";
 import ForexPanel from "./ForexPanel";
 import ForexPerformance from "./ForexPerformance";
 import LeveragePanel from "./LeveragePanel";
+import SmcScanner from "./SmcScanner";
+import type { SmcSettings, SmcSignal } from "@/app/dashboard/[accountId]/smc-actions";
 import { useQuotes } from "@/lib/useQuotes";
 import { realizedPnl } from "@/lib/pnl";
 import {
@@ -48,6 +50,9 @@ export default function AccountView({
   initialFxPositions = [],
   initialFxOrders = [],
   initialFxTpLevels = [],
+  smcAllowed = false,
+  smcSettings = null,
+  smcSignals = [],
 }: {
   account: Account;
   initialPositions: Position[];
@@ -57,6 +62,9 @@ export default function AccountView({
   initialFxPositions?: FxPosition[];
   initialFxOrders?: FxOrder[];
   initialFxTpLevels?: FxTpLevel[];
+  smcAllowed?: boolean;
+  smcSettings?: SmcSettings | null;
+  smcSignals?: SmcSignal[];
 }) {
   const router = useRouter();
   const [selected, setSelected] = useState<{ symbol: string; name: string } | null>(null);
@@ -435,6 +443,13 @@ export default function AccountView({
           positions={fxPositions}
           quotes={quotes}
         />
+      )}
+
+      {/* Private SMC scanner — only for allowlisted owners on crypto accounts */}
+      {!isForex && smcAllowed && (
+        <div className="mt-4">
+          <SmcScanner accountId={account.id} initialSettings={smcSettings} initialSignals={smcSignals} />
+        </div>
       )}
 
       {/* Selected symbol detail popup */}
