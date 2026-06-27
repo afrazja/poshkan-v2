@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { setAiInstructionAction, setAutoSettingsAction } from "@/app/dashboard/[accountId]/actions";
+import ScannerCard from "./ScannerCard";
 
 export interface AutoSettings {
   enabled: boolean;
@@ -33,10 +34,17 @@ export default function AiScanner({
   aiInstruction?: string | null;
 }) {
   return (
-    <div className="space-y-4">
+    <ScannerCard
+      icon="🤖"
+      name="AI Scanner"
+      market="Forex"
+      statusLabel={autoSettings.enabled ? "Auto-trading" : "Off"}
+      statusTone={autoSettings.enabled ? "on" : "off"}
+    >
       <AutoSettingsCard accountId={accountId} initial={autoSettings} />
+      <div className="my-4 border-t border-border" />
       <AiInstructionCard accountId={accountId} initial={aiInstruction ?? ""} />
-    </div>
+    </ScannerCard>
   );
 }
 
@@ -70,9 +78,9 @@ function AutoSettingsCard({ accountId, initial }: { accountId: string; initial: 
   const set = (patch: Partial<AutoSettings>) => setS((p) => ({ ...p, ...patch }));
 
   return (
-    <div className="rounded-2xl border border-border bg-card p-4">
+    <div>
       <div className="mb-1 flex items-center justify-between gap-2">
-        <h2 className="text-sm font-semibold">🤖 Autonomous trading</h2>
+        <h3 className="text-sm font-semibold">Auto-trade limits</h3>
         <button
           onClick={() => set({ enabled: !s.enabled })}
           className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
@@ -170,9 +178,9 @@ function AiInstructionCard({ accountId, initial }: { accountId: string; initial:
   }
 
   return (
-    <div className="rounded-2xl border border-border bg-card p-4">
+    <div>
       <div className="mb-1 flex items-center justify-between gap-2">
-        <h2 className="text-sm font-semibold">🤖 AI trading instructions</h2>
+        <h3 className="text-sm font-semibold">Strategy (plain English)</h3>
         <button
           onClick={save}
           disabled={saving || !dirty}

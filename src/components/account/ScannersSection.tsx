@@ -72,15 +72,18 @@ function Teaser({
 }) {
   return (
     <div className="rounded-2xl border border-dashed border-border bg-card/50 p-4">
-      <div className="flex items-center justify-between gap-2">
-        <h3 className="text-sm font-semibold">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-sm font-semibold">
           {icon} {name}
-        </h3>
+        </span>
+        <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium capitalize text-primary">
+          {market}
+        </span>
         <span className="rounded-full bg-muted/20 px-2 py-0.5 text-[10px] font-medium text-muted">
-          {market} accounts
+          Unavailable
         </span>
       </div>
-      <p className="mt-1 text-xs text-muted">{desc}</p>
+      <p className="mt-2 text-xs text-muted">{desc}</p>
       <p className="mt-2 text-[11px] text-muted">
         Available on {market} accounts — create one to turn this scanner on.
       </p>
