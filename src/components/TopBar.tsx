@@ -142,15 +142,16 @@ export default function TopBar({
             )}
           </div>
 
+          {/* Redundant on mobile — the bottom nav covers these. Show on sm+. */}
           <Link
             href="/dashboard/leaderboard"
-            className="rounded-lg px-2 py-1 text-sm font-medium text-muted transition hover:bg-background hover:text-foreground"
+            className="hidden rounded-lg px-2 py-1 text-sm font-medium text-muted transition hover:bg-background hover:text-foreground sm:inline-block"
           >
             🏆 Leaderboard
           </Link>
           <Link
             href="/dashboard/scanners"
-            className="rounded-lg px-2 py-1 text-sm font-medium text-muted transition hover:bg-background hover:text-foreground"
+            className="hidden rounded-lg px-2 py-1 text-sm font-medium text-muted transition hover:bg-background hover:text-foreground sm:inline-block"
           >
             📡 Scanners
           </Link>
