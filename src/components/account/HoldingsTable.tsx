@@ -34,7 +34,8 @@ export default function HoldingsTable({
         const pnl = mktValue - qty * avg;
         const pnlPct = avg > 0 ? ((price - avg) / avg) * 100 : 0;
         const dayPct = q?.percentChange ?? 0;
-        return { p, q, qty, avg, price, mktValue, pnl, pnlPct, dayPct };
+        const dayUsd = q ? qty * (price - q.previousClose) : 0; // today's $ move (vs prev close)
+        return { p, q, qty, avg, price, mktValue, pnl, pnlPct, dayPct, dayUsd };
       }),
     [positions, quotes]
   );
@@ -49,6 +50,7 @@ export default function HoldingsTable({
         case "avg": return r.avg;
         case "price": return r.price;
         case "dayPct": return r.dayPct;
+        case "dayUsd": return r.dayUsd;
         case "mktValue": return r.mktValue;
         case "pnl": return r.pnl;
         case "pnlPct": return r.pnlPct;
@@ -79,7 +81,7 @@ export default function HoldingsTable({
     <>
       {/* Mobile: stacked cards (the table is too wide for phones) */}
       <div className="space-y-2 sm:hidden">
-        {sorted.map(({ p, q, qty, avg, price, mktValue, pnl, pnlPct, dayPct }) => (
+        {sorted.map(({ p, q, qty, avg, price, mktValue, pnl, pnlPct, dayPct, dayUsd }) => (
           <button
             key={p.id}
             onClick={() => onSelect(p.symbol)}
@@ -91,7 +93,9 @@ export default function HoldingsTable({
             </div>
             <div className="mt-1 flex items-center justify-between text-xs text-muted">
               <span>{formatNumber(qty)} sh · avg {formatCurrency(avg)}</span>
-              <span className={changeColor(dayPct)}>{q ? `${formatPercent(dayPct)} today` : "…"}</span>
+              <span className={changeColor(dayUsd)}>
+                {q ? `${formatSignedCurrency(dayUsd)} (${formatPercent(dayPct)}) today` : "…"}
+              </span>
             </div>
             <div className="mt-1 flex items-center justify-between text-sm">
               <span className="text-muted">{q ? formatCurrency(price) : "…"}</span>
@@ -105,7 +109,7 @@ export default function HoldingsTable({
 
       {/* Desktop: full sortable table */}
       <div className="hidden overflow-x-auto rounded-2xl border border-border bg-card sm:block">
-      <table className="w-full min-w-[760px] text-sm">
+      <table className="w-full min-w-[860px] text-sm">
         <thead>
           <tr className="border-b border-border text-xs uppercase tracking-wide text-muted">
             <SortHeader label="Symbol" sortKey="symbol" sort={sort} onSort={onSort} align="left" />
@@ -113,13 +117,14 @@ export default function HoldingsTable({
             <SortHeader label="Avg cost" sortKey="avg" sort={sort} onSort={onSort} />
             <SortHeader label="Price" sortKey="price" sort={sort} onSort={onSort} />
             <SortHeader label="Day %" sortKey="dayPct" sort={sort} onSort={onSort} />
+            <SortHeader label="Day $" sortKey="dayUsd" sort={sort} onSort={onSort} />
             <SortHeader label="Mkt value" sortKey="mktValue" sort={sort} onSort={onSort} />
             <SortHeader label="Total P&L" sortKey="pnl" sort={sort} onSort={onSort} />
             <SortHeader label="P&L %" sortKey="pnlPct" sort={sort} onSort={onSort} />
           </tr>
         </thead>
         <tbody>
-          {sorted.map(({ p, q, qty, avg, price, mktValue, pnl, pnlPct, dayPct }) => (
+          {sorted.map(({ p, q, qty, avg, price, mktValue, pnl, pnlPct, dayPct, dayUsd }) => (
             <tr
               key={p.id}
               onClick={() => onSelect(p.symbol)}
@@ -131,6 +136,9 @@ export default function HoldingsTable({
               <td className="px-4 py-3 text-right">{q ? formatCurrency(price) : "…"}</td>
               <td className={`px-4 py-3 text-right ${changeColor(dayPct)}`}>
                 {q ? formatPercent(dayPct) : "…"}
+              </td>
+              <td className={`px-4 py-3 text-right ${changeColor(dayUsd)}`}>
+                {q ? formatSignedCurrency(dayUsd) : "…"}
               </td>
               <td className="px-4 py-3 text-right">{formatCurrency(mktValue)}</td>
               <td className={`px-4 py-3 text-right font-medium ${changeColor(pnl)}`}>
