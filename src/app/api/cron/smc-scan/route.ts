@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getQuote } from "@/lib/marketdata";
 import { marginFor } from "@/lib/forex";
-import { evaluateSymbol, SMC_UNIVERSE, DEFAULT_PARAMS, type SmcEval, type SmcParams } from "@/lib/smc";
+import { evaluateSymbol, DEFAULT_PARAMS, type SmcEval, type SmcParams } from "@/lib/smc";
+import { marketUniverse } from "@/lib/assets";
 import { sendPushToUser } from "@/lib/push";
 
 export const maxDuration = 60;
@@ -31,7 +32,7 @@ interface AccRow {
 
 // Deterministic SMC scanner (no AI). Runs every ~5 min via the external pinger:
 //   https://www.poshkan.com/api/cron/smc-scan?key=<CRON_SECRET>
-// Processes every crypto account that has enabled the scanner (free for all users).
+// Processes every account that has enabled the scanner, on its market's symbols.
 export async function GET(request: Request) {
   const secret = process.env.CRON_SECRET;
   const key = new URL(request.url).searchParams.get("key");
@@ -55,11 +56,10 @@ export async function GET(request: Request) {
   const { data: accData } = await db
     .from("accounts")
     .select("id, user_id, cash_balance, leverage, type")
-    .in("id", ids)
-    .eq("type", "crypto");
+    .in("id", ids);
   const accounts = (accData ?? []) as AccRow[];
 
-  // Every enabled crypto account is processed (feature is free for all users).
+  // Every enabled account is processed, whatever its market (free for all users).
   const live = accounts;
   if (live.length === 0) return NextResponse.json({ enabled: settings.length, accounts: 0 });
 
@@ -91,9 +91,23 @@ export async function GET(request: Request) {
       slMode: s.sl_mode === "fvg" ? "fvg" : "swing",
       tpRR: Number(s.tp_rr) || DEFAULT_PARAMS.tpRR,
     };
-    const watch = (s.symbols && s.symbols.length ? s.symbols : [...SMC_UNIVERSE]).filter((x) =>
-      (SMC_UNIVERSE as readonly string[]).includes(x)
+    const universe = marketUniverse(acc.type);
+    const watch = (s.symbols && s.symbols.length ? s.symbols : universe).filter((x) =>
+      universe.includes(x)
     );
+    if (watch.length === 0) continue;
+
+    // Skip stocks/forex when their market is closed (no fresh bars to act on).
+    if (acc.type !== "crypto") {
+      const probe = await getQuote(watch[0]).catch(() => null);
+      if (!probe?.isMarketOpen) {
+        await db
+          .from("smc_settings")
+          .update({ last_run_at: new Date().toISOString() })
+          .eq("account_id", s.account_id);
+        continue;
+      }
+    }
 
     const evals: SmcEval[] = [];
     for (const sym of watch) evals.push(await evalFor(sym, params));
@@ -172,12 +186,11 @@ export async function GET(request: Request) {
           const tp = isLong ? liveRate + rewardDist : liveRate - rewardDist;
 
           const lev = Number(acc.leverage) || 1;
-          let units = riskDist > 0 ? (cash * (Number(s.risk_pct) || 0.02)) / riskDist : 0;
-          units = Math.floor(units * 1e6) / 1e6; // crypto is fractional
+          let units = roundUnits(riskDist > 0 ? (cash * (Number(s.risk_pct) || 0.02)) / riskDist : 0, acc.type);
           // Scale down so required margin never exceeds free cash.
           let margin = marginFor(units, liveRate, lev, symbol);
           if (margin > cash * 0.95 && margin > 0) {
-            units = Math.floor(((cash * 0.95) / margin) * units * 1e6) / 1e6;
+            units = roundUnits(((cash * 0.95) / margin) * units, acc.type);
             margin = marginFor(units, liveRate, lev, symbol);
           }
 
@@ -223,6 +236,14 @@ export async function GET(request: Request) {
   }
 
   return NextResponse.json({ enabled: settings.length, accounts: live.length, alerted, placed });
+}
+
+// Round position size to what each market trades in.
+function roundUnits(units: number, type: string): number {
+  if (units <= 0) return 0;
+  if (type === "stocks") return Math.floor(units); // whole shares
+  if (type === "forex") return Math.max(0, Math.round(units / 1000) * 1000); // 1k lots
+  return Math.floor(units * 1e6) / 1e6; // crypto — fractional
 }
 
 async function logAlert(

@@ -66,9 +66,8 @@ export default async function AccountPage({
     .eq("fx_positions.account_id", accountId)
     .eq("status", "pending");
 
-  // SMC strategy scanner — available to all users on crypto accounts (free for now).
-  const smcAllowed = account.type === "crypto";
-  const smc = smcAllowed ? await getSmcData(accountId) : null;
+  // Scanner data for this account (both scanners run on every market now).
+  const smc = await getSmcData(accountId);
 
   return (
     <AccountView

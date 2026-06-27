@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { marketUniverse } from "@/lib/assets";
 
 export interface SmcSettings {
   account_id: string;
@@ -40,8 +41,8 @@ export interface SmcSignal {
   created_at: string;
 }
 
-// Confirm the caller is signed in and owns this crypto account (RLS returns only
-// the owner's account). Returns the authenticated supabase client, or null.
+// Confirm the caller is signed in and owns this account (RLS returns only the
+// owner's account). Returns the authenticated client + the account's market type.
 async function guard(accountId: string) {
   const supabase = await createClient();
   const {
@@ -53,15 +54,16 @@ async function guard(accountId: string) {
     .select("id, type")
     .eq("id", accountId)
     .single();
-  if (!account || account.type !== "crypto") return null;
-  return supabase;
+  if (!account) return null;
+  return { supabase, type: (account.type as string) ?? "" };
 }
 
 export async function getSmcData(
   accountId: string
 ): Promise<{ settings: SmcSettings | null; signals: SmcSignal[] } | null> {
-  const supabase = await guard(accountId);
-  if (!supabase) return null;
+  const g = await guard(accountId);
+  if (!g) return null;
+  const { supabase } = g;
   try {
     const [{ data: settings }, { data: signals }] = await Promise.all([
       supabase.from("smc_settings").select("*").eq("account_id", accountId).maybeSingle(),
@@ -96,10 +98,11 @@ export interface SaveSmcInput {
 }
 
 export async function saveSmcSettings(input: SaveSmcInput): Promise<{ error?: string }> {
-  const supabase = await guard(input.accountId);
-  if (!supabase) return { error: "Not allowed." };
+  const g = await guard(input.accountId);
+  if (!g) return { error: "Not allowed." };
+  const { supabase, type } = g;
 
-  const allowed = ["BTC-USD", "ETH-USD", "SOL-USD"];
+  const allowed = marketUniverse(type);
   const symbols = input.symbols.filter((s) => allowed.includes(s));
   if (symbols.length === 0) return { error: "Pick at least one symbol." };
 

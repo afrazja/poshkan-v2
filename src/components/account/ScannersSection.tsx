@@ -4,9 +4,8 @@ import AiScanner, { type AutoSettings } from "./AiScanner";
 import SmcScanner from "./SmcScanner";
 import type { SmcSettings, SmcSignal } from "@/app/dashboard/[accountId]/smc-actions";
 
-// Unified "Scanners" section shown on every account. Each scanner is fully
-// configurable on its target market and appears as a catalog teaser elsewhere.
-// New strategies plug in here the same way (engine + settings + a card).
+// Unified "Scanners" section shown on every account. Both scanners work on every
+// market now, so both are configurable here. New strategies plug in the same way.
 export default function ScannersSection({
   accountId,
   accountType,
@@ -32,61 +31,13 @@ export default function ScannersSection({
         </p>
       </div>
 
-      {/* AI scanner — forex */}
-      {accountType === "forex" ? (
-        <AiScanner accountId={accountId} autoSettings={autoSettings} aiInstruction={aiInstruction} />
-      ) : (
-        <Teaser
-          icon="🤖"
-          name="AI Scanner"
-          market="forex"
-          desc="Hourly AI opportunity scanner for the major USD pairs — alerts, or auto-trades within your risk limits, optionally following your own plain-English strategy."
-        />
-      )}
-
-      {/* SMC scanner — crypto */}
-      {accountType === "crypto" ? (
-        <SmcScanner accountId={accountId} initialSettings={smcSettings} initialSignals={smcSignals} />
-      ) : (
-        <Teaser
-          icon="📈"
-          name="SMC Scanner"
-          market="crypto"
-          desc="Smart-Money-Concepts engine: H1 trend (BOS) + M5 fair-value-gap / liquidity-sweep / confirmation. Deterministic — no AI in the decision."
-        />
-      )}
+      <AiScanner accountId={accountId} autoSettings={autoSettings} aiInstruction={aiInstruction} />
+      <SmcScanner
+        accountId={accountId}
+        accountType={accountType}
+        initialSettings={smcSettings}
+        initialSignals={smcSignals}
+      />
     </section>
-  );
-}
-
-function Teaser({
-  icon,
-  name,
-  market,
-  desc,
-}: {
-  icon: string;
-  name: string;
-  market: string;
-  desc: string;
-}) {
-  return (
-    <div className="rounded-2xl border border-dashed border-border bg-card/50 p-4">
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="text-sm font-semibold">
-          {icon} {name}
-        </span>
-        <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium capitalize text-primary">
-          {market}
-        </span>
-        <span className="rounded-full bg-muted/20 px-2 py-0.5 text-[10px] font-medium text-muted">
-          Unavailable
-        </span>
-      </div>
-      <p className="mt-2 text-xs text-muted">{desc}</p>
-      <p className="mt-2 text-[11px] text-muted">
-        Available on {market} accounts — create one to turn this scanner on.
-      </p>
-    </div>
   );
 }

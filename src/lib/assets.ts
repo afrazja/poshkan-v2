@@ -10,6 +10,27 @@ export function isForexPairSymbol(symbol: string): boolean {
   return /=X$/i.test(symbol.trim());
 }
 
+// Default symbols each scanner watches per account market (liquid, editable).
+export const MARKET_UNIVERSE: Record<string, string[]> = {
+  stocks: ["AAPL", "MSFT", "NVDA", "AMZN", "SPY"],
+  crypto: ["BTC-USD", "ETH-USD", "SOL-USD"],
+  forex: ["EURUSD=X", "GBPUSD=X", "USDJPY=X"],
+};
+
+export function marketUniverse(accountType: string | null | undefined): string[] {
+  return MARKET_UNIVERSE[(accountType ?? "").toLowerCase()] ?? [];
+}
+
+// Short display label for a symbol, per market (AAPL, BTC, EUR/USD).
+export function symbolLabel(symbol: string): string {
+  const s = symbol.toUpperCase();
+  if (/=X$/.test(s)) {
+    const p = s.replace(/=X$/, "");
+    return p.length === 6 ? `${p.slice(0, 3)}/${p.slice(3)}` : p;
+  }
+  return s.replace(/-USD$/, "");
+}
+
 // Returns an error message when the symbol doesn't belong in the account, else null.
 // Only enforced when ADDING exposure (buys, watchlist) — selling is always allowed.
 export function assetTypeError(

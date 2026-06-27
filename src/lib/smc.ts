@@ -60,8 +60,12 @@ function realBars(cs: OhlcCandle[], stepMin: number): OhlcCandle[] {
   return cs.filter((c) => {
     const d = new Date(c.datetime);
     if (isNaN(d.getTime())) return false;
+    // The live snapshot bar lands on the current wall-clock (non-zero seconds);
+    // every real closed bar is on an exact boundary. seconds===0 drops it.
     if (d.getUTCSeconds() !== 0) return false;
-    return stepMin >= 60 ? d.getUTCMinutes() === 0 : d.getUTCMinutes() % stepMin === 0;
+    // Intraday must sit on the step grid. Hourly bars differ by market (crypto/
+    // forex at :00 UTC, US stocks at :30), so only require a whole-minute bar.
+    return stepMin >= 60 ? true : d.getUTCMinutes() % stepMin === 0;
   });
 }
 

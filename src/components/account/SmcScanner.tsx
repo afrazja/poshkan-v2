@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import ScannerCard from "./ScannerCard";
+import { marketUniverse, symbolLabel } from "@/lib/assets";
 import {
   getSmcData,
   saveSmcSettings,
@@ -9,8 +10,6 @@ import {
   type SmcSignal,
   type SmcStatusItem,
 } from "@/app/dashboard/[accountId]/smc-actions";
-
-const UNIVERSE = ["BTC-USD", "ETH-USD", "SOL-USD"];
 
 const fmtNum = (n: number | null | undefined) =>
   n == null ? "—" : n >= 100 ? n.toFixed(2) : n >= 1 ? n.toFixed(3) : n.toFixed(5);
@@ -25,13 +24,16 @@ const ago = (iso: string | null) => {
 
 export default function SmcScanner({
   accountId,
+  accountType,
   initialSettings,
   initialSignals,
 }: {
   accountId: string;
+  accountType: string;
   initialSettings: SmcSettings | null;
   initialSignals: SmcSignal[];
 }) {
+  const universe = marketUniverse(accountType);
   const [settings, setSettings] = useState<SmcSettings | null>(initialSettings);
   const [signals, setSignals] = useState<SmcSignal[]>(initialSignals);
   const [saving, startSave] = useTransition();
@@ -40,7 +42,7 @@ export default function SmcScanner({
   // Editable form state (defaults mirror the spec).
   const [enabled, setEnabled] = useState(initialSettings?.enabled ?? false);
   const [mode, setMode] = useState<"alert" | "auto">(initialSettings?.mode ?? "alert");
-  const [symbols, setSymbols] = useState<string[]>(initialSettings?.symbols ?? [...UNIVERSE]);
+  const [symbols, setSymbols] = useState<string[]>(initialSettings?.symbols ?? universe);
   const [riskPct, setRiskPct] = useState(((initialSettings?.risk_pct ?? 0.02) * 100).toString());
   const [tpRR, setTpRR] = useState((initialSettings?.tp_rr ?? 2).toString());
   const [slMode, setSlMode] = useState<"swing" | "fvg">(initialSettings?.sl_mode ?? "swing");
@@ -141,7 +143,7 @@ export default function SmcScanner({
         <div>
           <span className="mb-1 block text-xs font-medium text-muted">Watch symbols</span>
           <div className="flex gap-2">
-            {UNIVERSE.map((s) => (
+            {universe.map((s) => (
               <button
                 key={s}
                 onClick={() => toggleSymbol(s)}
@@ -149,7 +151,7 @@ export default function SmcScanner({
                   symbols.includes(s) ? "border-primary bg-primary/10 text-primary" : "border-border"
                 }`}
               >
-                {s.replace("-USD", "")}
+                {symbolLabel(s)}
               </button>
             ))}
           </div>
@@ -200,7 +202,7 @@ export default function SmcScanner({
           {status.map((s: SmcStatusItem) => (
             <div key={s.symbol} className="rounded-lg border border-border bg-background p-2 text-xs">
               <div className="flex items-center justify-between">
-                <span className="font-medium">{s.symbol.replace("-USD", "")}</span>
+                <span className="font-medium">{symbolLabel(s.symbol)}</span>
                 <span className="flex items-center gap-2">
                   <TrendBadge trend={s.trend} />
                   <StatusBadge status={s.status} />
@@ -230,7 +232,7 @@ export default function SmcScanner({
                   <span className={sig.direction === "LONG" ? "text-emerald-500" : "text-rose-500"}>
                     {sig.direction}
                   </span>{" "}
-                  {sig.symbol.replace("-USD", "")} · {fmtNum(sig.entry)} → TP {fmtNum(sig.take_profit)}
+                  {symbolLabel(sig.symbol)} · {fmtNum(sig.entry)} → TP {fmtNum(sig.take_profit)}
                 </span>
                 <span className="flex items-center gap-2 text-muted">
                   {sig.executed ? (

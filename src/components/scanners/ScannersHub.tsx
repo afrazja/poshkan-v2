@@ -6,98 +6,68 @@ import AiScanner, { type AutoSettings } from "@/components/account/AiScanner";
 import SmcScanner from "@/components/account/SmcScanner";
 import type { SmcSettings, SmcSignal } from "@/app/dashboard/[accountId]/smc-actions";
 
-export interface ForexAcct {
+export interface ScanAcct {
   id: string;
   name: string;
+  type: string;
   autoSettings: AutoSettings;
   aiInstruction: string | null;
-}
-export interface CryptoAcct {
-  id: string;
-  name: string;
   smcSettings: SmcSettings | null;
   smcSignals: SmcSignal[];
 }
 
-export default function ScannersHub({
-  forexAccounts,
-  cryptoAccounts,
-}: {
-  forexAccounts: ForexAcct[];
-  cryptoAccounts: CryptoAcct[];
-}) {
+export default function ScannersHub({ accounts }: { accounts: ScanAcct[] }) {
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-xl font-semibold">📡 Scanners</h1>
         <p className="mt-1 text-sm text-muted">
           Automated strategy scanners that watch the market for you — alert you or trade on their own.
-          Configure each strategy on the account it runs on. Free.
+          Both run on any account; pick which account to configure each on. Free.
         </p>
       </div>
 
       <StrategyBlock
-        icon="🤖"
-        title="AI Scanner"
-        market="Forex"
-        emptyMarket="forex"
-        accounts={forexAccounts}
+        accounts={accounts}
         render={(a) => (
           <AiScanner accountId={a.id} autoSettings={a.autoSettings} aiInstruction={a.aiInstruction} />
         )}
       />
 
       <StrategyBlock
-        icon="📈"
-        title="SMC Scanner"
-        market="Crypto"
-        emptyMarket="crypto"
-        accounts={cryptoAccounts}
+        accounts={accounts}
         render={(a) => (
-          <SmcScanner accountId={a.id} initialSettings={a.smcSettings} initialSignals={a.smcSignals} />
+          <SmcScanner
+            accountId={a.id}
+            accountType={a.type}
+            initialSettings={a.smcSettings}
+            initialSignals={a.smcSignals}
+          />
         )}
       />
     </div>
   );
 }
 
-function StrategyBlock<T extends { id: string; name: string }>({
-  icon,
-  title,
-  market,
-  emptyMarket,
+function StrategyBlock({
   accounts,
   render,
 }: {
-  icon: string;
-  title: string;
-  market: string;
-  emptyMarket: string;
-  accounts: T[];
-  render: (account: T) => React.ReactNode;
+  accounts: ScanAcct[];
+  render: (account: ScanAcct) => React.ReactNode;
 }) {
   const [selectedId, setSelectedId] = useState(accounts[0]?.id ?? "");
 
   if (accounts.length === 0) {
     return (
       <div className="rounded-2xl border border-dashed border-border bg-card/50 p-4">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-sm font-semibold">
-            {icon} {title}
-          </span>
-          <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium capitalize text-primary">
-            {market}
-          </span>
-          <span className="rounded-full bg-muted/20 px-2 py-0.5 text-[10px] font-medium text-muted">
-            No account
-          </span>
-        </div>
-        <p className="mt-2 text-xs text-muted">
-          You don&apos;t have a {emptyMarket} account yet. Create one to run the {title}.
+        <p className="text-sm text-muted">
+          You don&apos;t have any accounts yet.{" "}
+          <Link href="/dashboard" className="text-primary hover:underline">
+            Create one
+          </Link>{" "}
+          to run a scanner.
         </p>
-        <Link href="/dashboard" className="mt-2 inline-block text-xs text-primary hover:underline">
-          Go to accounts →
-        </Link>
       </div>
     );
   }
@@ -116,7 +86,7 @@ function StrategyBlock<T extends { id: string; name: string }>({
           >
             {accounts.map((a) => (
               <option key={a.id} value={a.id}>
-                {a.name}
+                {a.name} ({a.type})
               </option>
             ))}
           </select>

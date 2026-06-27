@@ -12,6 +12,17 @@ export const MAJORS = [
   "NZDUSD=X",
 ];
 
+// Symbols the AI scanner analyzes per account market.
+export const AI_UNIVERSE: Record<string, string[]> = {
+  forex: MAJORS,
+  stocks: ["AAPL", "MSFT", "NVDA", "AMZN", "SPY", "GOOGL", "META"],
+  crypto: ["BTC-USD", "ETH-USD", "SOL-USD", "XRP-USD", "ADA-USD"],
+};
+
+export function aiUniverse(type: string | null | undefined): string[] {
+  return AI_UNIVERSE[(type ?? "").toLowerCase()] ?? [];
+}
+
 export interface PairSummary {
   pair: string;
   price: number;
@@ -98,23 +109,25 @@ export async function buildSummary(pair: string): Promise<PairSummary | null> {
 
 const OUTPUT_FORMAT = `Respond with ONLY a JSON object, no prose, no markdown fences:
 {"setup": null}  when nothing qualifies, or
-{"setup": {"pair": "USDJPY=X", "direction": "LONG"|"SHORT", "entryType": "market"|"limit", "entry": number, "stop": number, "takeProfit": number, "rr": number, "rationale": "1-2 sentences"}}
-Use "limit" with an entry price for pullback/breakout entries; "market" to take it now. Prices use the pair's natural precision. Only the major USD pairs present in the data are tradeable.`;
+{"setup": {"pair": "<one symbol exactly as it appears in the data>", "direction": "LONG"|"SHORT", "entryType": "market"|"limit", "entry": number, "stop": number, "takeProfit": number, "rr": number, "rationale": "1-2 sentences"}}
+Use "limit" with an entry price for pullback/breakout entries; "market" to take it now. Prices use the symbol's natural precision. Only the symbols present in the data are tradeable.`;
 
-const SYSTEM = `You are a disciplined professional forex swing trader. You analyze the major USD pairs and pick AT MOST ONE high-conviction trade idea, or none. You are conservative: most hours there is no great setup, and "no trade" is the correct, expected answer. Never force a trade.
+function baseSystem(assetClass: string): string {
+  return `You are a disciplined professional ${assetClass} trader. You analyze the available ${assetClass} symbols and pick AT MOST ONE high-conviction trade idea, or none. You are conservative: most of the time there is no great setup, and "no trade" is the correct, expected answer. Never force a trade.
 
 A setup qualifies ONLY if ALL hold:
-- It is trend-aligned (trade with the daily trend) OR a clean reversal at a well-defined 20-bar support/resistance level.
+- It is trend-aligned (trade with the higher-timeframe trend) OR a clean reversal at a well-defined 20-bar support/resistance level.
 - The stop sits behind real structure (a level/swing), not an arbitrary distance.
 - Reward:risk is at least 2:1 measured from entry to stop vs entry to take-profit.
-- RSI does not contradict the idea (e.g. don't buy a market that is overbought into resistance).
+- RSI does not contradict the idea (e.g. don't buy something already overbought into resistance).
 
 ${OUTPUT_FORMAT}`;
+}
 
 // When the account owner has written their own strategy, follow it — but still
 // enforce the core risk rule so a vague instruction can't produce a reckless trade.
-function customSystem(instruction: string): string {
-  return `You are a forex trading assistant for a paper-trading account. Follow the USER'S STRATEGY below to pick AT MOST ONE setup from the major USD pairs, or none if nothing fits it right now. No matter what the strategy says, ALWAYS require a stop behind real structure and a reward:risk of at least 2:1 — reject anything that doesn't meet that.
+function customSystem(instruction: string, assetClass: string): string {
+  return `You are a ${assetClass} trading assistant for a paper-trading account. Follow the USER'S STRATEGY below to pick AT MOST ONE setup from the available ${assetClass} symbols, or none if nothing fits it right now. No matter what the strategy says, ALWAYS require a stop behind real structure and a reward:risk of at least 2:1 — reject anything that doesn't meet that.
 
 USER'S STRATEGY:
 ${instruction}
@@ -122,13 +135,15 @@ ${instruction}
 ${OUTPUT_FORMAT}`;
 }
 
-/** Ask Claude for the single best setup across the provided pair summaries. */
+/** Ask Claude for the single best setup across the provided symbol summaries. */
 export async function analyzeMarket(
   summaries: PairSummary[],
   instruction?: string | null,
-  apiKey?: string
+  apiKey?: string,
+  market: string = "forex"
 ): Promise<{ setup: Setup | null; error?: string }> {
-  const system = instruction?.trim() ? customSystem(instruction) : SYSTEM;
+  const assetClass = market === "stocks" ? "stock" : market === "crypto" ? "crypto" : "forex";
+  const system = instruction?.trim() ? customSystem(instruction, assetClass) : baseSystem(assetClass);
   let text: string;
   try {
     const { default: Anthropic } = await import("@anthropic-ai/sdk");
