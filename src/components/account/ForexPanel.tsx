@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import type { FxPosition, FxOrder, FxTpLevel, Quote } from "@/lib/types";
+import type { FxPosition, FxOrder, FxTpLevel, Quote, NewsItem } from "@/lib/types";
 import { formatCurrency, formatSignedCurrency, formatPercent, changeColor } from "@/lib/format";
 import {
   FX_PAIRS,
@@ -57,7 +57,9 @@ export default function ForexPanel({
   leverage?: number;
 }) {
   const router = useRouter();
-  const [trade, setTrade] = useState<string | null>(null); // pair symbol
+  const [trade, setTrade] = useState<string | null>(null); // pair to open a position on
+  const [selectedPair, setSelectedPair] = useState<string>(FX_PAIRS[0].symbol);
+  const [detail, setDetail] = useState<string | null>(null); // pair chart/news popup
   const [closing, setClosing] = useState<string | null>(null);
   const [canceling, setCanceling] = useState<string | null>(null);
   const [editSltp, setEditSltp] = useState<FxPosition | null>(null);
@@ -182,7 +184,7 @@ export default function ForexPanel({
               className="w-40 rounded-lg border border-border bg-input px-3 py-1.5 text-sm outline-none focus:border-primary"
             />
             <button
-              onClick={() => setTrade((visiblePairs[0] ?? FX_PAIRS[0]).symbol)}
+              onClick={() => setTrade(selectedPair)}
               className="whitespace-nowrap rounded-lg bg-primary px-3 py-1.5 text-sm font-semibold text-primary-foreground hover:opacity-90"
             >
               + Open position
@@ -195,8 +197,13 @@ export default function ForexPanel({
             return (
               <button
                 key={p.symbol}
-                onClick={() => setTrade(p.symbol)}
-                className="rounded-xl border border-border bg-background p-3 text-left transition hover:border-primary/60"
+                onClick={() => {
+                  setSelectedPair(p.symbol);
+                  setDetail(p.symbol);
+                }}
+                className={`rounded-xl border bg-background p-3 text-left transition hover:border-primary/60 ${
+                  selectedPair === p.symbol ? "border-primary ring-1 ring-primary/30" : "border-border"
+                }`}
               >
                 <div className="font-semibold">{p.name}</div>
                 <div className="mt-1 text-sm">{quote ? formatRate(quote.price, p.symbol) : "…"}</div>
@@ -211,7 +218,8 @@ export default function ForexPanel({
           )}
         </div>
         <p className="mt-2 text-xs text-muted">
-          Tap a pair to go long (buy) or short (sell) with {leverage}:1 leverage.
+          Tap a pair to see its chart &amp; news. Use “+ Open position” to trade the selected pair (
+          {pairName(selectedPair)}) with {leverage}:1 leverage.
           <button
             onClick={() => setShowLeverage(true)}
             className="ml-1 font-medium text-primary hover:underline"
@@ -563,6 +571,18 @@ export default function ForexPanel({
         </section>
       )}
 
+      {detail && (
+        <FxPairDetailModal
+          symbol={detail}
+          quote={quotes[detail.toUpperCase()]}
+          onOpenPosition={() => {
+            setSelectedPair(detail);
+            setTrade(detail);
+            setDetail(null);
+          }}
+          onClose={() => setDetail(null)}
+        />
+      )}
       {trade && (
         <FxTradeModal
           accountId={accountId}
@@ -1371,6 +1391,79 @@ function Row({ label, value, bold }: { label: string; value: string; bold?: bool
     <div className="flex justify-between">
       <span className="text-muted">{label}</span>
       <span className={bold ? "font-semibold" : ""}>{value}</span>
+    </div>
+  );
+}
+
+// Pair detail popup: chart + news. Opening a position is only via its button.
+function FxPairDetailModal({
+  symbol,
+  quote,
+  onOpenPosition,
+  onClose,
+}: {
+  symbol: string;
+  quote?: Quote;
+  onOpenPosition: () => void;
+  onClose: () => void;
+}) {
+  return (
+    <Modal title={pairName(symbol)} onClose={onClose} wide>
+      <div className="space-y-4">
+        <div className="flex items-baseline justify-between">
+          <div className="text-2xl font-bold">{quote ? formatRate(quote.price, symbol) : "…"}</div>
+          <div className={`text-sm ${changeColor(quote?.percentChange ?? 0)}`}>
+            {quote ? formatPercent(quote.percentChange) : ""}
+          </div>
+        </div>
+        <PriceChart symbol={symbol} height={200} />
+        <FxNews symbol={symbol} />
+        <button
+          onClick={onOpenPosition}
+          className="w-full rounded-lg bg-primary py-2.5 text-sm font-semibold text-primary-foreground hover:opacity-90"
+        >
+          + Open position
+        </button>
+      </div>
+    </Modal>
+  );
+}
+
+function FxNews({ symbol }: { symbol: string }) {
+  const [news, setNews] = useState<NewsItem[] | null>(null);
+  useEffect(() => {
+    let active = true;
+    fetch(`/api/news?symbol=${encodeURIComponent(symbol)}`)
+      .then((r) => r.json())
+      .then((j) => active && setNews(j.news ?? []))
+      .catch(() => active && setNews([]));
+    return () => {
+      active = false;
+    };
+  }, [symbol]);
+
+  if (news === null) return <p className="text-xs text-muted">Loading news…</p>;
+  if (news.length === 0) return <p className="text-xs text-muted">No recent news for this pair.</p>;
+  return (
+    <div>
+      <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">News</h4>
+      <div className="space-y-2">
+        {news.slice(0, 5).map((n) => (
+          <a
+            key={n.link}
+            href={n.link}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block rounded-lg border border-border bg-background px-3 py-2 transition hover:border-primary/50"
+          >
+            <div className="text-sm font-medium leading-snug">{n.title}</div>
+            <div className="mt-0.5 text-xs text-muted">
+              {n.publisher}
+              {n.publishedAt ? ` · ${fmtDateTime(n.publishedAt)}` : ""}
+            </div>
+          </a>
+        ))}
+      </div>
     </div>
   );
 }
