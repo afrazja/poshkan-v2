@@ -269,7 +269,7 @@ export default function AccountView({
             All accounts
           </Link>
           <span className="text-muted">/</span>
-          <span className="font-semibold text-foreground">{account.name}</span>
+          <span className="text-base font-bold tracking-tight text-foreground">{account.name}</span>
         </nav>
         <div className="flex gap-2">
           <button
