@@ -37,7 +37,6 @@ export default function AiScanner({
     <ScannerCard
       icon="🤖"
       name="AI Scanner"
-      market="Forex"
       statusLabel={autoSettings.enabled ? "Auto-trading" : "Off"}
       statusTone={autoSettings.enabled ? "on" : "off"}
     >

@@ -102,7 +102,6 @@ export default function SmcScanner({
     <ScannerCard
       icon="📈"
       name="SMC Scanner"
-      market="Crypto"
       statusLabel={statusLabel}
       statusTone={savedEnabled ? "on" : "off"}
     >
