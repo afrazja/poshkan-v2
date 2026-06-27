@@ -24,6 +24,11 @@ export default function ChartView({ symbol }: { symbol: string }) {
 
   return (
     <div className="flex h-screen flex-col">
+      {/* Warm the connection to TradingView's CDN before its script downloads. */}
+      <link rel="preconnect" href="https://s3.tradingview.com" crossOrigin="" />
+      <link rel="preconnect" href="https://s.tradingview.com" crossOrigin="" />
+      <link rel="preconnect" href="https://www.tradingview.com" />
+      <link rel="dns-prefetch" href="https://s3.tradingview.com" />
       <div className="flex items-center justify-between border-b border-border px-4 py-2">
         <span className="text-sm font-semibold">
           {symbol} <span className="font-normal text-muted">· advanced chart</span>
