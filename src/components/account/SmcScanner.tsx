@@ -11,6 +11,7 @@ import {
   getSmcData,
   saveSmcSettings,
   backtestSmcAction,
+  refreshSmcRead,
   type SmcSettings,
   type SmcSignal,
   type SmcStatusItem,
@@ -63,6 +64,27 @@ export default function SmcScanner({
       setBtErr(`Backtest failed: ${(e as Error).message}`);
     } finally {
       setBtLoading(false);
+    }
+  }
+
+  const [scanning, setScanning] = useState(false);
+  async function runScanNow() {
+    setScanning(true);
+    try {
+      const res = await refreshSmcRead(accountId);
+      if (res.error) {
+        alert(res.error);
+        return;
+      }
+      const data = await getSmcData(accountId);
+      if (data) {
+        setSettings(data.settings);
+        setSignals(data.signals);
+      }
+    } catch (e) {
+      alert(`Scan failed: ${(e as Error).message}`);
+    } finally {
+      setScanning(false);
     }
   }
 
@@ -138,6 +160,13 @@ export default function SmcScanner({
         Deterministic H1-trend (BOS) + M5 FVG / liquidity-sweep / confirmation engine. Last run:{" "}
         {ago(settings?.last_run_at ?? null)}.
       </p>
+      <button
+        onClick={runScanNow}
+        disabled={scanning}
+        className="mt-2 rounded-lg border border-border px-2.5 py-1 text-xs font-medium hover:bg-background disabled:opacity-50"
+      >
+        {scanning ? "Scanning…" : "↻ Run scan now"}
+      </button>
 
       {/* Settings */}
       <div className="mt-3 space-y-3 rounded-lg border border-border bg-background p-3">

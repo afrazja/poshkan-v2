@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { marketUniverse, assetTypeError } from "@/lib/assets";
 import { backtestSmc, type BtResult } from "@/lib/smc-backtest";
-import { DEFAULT_PARAMS, type SmcParams } from "@/lib/smc";
+import { DEFAULT_PARAMS, evaluateSymbol, type SmcParams } from "@/lib/smc";
 
 export interface SmcSettings {
   account_id: string;
@@ -85,6 +85,53 @@ export async function backtestSmcAction(input: {
     return { result };
   } catch (e) {
     return { error: `Backtest failed: ${(e as Error).message}` };
+  }
+}
+
+// Manually refresh the live read for this account (no cron / no CRON_SECRET).
+// Evaluates the account's symbols now and persists last_status + last_run_at.
+// Read-only on positions — it never auto-trades; that stays with the cron.
+export async function refreshSmcRead(
+  accountId: string
+): Promise<{ error?: string; status?: SmcStatusItem[] }> {
+  const g = await guard(accountId);
+  if (!g) return { error: "Not allowed." };
+  const { supabase, type } = g;
+
+  const { data: row } = await supabase
+    .from("smc_settings")
+    .select("symbols, tp_rr, sl_mode")
+    .eq("account_id", accountId)
+    .maybeSingle();
+
+  const chosen = (row?.symbols?.length ? row.symbols : marketUniverse(type)) as string[];
+  const watch = chosen.filter((s) => assetTypeError(type, s) === null).slice(0, 8);
+  if (watch.length === 0) return { error: "No valid symbols to scan." };
+
+  const params: SmcParams = {
+    ...DEFAULT_PARAMS,
+    slMode: row?.sl_mode === "fvg" ? "fvg" : "swing",
+    tpRR: Number(row?.tp_rr) || DEFAULT_PARAMS.tpRR,
+  };
+
+  try {
+    const evals = await Promise.all(watch.map((s) => evaluateSymbol(s, params)));
+    const status: SmcStatusItem[] = evals.map((e) => ({
+      symbol: e.symbol,
+      trend: e.trend,
+      price: e.price,
+      status: e.status,
+      reason: e.reason,
+      checks: e.checks,
+    }));
+    await supabase
+      .from("smc_settings")
+      .update({ last_run_at: new Date().toISOString(), last_status: status })
+      .eq("account_id", accountId);
+    revalidatePath(`/dashboard/${accountId}`);
+    return { status };
+  } catch (e) {
+    return { error: `Scan failed: ${(e as Error).message}` };
   }
 }
 
