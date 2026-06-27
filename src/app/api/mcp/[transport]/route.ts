@@ -4,7 +4,7 @@ import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getQuote, getQuotes, searchSymbols, getOhlc } from "@/lib/marketdata";
 import { assetTypeError } from "@/lib/assets";
-import { marginFor, sltpError, floatingPnl, isForexSymbol, pairName } from "@/lib/forex";
+import { marginFor, sltpError, floatingPnl, pairName } from "@/lib/forex";
 import { sma, rsi, trendFromSma, support, resistance } from "@/lib/indicators";
 
 export const maxDuration = 60;
@@ -341,8 +341,8 @@ function buildHandler(userId: string) {
         async ({ account_id, symbol, direction, units, stop_loss, take_profit, auto_close_minutes }) => {
           const account = await ownAccount(account_id);
           if (!account) return err("Account not found");
-          if (account.type !== "forex") return err("This tool is for forex accounts only");
-          if (!isForexSymbol(symbol)) return err("Symbol must be a forex pair, e.g. EURUSD=X");
+          const typeErr = assetTypeError(account.type, symbol);
+          if (typeErr) return err(typeErr);
           let rate: number;
           try {
             rate = (await getQuote(symbol)).price;
@@ -478,8 +478,8 @@ function buildHandler(userId: string) {
         async ({ account_id, symbol, direction, units, entry_rate, stop_loss, take_profit, expires_minutes }) => {
           const account = await ownAccount(account_id);
           if (!account) return err("Account not found");
-          if (account.type !== "forex") return err("This tool is for forex accounts only");
-          if (!isForexSymbol(symbol)) return err("Symbol must be a forex pair, e.g. EURUSD=X");
+          const typeErr = assetTypeError(account.type, symbol);
+          if (typeErr) return err(typeErr);
           let rate: number;
           try {
             rate = (await getQuote(symbol)).price;
