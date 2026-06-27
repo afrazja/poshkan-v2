@@ -92,6 +92,7 @@ export default function LeveragePanel({
                   <span>
                     {Number(p.units).toLocaleString("en-US")} {unit} · {formatCurrency(Number(p.open_rate))} →{" "}
                     {rate ? formatCurrency(rate) : "…"} · margin {formatCurrency(Number(p.margin))}
+                    {p.auto_close_at && <span className="ml-1">· ⏱ {closesIn(p.auto_close_at)}</span>}
                   </span>
                   <button
                     onClick={() => close(p.id)}
@@ -144,6 +145,8 @@ function OpenModal({
   const [qty, setQty] = useState("");
   const [sl, setSl] = useState("");
   const [tp, setTp] = useState("");
+  const [durUnit, setDurUnit] = useState<"off" | "min" | "hour">("off");
+  const [durAmount, setDurAmount] = useState("60");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
@@ -165,6 +168,13 @@ function OpenModal({
   const units = Number(qty) || 0;
   const margin = symbol && price ? marginFor(units, price, leverage, symbol.symbol) : 0;
   const affordable = margin > 0 && margin <= cash;
+  // Optional trade duration → auto-close after this many minutes (null = none).
+  const autoCloseMinutes =
+    durUnit === "off"
+      ? null
+      : (Number(durAmount) || 0) > 0
+        ? Number(durAmount) * (durUnit === "min" ? 1 : 60)
+        : null;
 
   async function submit() {
     setError(null);
@@ -179,6 +189,7 @@ function OpenModal({
       units,
       stopLoss: sl.trim() ? Number(sl) : null,
       takeProfit: tp.trim() ? Number(tp) : null,
+      autoCloseMinutes,
     });
     setLoading(false);
     if (res.error) return setError(res.error);
@@ -268,6 +279,32 @@ function OpenModal({
               </div>
             </div>
 
+            <div>
+              <label className="mb-1 block text-xs font-medium text-muted">Trade duration (optional)</label>
+              <div className="flex gap-1">
+                {durUnit !== "off" && (
+                  <input
+                    type="number"
+                    min="1"
+                    step="1"
+                    value={durAmount}
+                    onChange={(e) => setDurAmount(e.target.value)}
+                    className="w-16 rounded-lg border border-border bg-input px-2 py-2 text-sm outline-none focus:border-primary"
+                  />
+                )}
+                <select
+                  value={durUnit}
+                  onChange={(e) => setDurUnit(e.target.value as typeof durUnit)}
+                  className="flex-1 rounded-lg border border-border bg-input px-2 py-2 text-sm outline-none focus:border-primary"
+                >
+                  <option value="off">No auto-close</option>
+                  <option value="min">Minutes</option>
+                  <option value="hour">Hours</option>
+                </select>
+              </div>
+              <p className="mt-1 text-xs text-muted">Closes the position at market when the timer runs out.</p>
+            </div>
+
             <div className="space-y-1 rounded-lg border border-border bg-background p-3 text-sm">
               <Row label={`Notional`} value={price ? formatCurrency(units * price) : "…"} />
               <Row label={`Margin required (${leverage}:1)`} value={price ? formatCurrency(margin) : "…"} bold />
@@ -289,6 +326,17 @@ function OpenModal({
       </div>
     </Modal>
   );
+}
+
+// "closes in 12m" / "closes in 1h 5m" countdown for a timed auto-close.
+function closesIn(iso: string): string {
+  const ms = new Date(iso).getTime() - Date.now();
+  if (ms <= 0) return "closing…";
+  const mins = Math.round(ms / 60000);
+  if (mins < 60) return `closes in ${mins}m`;
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return `closes in ${h}h${m ? ` ${m}m` : ""}`;
 }
 
 function Row({ label, value, bold }: { label: string; value: string; bold?: boolean }) {
