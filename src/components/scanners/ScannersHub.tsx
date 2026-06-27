@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import AiScanner, { type AutoSettings } from "@/components/account/AiScanner";
 import SmcScanner from "@/components/account/SmcScanner";
+import ScannerOnboard from "@/components/scanners/ScannerOnboard";
 import type { SmcSettings, SmcSignal } from "@/app/dashboard/[accountId]/smc-actions";
 
 export interface ScanAcct {
@@ -17,9 +18,16 @@ export interface ScanAcct {
   smcSignals: SmcSignal[];
 }
 
-export default function ScannersHub({ accounts }: { accounts: ScanAcct[] }) {
+export default function ScannersHub({
+  accounts,
+  onboard = false,
+}: {
+  accounts: ScanAcct[];
+  onboard?: boolean;
+}) {
   return (
     <div className="space-y-6">
+      {onboard && <ScannerOnboard />}
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-xl font-semibold">📡 Scanners</h1>

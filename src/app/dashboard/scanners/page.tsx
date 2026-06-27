@@ -3,7 +3,12 @@ import ScannersHub, { type ScanAcct } from "@/components/scanners/ScannersHub";
 import type { Account } from "@/lib/types";
 import type { SmcSettings, SmcSignal } from "../[accountId]/smc-actions";
 
-export default async function ScannersPage() {
+export default async function ScannersPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ onboard?: string }>;
+}) {
+  const { onboard } = await searchParams;
   const supabase = await createClient();
 
   // RLS scopes this to the signed-in user's own accounts.
@@ -56,5 +61,5 @@ export default async function ScannersPage() {
     smcSignals: smcSignalsBy[a.id] ?? [],
   }));
 
-  return <ScannersHub accounts={scanAccounts} />;
+  return <ScannersHub accounts={scanAccounts} onboard={onboard === "1"} />;
 }

@@ -3,6 +3,7 @@ import { getQuotes } from "@/lib/marketdata";
 import AccountsGrid from "@/components/accounts/AccountsGrid";
 import AlertsCard from "@/components/accounts/AlertsCard";
 import GettingStarted from "@/components/accounts/GettingStarted";
+import WelcomeHero from "@/components/accounts/WelcomeHero";
 import type { Account, Position, Alert, Quote } from "@/lib/types";
 
 export default async function DashboardPage() {
@@ -75,7 +76,7 @@ export default async function DashboardPage() {
           Each account is an independent paper-trading portfolio.
         </p>
       </div>
-      <GettingStarted checks={checks} />
+      {checks.hasAccount ? <GettingStarted checks={checks} /> : <WelcomeHero />}
       <AlertsCard alerts={(alerts ?? []) as Alert[]} />
       <AccountsGrid accounts={(accounts ?? []) as Account[]} summary={summary} />
     </div>
