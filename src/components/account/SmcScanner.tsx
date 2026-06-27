@@ -148,15 +148,25 @@ export default function SmcScanner({
               <button
                 key={m}
                 onClick={() => setMode(m)}
-                className={`flex-1 rounded-lg border px-3 py-2 text-sm ${
+                className={`flex-1 rounded-lg border px-3 py-2 text-left ${
                   mode === m ? "border-primary bg-primary/10 text-primary" : "border-border"
                 }`}
               >
-                {m === "alert" ? "Alert only" : "Auto-trade"}
+                <span className="block text-sm font-medium">
+                  {m === "alert" ? "Alert only" : "Auto-trade"}
+                </span>
+                <span className="block text-[11px] text-muted">
+                  {m === "alert" ? "Notifies you — never trades" : "Opens trades on its own"}
+                </span>
               </button>
             ))}
           </div>
-          {mode === "auto" && (
+          {mode === "alert" ? (
+            <p className="mt-1 text-xs text-muted">
+              ℹ️ <strong>Alert only never opens a position</strong> — it just logs the signal and pushes
+              you a notification. Pick <strong>Auto-trade</strong> if you want it to place trades for you.
+            </p>
+          ) : (
             <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">
               ⚠️ Auto-trade opens real (paper) positions on its own within the risk limits below.
             </p>
