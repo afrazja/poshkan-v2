@@ -63,7 +63,7 @@ export default function PriceChart({ symbol, height = 220 }: { symbol: string; h
 
   return (
     <div className="rounded-lg border border-border bg-background p-3">
-      <div className="mb-2 flex items-center justify-between">
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <span className={`text-xs font-medium ${points.length >= 2 ? changeColor(changePct) : "text-muted"}`}>
             {points.length >= 2 ? `${formatPercent(changePct)} · ${RANGES[rangeIdx].label}` : ""}
@@ -78,7 +78,7 @@ export default function PriceChart({ symbol, height = 220 }: { symbol: string; h
             ↗ Advanced
           </a>
         </div>
-        <div className="flex gap-1">
+        <div className="flex flex-wrap gap-1">
           {RANGES.map((r, i) => (
             <button
               key={r.label}
