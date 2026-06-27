@@ -104,6 +104,12 @@ export default function TopBar({ username, email }: { username: string; email: s
           >
             📓 Journal
           </Link>
+          <Link
+            href="/dashboard/scanners"
+            className="rounded-lg px-2 py-1 text-sm font-medium text-muted transition hover:bg-background hover:text-foreground"
+          >
+            📡 Scanners
+          </Link>
         </div>
 
         {/* Right: settings (left of avatar) + avatar */}
