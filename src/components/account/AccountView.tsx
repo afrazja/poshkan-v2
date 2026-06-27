@@ -46,6 +46,8 @@ export default function AccountView({
   initialFxPositions = [],
   initialFxOrders = [],
   initialFxTpLevels = [],
+  aiActive = false,
+  smcActive = false,
 }: {
   account: Account;
   initialPositions: Position[];
@@ -55,6 +57,8 @@ export default function AccountView({
   initialFxPositions?: FxPosition[];
   initialFxOrders?: FxOrder[];
   initialFxTpLevels?: FxTpLevel[];
+  aiActive?: boolean;
+  smcActive?: boolean;
 }) {
   const router = useRouter();
   const [selected, setSelected] = useState<{ symbol: string; name: string } | null>(null);
@@ -266,6 +270,29 @@ export default function AccountView({
           </button>
         </div>
       </div>
+
+      {/* Active scanners on this account — manage/disable on the Scanners page */}
+      {(aiActive || smcActive) && (
+        <div className="flex flex-wrap items-center gap-2 text-xs">
+          <span className="text-muted">Active scanners</span>
+          {aiActive && (
+            <Link
+              href="/dashboard/scanners"
+              className="rounded-full bg-emerald-500/15 px-2 py-0.5 font-medium text-emerald-600 hover:bg-emerald-500/25 dark:text-emerald-400"
+            >
+              🤖 AI Scanner
+            </Link>
+          )}
+          {smcActive && (
+            <Link
+              href="/dashboard/scanners"
+              className="rounded-full bg-emerald-500/15 px-2 py-0.5 font-medium text-emerald-600 hover:bg-emerald-500/25 dark:text-emerald-400"
+            >
+              📈 SMC Scanner
+            </Link>
+          )}
+        </div>
+      )}
 
       {/* Portfolio summary (always visible) */}
       <div className="rounded-2xl border border-border bg-card p-5">

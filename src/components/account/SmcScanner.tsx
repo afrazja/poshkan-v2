@@ -93,18 +93,9 @@ export default function SmcScanner({
     });
 
   const status = settings?.last_status ?? [];
-  // Header status reflects the SAVED settings (not the in-progress form).
-  const savedEnabled = settings?.enabled ?? false;
-  const savedMode = settings?.mode ?? "alert";
-  const statusLabel = savedEnabled ? (savedMode === "auto" ? "Auto-trading" : "Alerts on") : "Off";
 
   return (
-    <ScannerCard
-      icon="📈"
-      name="SMC Scanner"
-      statusLabel={statusLabel}
-      statusTone={savedEnabled ? "on" : "off"}
-    >
+    <ScannerCard icon="📈" name="SMC Scanner">
       <p className="text-xs text-muted">
         Deterministic H1-trend (BOS) + M5 FVG / liquidity-sweep / confirmation engine. Last run:{" "}
         {ago(settings?.last_run_at ?? null)}.

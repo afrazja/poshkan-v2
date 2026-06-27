@@ -8,15 +8,11 @@ import { useState, type ReactNode } from "react";
 export default function ScannerCard({
   icon,
   name,
-  statusLabel,
-  statusTone,
   defaultOpen = false,
   children,
 }: {
   icon: string;
   name: string;
-  statusLabel: string;
-  statusTone: "on" | "off";
   defaultOpen?: boolean;
   children: ReactNode;
 }) {
@@ -30,15 +26,6 @@ export default function ScannerCard({
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-sm font-semibold">
             {icon} {name}
-          </span>
-          <span
-            className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
-              statusTone === "on"
-                ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
-                : "bg-muted/20 text-muted"
-            }`}
-          >
-            {statusLabel}
           </span>
         </div>
         <span className={`text-lg text-muted transition-transform ${open ? "rotate-90" : ""}`}>›</span>

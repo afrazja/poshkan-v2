@@ -34,12 +34,7 @@ export default function AiScanner({
   aiInstruction?: string | null;
 }) {
   return (
-    <ScannerCard
-      icon="🤖"
-      name="AI Scanner"
-      statusLabel={autoSettings.enabled ? "Auto-trading" : "Off"}
-      statusTone={autoSettings.enabled ? "on" : "off"}
-    >
+    <ScannerCard icon="🤖" name="AI Scanner">
       <AutoSettingsCard accountId={accountId} initial={autoSettings} />
       <div className="my-4 border-t border-border" />
       <AiInstructionCard accountId={accountId} initial={aiInstruction ?? ""} />

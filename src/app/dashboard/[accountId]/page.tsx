@@ -65,6 +65,20 @@ export default async function AccountPage({
     .eq("fx_positions.account_id", accountId)
     .eq("status", "pending");
 
+  // Active-scanner indicators for the account header.
+  const aiActive = !!(account as Account).auto_trade_enabled;
+  let smcActive = false;
+  try {
+    const { data: smc } = await supabase
+      .from("smc_settings")
+      .select("enabled")
+      .eq("account_id", accountId)
+      .maybeSingle();
+    smcActive = !!smc?.enabled;
+  } catch {
+    // smc-scanner.sql not run yet — no SMC indicator.
+  }
+
   return (
     <AccountView
       account={account as Account}
@@ -75,6 +89,8 @@ export default async function AccountPage({
       initialFxPositions={(fxPositions ?? []) as FxPosition[]}
       initialFxOrders={(fxOrders ?? []) as FxOrder[]}
       initialFxTpLevels={(fxTpLevels ?? []) as unknown as FxTpLevel[]}
+      aiActive={aiActive}
+      smcActive={smcActive}
     />
   );
 }
