@@ -48,7 +48,7 @@ export interface SmcEval {
   rr?: number;
 }
 
-interface Swing {
+export interface Swing {
   i: number;
   price: number;
 }
@@ -71,7 +71,7 @@ export function realBars(cs: OhlcCandle[], stepMin: number): OhlcCandle[] {
 
 // Fractal swings: high/low strictly beyond N bars on each side. Confirmed only
 // after N bars close to the right (the loop bound), so it never repaints.
-function swings(c: OhlcCandle[], k: number): { sh: Swing[]; sl: Swing[] } {
+export function swings(c: OhlcCandle[], k: number): { sh: Swing[]; sl: Swing[] } {
   const sh: Swing[] = [];
   const sl: Swing[] = [];
   for (let i = k; i < c.length - k; i++) {
@@ -90,7 +90,7 @@ function swings(c: OhlcCandle[], k: number): { sh: Swing[]; sl: Swing[] } {
 // Trend = direction of the most recent close-based Break of Structure. Flips only
 // on an opposite BOS. Neutral when none, or when the last bull & bear BOS are
 // within 3 bars of each other (whipsaw / chop → stand aside).
-function trendBOS(c: OhlcCandle[], k: number): Trend {
+export function trendBOS(c: OhlcCandle[], k: number): Trend {
   const { sh, sl } = swings(c, k);
   let lastBull = -1;
   let lastBear = -1;
@@ -112,7 +112,7 @@ function trendBOS(c: OhlcCandle[], k: number): Trend {
   return lastBull > lastBear ? "bullish" : "bearish";
 }
 
-function atr(c: OhlcCandle[], n: number): number {
+export function atr(c: OhlcCandle[], n: number): number {
   if (c.length < 2) return 0;
   const trs: number[] = [];
   for (let i = 1; i < c.length; i++) {

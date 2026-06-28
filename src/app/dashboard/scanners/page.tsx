@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import ScannersHub, { type ScanAcct } from "@/components/scanners/ScannersHub";
 import type { Account } from "@/lib/types";
 import type { SmcSettings, SmcSignal } from "../[accountId]/smc-actions";
+import type { OteSettings, OteSignal } from "../[accountId]/ote-actions";
 
 export default async function ScannersPage({
   searchParams,
@@ -43,6 +44,33 @@ export default async function ScannersPage({
     }
   }
 
+  // OTE settings + recent signals (degrades to empty if ote-scanner.sql unrun).
+  const oteSettingsBy: Record<string, OteSettings> = {};
+  const oteSignalsBy: Record<string, OteSignal[]> = {};
+  if (ids.length) {
+    try {
+      const [{ data: settings }, { data: signals }] = await Promise.all([
+        supabase.from("ote_settings").select("*").in("account_id", ids),
+        supabase
+          .from("ote_signals")
+          .select("*")
+          .in("account_id", ids)
+          .order("created_at", { ascending: false })
+          .limit(120),
+      ]);
+      (settings ?? []).forEach((s) => {
+        oteSettingsBy[(s as OteSettings).account_id] = s as OteSettings;
+      });
+      (signals ?? []).forEach((sig) => {
+        const row = sig as OteSignal & { account_id: string };
+        const arr = oteSignalsBy[row.account_id] ?? (oteSignalsBy[row.account_id] = []);
+        if (arr.length < 20) arr.push(row);
+      });
+    } catch {
+      // ote-scanner.sql not run yet — scanners still render, just with no history.
+    }
+  }
+
   const scanAccounts: ScanAcct[] = accounts.map((a) => ({
     id: a.id,
     name: a.name,
@@ -59,6 +87,8 @@ export default async function ScannersPage({
     aiSymbols: a.ai_symbols ?? null,
     smcSettings: smcSettingsBy[a.id] ?? null,
     smcSignals: smcSignalsBy[a.id] ?? [],
+    oteSettings: oteSettingsBy[a.id] ?? null,
+    oteSignals: oteSignalsBy[a.id] ?? [],
   }));
 
   return <ScannersHub accounts={scanAccounts} onboard={onboard === "1"} />;

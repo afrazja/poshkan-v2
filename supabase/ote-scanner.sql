@@ -1,0 +1,55 @@
+-- OTE (Optimal Trade Entry) scanner. Run once in the Supabase SQL editor.
+-- The app degrades gracefully (no scanner) if it hasn't been run.
+
+-- Per-account scanner config. One row per account that has opted in.
+create table if not exists public.ote_settings (
+  account_id     uuid primary key references public.accounts (id) on delete cascade,
+  enabled        boolean       not null default false,
+  mode           text          not null default 'alert' check (mode in ('alert', 'auto')),
+  symbols        text[]        not null default array['BTC-USD','ETH-USD','SOL-USD'],
+  risk_pct       numeric(6, 4) not null default 0.02,   -- 2% of cash per trade
+  min_rr         numeric(4, 2) not null default 2.5,    -- skip setups below this reward:risk
+  max_open       int           not null default 2,
+  max_per_day    int           not null default 5,
+  daily_loss_pct numeric(6, 4) not null default 0.04,   -- halt after -4% realized today
+  last_run_at    timestamptz,
+  last_status    jsonb,                                  -- latest per-symbol read (live feed)
+  updated_at     timestamptz   not null default now()
+);
+
+alter table public.ote_settings enable row level security;
+
+drop policy if exists "owner reads ote_settings" on public.ote_settings;
+create policy "owner reads ote_settings" on public.ote_settings for select
+  using (exists (select 1 from public.accounts a where a.id = account_id and a.user_id = auth.uid()));
+
+drop policy if exists "owner inserts ote_settings" on public.ote_settings;
+create policy "owner inserts ote_settings" on public.ote_settings for insert
+  with check (exists (select 1 from public.accounts a where a.id = account_id and a.user_id = auth.uid()));
+
+drop policy if exists "owner updates ote_settings" on public.ote_settings;
+create policy "owner updates ote_settings" on public.ote_settings for update
+  using (exists (select 1 from public.accounts a where a.id = account_id and a.user_id = auth.uid()));
+
+-- Append-only signal feed: every alert / auto-trade the scanner emits.
+create table if not exists public.ote_signals (
+  id           uuid primary key default gen_random_uuid(),
+  account_id   uuid not null references public.accounts (id) on delete cascade,
+  symbol       text not null,
+  direction    text not null check (direction in ('LONG', 'SHORT')),
+  entry        numeric,
+  stop         numeric,
+  take_profit  numeric,
+  rr           numeric,
+  reason       text,
+  executed     boolean not null default false,   -- true = auto-traded, false = alert only
+  created_at   timestamptz not null default now()
+);
+create index if not exists ote_signals_lookup_idx
+  on public.ote_signals (account_id, symbol, direction, created_at desc);
+
+alter table public.ote_signals enable row level security;
+
+drop policy if exists "owner reads ote_signals" on public.ote_signals;
+create policy "owner reads ote_signals" on public.ote_signals for select
+  using (exists (select 1 from public.accounts a where a.id = account_id and a.user_id = auth.uid()));
