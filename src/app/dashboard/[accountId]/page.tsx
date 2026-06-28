@@ -2,6 +2,9 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import AccountView from "@/components/account/AccountView";
 import { getSmcData } from "./smc-actions";
+import { getOteData } from "./ote-actions";
+import { getTrendData } from "./trend-actions";
+import { getMeanRevData } from "./meanrev-actions";
 import type { Account, Position, WatchlistItem, Transaction, Order, FxPosition, FxOrder, FxTpLevel } from "@/lib/types";
 
 export default async function AccountPage({
@@ -68,7 +71,12 @@ export default async function AccountPage({
 
   // Scanner config for this account (powers the active indicators + their popups).
   const acc = account as Account;
-  const smc = await getSmcData(accountId);
+  const [smc, ote, trend, meanrev] = await Promise.all([
+    getSmcData(accountId),
+    getOteData(accountId),
+    getTrendData(accountId),
+    getMeanRevData(accountId),
+  ]);
   const autoSettings = {
     enabled: !!acc.auto_trade_enabled,
     riskPct: (acc.auto_risk_pct ?? 0.01) * 100,
@@ -92,6 +100,12 @@ export default async function AccountPage({
       aiInstruction={acc.ai_instruction ?? null}
       smcSettings={smc?.settings ?? null}
       smcSignals={smc?.signals ?? []}
+      oteSettings={ote?.settings ?? null}
+      oteSignals={ote?.signals ?? []}
+      trendSettings={trend?.settings ?? null}
+      trendSignals={trend?.signals ?? []}
+      meanrevSettings={meanrev?.settings ?? null}
+      meanrevSignals={meanrev?.signals ?? []}
     />
   );
 }
