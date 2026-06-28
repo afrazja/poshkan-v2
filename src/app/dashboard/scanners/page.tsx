@@ -4,6 +4,7 @@ import type { Account } from "@/lib/types";
 import type { SmcSettings, SmcSignal } from "../[accountId]/smc-actions";
 import type { OteSettings, OteSignal } from "../[accountId]/ote-actions";
 import type { TrendSettings, TrendSignal } from "../[accountId]/trend-actions";
+import type { MeanRevSettings, MeanRevSignal } from "../[accountId]/meanrev-actions";
 
 export default async function ScannersPage({
   searchParams,
@@ -99,6 +100,33 @@ export default async function ScannersPage({
     }
   }
 
+  // Mean-reversion settings + recent signals (degrades if meanrev-scanner.sql unrun).
+  const meanrevSettingsBy: Record<string, MeanRevSettings> = {};
+  const meanrevSignalsBy: Record<string, MeanRevSignal[]> = {};
+  if (ids.length) {
+    try {
+      const [{ data: settings }, { data: signals }] = await Promise.all([
+        supabase.from("meanrev_settings").select("*").in("account_id", ids),
+        supabase
+          .from("meanrev_signals")
+          .select("*")
+          .in("account_id", ids)
+          .order("created_at", { ascending: false })
+          .limit(120),
+      ]);
+      (settings ?? []).forEach((s) => {
+        meanrevSettingsBy[(s as MeanRevSettings).account_id] = s as MeanRevSettings;
+      });
+      (signals ?? []).forEach((sig) => {
+        const row = sig as MeanRevSignal & { account_id: string };
+        const arr = meanrevSignalsBy[row.account_id] ?? (meanrevSignalsBy[row.account_id] = []);
+        if (arr.length < 20) arr.push(row);
+      });
+    } catch {
+      // meanrev-scanner.sql not run yet — scanners still render, just with no history.
+    }
+  }
+
   const scanAccounts: ScanAcct[] = accounts.map((a) => ({
     id: a.id,
     name: a.name,
@@ -119,6 +147,8 @@ export default async function ScannersPage({
     oteSignals: oteSignalsBy[a.id] ?? [],
     trendSettings: trendSettingsBy[a.id] ?? null,
     trendSignals: trendSignalsBy[a.id] ?? [],
+    meanrevSettings: meanrevSettingsBy[a.id] ?? null,
+    meanrevSignals: meanrevSignalsBy[a.id] ?? [],
   }));
 
   return <ScannersHub accounts={scanAccounts} onboard={onboard === "1"} />;
