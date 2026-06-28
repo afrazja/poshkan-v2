@@ -16,6 +16,10 @@ export interface MeanRevParams {
   trendMa: number; // only fade WITH the longer trend; 0 disables the filter
   atrPeriod: number;
   slAtrMult: number; // stop = this × ATR beyond entry
+  rsiConfirm: boolean; // also require an RSI extreme (Connors RSI-2 quality filter)
+  rsiPeriod: number; // RSI lookback (2 = Connors)
+  rsiOversold: number; // long needs RSI ≤ this
+  rsiOverbought: number; // short needs RSI ≥ this
 }
 
 export const MEANREV_DEFAULTS: MeanRevParams = {
@@ -24,6 +28,10 @@ export const MEANREV_DEFAULTS: MeanRevParams = {
   trendMa: 100,
   atrPeriod: 14,
   slAtrMult: 1.5,
+  rsiConfirm: false,
+  rsiPeriod: 2,
+  rsiOversold: 10,
+  rsiOverbought: 90,
 };
 
 export type MeanRevStatus = "signal" | "no-setup" | "neutral" | "no-data";
@@ -55,6 +63,27 @@ function bands(c: OhlcCandle[], end: number, period: number, k: number) {
 function sma(c: OhlcCandle[], n: number): number {
   const last = c.slice(-n);
   return last.reduce((a, b) => a + b.close, 0) / (last.length || 1);
+}
+
+// Wilder RSI over the series, returned at the last bar.
+function rsi(c: OhlcCandle[], n: number): number {
+  if (c.length < n + 1) return 50;
+  let gain = 0;
+  let loss = 0;
+  for (let i = 1; i <= n; i++) {
+    const ch = c[i].close - c[i - 1].close;
+    if (ch >= 0) gain += ch;
+    else loss -= ch;
+  }
+  gain /= n;
+  loss /= n;
+  for (let i = n + 1; i < c.length; i++) {
+    const ch = c[i].close - c[i - 1].close;
+    gain = (gain * (n - 1) + (ch > 0 ? ch : 0)) / n;
+    loss = (loss * (n - 1) + (ch < 0 ? -ch : 0)) / n;
+  }
+  if (loss === 0) return 100;
+  return 100 - 100 / (1 + gain / loss);
 }
 
 export async function evaluateMeanRevSymbol(
@@ -125,6 +154,23 @@ export function evaluateMeanRevAt(
     };
   }
 
+  // Optional Connors RSI-2 quality filter: only fade when momentum is also extreme.
+  let rsiNote = "";
+  if (params.rsiConfirm) {
+    const r = rsi(c, params.rsiPeriod);
+    const rsiOk =
+      direction === "LONG" ? r <= params.rsiOversold : r >= params.rsiOverbought;
+    if (!rsiOk) {
+      return {
+        ...base,
+        status: "no-setup",
+        reason: `${direction} stretch beyond the band, but RSI(${params.rsiPeriod}) is ${r.toFixed(0)} — not ${direction === "LONG" ? "oversold" : "overbought"} enough (waiting for momentum confirmation)`,
+        checks: { band: true, trend: true },
+      };
+    }
+    rsiNote = ` + RSI(${params.rsiPeriod}) ${r.toFixed(0)}`;
+  }
+
   const isLong = direction === "LONG";
   const entry = last.close;
   const stop = isLong ? entry - params.slAtrMult * a : entry + params.slAtrMult * a;
@@ -144,7 +190,7 @@ export function evaluateMeanRevAt(
     trend,
     price: entry,
     status: "signal",
-    reason: `${direction}: fresh close ${isLong ? "below" : "above"} the band — fade back to the mean (${rr.toFixed(2)}R)`,
+    reason: `${direction}: fresh close ${isLong ? "below" : "above"} the band${rsiNote} — fade back to the mean (${rr.toFixed(2)}R)`,
     checks: { band: true, trend: true },
     direction,
     entry,

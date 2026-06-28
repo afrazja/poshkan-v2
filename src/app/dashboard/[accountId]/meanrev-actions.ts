@@ -15,6 +15,7 @@ export interface MeanRevSettings {
   bb_period: number;
   bb_k: number;
   trend_ma: number;
+  rsi_confirm: boolean;
   max_open: number;
   max_per_day: number;
   daily_loss_pct: number;
@@ -55,12 +56,13 @@ async function guard(accountId: string) {
   return { supabase, type: (account.type as string) ?? "" };
 }
 
-function paramsFrom(bbPeriod?: number, bbK?: number, trendMa?: number): MeanRevParams {
+function paramsFrom(bbPeriod?: number, bbK?: number, trendMa?: number, rsiConfirm?: boolean): MeanRevParams {
   return {
     ...MEANREV_DEFAULTS,
     bbPeriod: Math.min(100, Math.max(5, Math.round(Number(bbPeriod) || MEANREV_DEFAULTS.bbPeriod))),
     bbK: Math.min(4, Math.max(1, Number(bbK) || MEANREV_DEFAULTS.bbK)),
     trendMa: Math.min(400, Math.max(0, Math.round(Number(trendMa) ?? MEANREV_DEFAULTS.trendMa))),
+    rsiConfirm: !!rsiConfirm,
   };
 }
 
@@ -70,6 +72,7 @@ export async function backtestMeanRevAction(input: {
   bbPeriod?: number;
   bbK?: number;
   trendMa?: number;
+  rsiConfirm?: boolean;
 }): Promise<{ result?: MeanRevBtResult; error?: string }> {
   const g = await guard(input.accountId);
   if (!g) return { error: "Not authorized" };
@@ -80,7 +83,10 @@ export async function backtestMeanRevAction(input: {
     .slice(0, 8);
   if (symbols.length === 0) return { error: "Pick at least one valid symbol to backtest." };
   try {
-    const result = await backtestMeanRev(symbols, paramsFrom(input.bbPeriod, input.bbK, input.trendMa));
+    const result = await backtestMeanRev(
+      symbols,
+      paramsFrom(input.bbPeriod, input.bbK, input.trendMa, input.rsiConfirm)
+    );
     return { result };
   } catch (e) {
     return { error: `Backtest failed: ${(e as Error).message}` };
@@ -96,7 +102,7 @@ export async function refreshMeanRevRead(
 
   const { data: row } = await supabase
     .from("meanrev_settings")
-    .select("symbols, bb_period, bb_k, trend_ma")
+    .select("symbols, bb_period, bb_k, trend_ma, rsi_confirm")
     .eq("account_id", accountId)
     .maybeSingle();
 
@@ -104,7 +110,7 @@ export async function refreshMeanRevRead(
   const watch = chosen.filter((s) => assetTypeError(type, s) === null).slice(0, 8);
   if (watch.length === 0) return { error: "No valid symbols to scan." };
 
-  const params = paramsFrom(row?.bb_period, row?.bb_k, row?.trend_ma);
+  const params = paramsFrom(row?.bb_period, row?.bb_k, row?.trend_ma, row?.rsi_confirm);
   try {
     const evals = await Promise.all(watch.map((s) => evaluateMeanRevSymbol(s, params)));
     const status: MeanRevStatusItem[] = evals.map((e) => ({
@@ -160,6 +166,7 @@ export interface SaveMeanRevInput {
   bbPeriod: number;
   bbK: number;
   trendMa: number;
+  rsiConfirm: boolean;
   maxOpen: number;
   maxPerDay: number;
   dailyLossPct: number;
@@ -185,6 +192,7 @@ export async function saveMeanRevSettings(input: SaveMeanRevInput): Promise<{ er
       bb_period: Math.min(100, Math.max(5, Math.round(input.bbPeriod))),
       bb_k: Math.min(4, Math.max(1, input.bbK)),
       trend_ma: Math.min(400, Math.max(0, Math.round(input.trendMa))),
+      rsi_confirm: !!input.rsiConfirm,
       max_open: Math.min(5, Math.max(1, Math.round(input.maxOpen))),
       max_per_day: Math.min(20, Math.max(1, Math.round(input.maxPerDay))),
       daily_loss_pct: Math.min(0.2, Math.max(0.01, input.dailyLossPct)),

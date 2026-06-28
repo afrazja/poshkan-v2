@@ -19,6 +19,7 @@ interface MeanRevRow {
   bb_period: number;
   bb_k: number;
   trend_ma: number;
+  rsi_confirm: boolean;
   max_open: number;
   max_per_day: number;
   daily_loss_pct: number;
@@ -60,7 +61,7 @@ export async function GET(request: Request) {
 
   const evalCache = new Map<string, MeanRevEval>();
   const evalFor = async (symbol: string, p: MeanRevParams): Promise<MeanRevEval> => {
-    const ckey = `${symbol}|${p.bbPeriod}|${p.bbK}|${p.trendMa}`;
+    const ckey = `${symbol}|${p.bbPeriod}|${p.bbK}|${p.trendMa}|${p.rsiConfirm ? 1 : 0}`;
     const hit = evalCache.get(ckey);
     if (hit) return hit;
     const res = await evaluateMeanRevSymbol(symbol, p);
@@ -84,6 +85,7 @@ export async function GET(request: Request) {
       bbPeriod: Math.min(100, Math.max(5, Math.round(Number(s.bb_period) || MEANREV_DEFAULTS.bbPeriod))),
       bbK: Math.min(4, Math.max(1, Number(s.bb_k) || MEANREV_DEFAULTS.bbK)),
       trendMa: Math.min(400, Math.max(0, Math.round(Number(s.trend_ma) ?? MEANREV_DEFAULTS.trendMa))),
+      rsiConfirm: !!s.rsi_confirm,
     };
     const universe = marketUniverse(acc.type);
     const chosen = s.symbols && s.symbols.length ? s.symbols : universe;

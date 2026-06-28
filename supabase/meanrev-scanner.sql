@@ -10,6 +10,7 @@ create table if not exists public.meanrev_settings (
   bb_period      int           not null default 20,     -- Bollinger length
   bb_k           numeric(4, 2) not null default 2,       -- band width (× stdev)
   trend_ma       int           not null default 100,    -- trend filter MA; 0 = off
+  rsi_confirm    boolean       not null default false,  -- also require an RSI(2) extreme
   max_open       int           not null default 2,
   max_per_day    int           not null default 5,
   daily_loss_pct numeric(6, 4) not null default 0.04,   -- halt after -4% realized today
@@ -17,6 +18,9 @@ create table if not exists public.meanrev_settings (
   last_status    jsonb,                                  -- latest per-symbol read (live feed)
   updated_at     timestamptz   not null default now()
 );
+
+-- If you already ran an earlier version of this file, add the new column:
+alter table public.meanrev_settings add column if not exists rsi_confirm boolean not null default false;
 
 alter table public.meanrev_settings enable row level security;
 

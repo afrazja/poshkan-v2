@@ -61,6 +61,7 @@ export default function MeanRevScanner({
   const [bbPeriod, setBbPeriod] = useState((initialSettings?.bb_period ?? 20).toString());
   const [bbK, setBbK] = useState((initialSettings?.bb_k ?? 2).toString());
   const [trendMa, setTrendMa] = useState((initialSettings?.trend_ma ?? 100).toString());
+  const [rsiConfirm, setRsiConfirm] = useState(initialSettings?.rsi_confirm ?? false);
   const [maxOpen, setMaxOpen] = useState((initialSettings?.max_open ?? 2).toString());
   const [maxPerDay, setMaxPerDay] = useState((initialSettings?.max_per_day ?? 5).toString());
   const [dailyLoss, setDailyLoss] = useState(((initialSettings?.daily_loss_pct ?? 0.04) * 100).toString());
@@ -95,6 +96,7 @@ export default function MeanRevScanner({
         bbPeriod: Number(bbPeriod),
         bbK: Number(bbK),
         trendMa: Number(trendMa),
+        rsiConfirm,
       });
       if (res.error) setBtErr(res.error);
       else setBt(res.result ?? null);
@@ -136,6 +138,7 @@ export default function MeanRevScanner({
         bbPeriod: Number(bbPeriod),
         bbK: Number(bbK),
         trendMa: Number(trendMa),
+        rsiConfirm,
         maxOpen: Number(maxOpen),
         maxPerDay: Number(maxPerDay),
         dailyLossPct: Number(dailyLoss) / 100,
@@ -294,6 +297,22 @@ export default function MeanRevScanner({
           <Field label="Max trades / day" value={maxPerDay} onChange={setMaxPerDay} />
           <Field label="Daily loss limit (%)" value={dailyLoss} onChange={setDailyLoss} />
         </div>
+
+        <label className="flex items-start gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={rsiConfirm}
+            onChange={(e) => setRsiConfirm(e.target.checked)}
+            className="mt-0.5"
+          />
+          <span>
+            Require RSI confirmation
+            <span className="block text-[11px] text-muted">
+              Only fade the band when RSI(2) is also extreme (≤10 oversold for longs, ≥90 overbought for
+              shorts) — the Connors RSI-2 filter. Fewer, higher-quality signals.
+            </span>
+          </span>
+        </label>
 
         <button
           onClick={save}
