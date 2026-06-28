@@ -5,9 +5,11 @@ import Link from "next/link";
 import AiScanner, { type AutoSettings } from "@/components/account/AiScanner";
 import SmcScanner from "@/components/account/SmcScanner";
 import OteScanner from "@/components/account/OteScanner";
+import TrendScanner from "@/components/account/TrendScanner";
 import ScannerOnboard from "@/components/scanners/ScannerOnboard";
 import type { SmcSettings, SmcSignal } from "@/app/dashboard/[accountId]/smc-actions";
 import type { OteSettings, OteSignal } from "@/app/dashboard/[accountId]/ote-actions";
+import type { TrendSettings, TrendSignal } from "@/app/dashboard/[accountId]/trend-actions";
 
 export interface ScanAcct {
   id: string;
@@ -20,6 +22,8 @@ export interface ScanAcct {
   smcSignals: SmcSignal[];
   oteSettings: OteSettings | null;
   oteSignals: OteSignal[];
+  trendSettings: TrendSettings | null;
+  trendSignals: TrendSignal[];
 }
 
 export default function ScannersHub({
@@ -81,6 +85,18 @@ export default function ScannersHub({
             accountType={a.type}
             initialSettings={a.oteSettings}
             initialSignals={a.oteSignals}
+          />
+        )}
+      />
+
+      <StrategyBlock
+        accounts={accounts}
+        render={(a) => (
+          <TrendScanner
+            accountId={a.id}
+            accountType={a.type}
+            initialSettings={a.trendSettings}
+            initialSignals={a.trendSignals}
           />
         )}
       />
