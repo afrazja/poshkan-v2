@@ -8,6 +8,7 @@ import {
   setAiSymbolsAction,
 } from "@/app/dashboard/[accountId]/actions";
 import ScannerCard from "./ScannerCard";
+import ScannerInfo from "./ScannerInfo";
 import SymbolSearch from "@/components/SymbolSearch";
 import { marketUniverse, symbolLabel, assetTypeError } from "@/lib/assets";
 import { FX_PAIRS } from "@/lib/forex";
@@ -48,6 +49,19 @@ export default function AiScanner({
 }) {
   return (
     <ScannerCard icon="🤖" name="AI Scanner" defaultOpen={defaultOpen}>
+      <ScannerInfo
+        whatItIs="A discretionary scanner powered by Claude — instead of a fixed formula, it reads the market and your plain-English instructions to decide trades. The flexible one."
+        bestWhen="When you want judgement and nuance, or to encode your own rules in plain words rather than rigid parameters."
+        how={[
+          "You write a strategy in plain English (or leave it to the built-in one).",
+          "On each run, Claude analyses your chosen symbols and the recent price action.",
+          "It proposes trades with an entry, stop and target and a rationale.",
+          "It alerts you, or auto-trades within the risk limits you set below.",
+        ]}
+        reading="It needs your own Anthropic API key (set in the top-bar menu). 'Recent signals' shows what it proposed and whether it was traded."
+        judge="Unlike the others it isn't backtestable (the model isn't deterministic) — judge it by its live signals and your own review."
+      />
+      <div className="my-4 border-t border-border" />
       <AutoSettingsCard accountId={accountId} initial={autoSettings} />
       <div className="my-4 border-t border-border" />
       <AiSymbolsCard accountId={accountId} accountType={accountType} initial={aiSymbols ?? []} />

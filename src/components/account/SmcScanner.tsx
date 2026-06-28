@@ -3,6 +3,7 @@
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import ScannerCard from "./ScannerCard";
+import ScannerInfo from "./ScannerInfo";
 import SymbolSearch from "@/components/SymbolSearch";
 import { marketUniverse, symbolLabel, assetTypeError } from "@/lib/assets";
 import { FX_PAIRS } from "@/lib/forex";
@@ -160,6 +161,18 @@ export default function SmcScanner({
         Deterministic H1-trend (BOS) + M5 FVG / liquidity-sweep / confirmation engine. Last run:{" "}
         {ago(settings?.last_run_at ?? null)}.
       </p>
+      <ScannerInfo
+        whatItIs="A 'Smart Money Concepts' scanner — it trades the way big institutional desks are said to: wait for a trend, a price gap left behind by a fast move, and a stop-hunt, then enter on confirmation."
+        bestWhen="Trending intraday crypto/FX majors with clean structure."
+        how={[
+          "Reads the 1-hour trend (a break of market structure).",
+          "Finds a fair-value gap (FVG) — an imbalance price tends to return to.",
+          "Waits for a liquidity sweep — a stop-hunt past a recent swing high/low.",
+          "Enters when a confirmation candle closes back inside the gap. Stop sits beyond the swing; target is a fixed reward:risk.",
+        ]}
+        reading="Each symbol shows retest → sweep → confirm. 'waiting' = partway there; 'signal' = all three lined up; 'neutral'/'no-setup' = stand aside."
+        judge="It's selective (few, higher-quality trades). Use the backtest's net R and profit factor, not raw signal count."
+      />
       <button
         onClick={runScanNow}
         disabled={scanning}

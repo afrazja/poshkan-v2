@@ -3,6 +3,7 @@
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import ScannerCard from "./ScannerCard";
+import ScannerInfo from "./ScannerInfo";
 import SymbolSearch from "@/components/SymbolSearch";
 import { marketUniverse, symbolLabel, assetTypeError } from "@/lib/assets";
 import { FX_PAIRS } from "@/lib/forex";
@@ -156,6 +157,18 @@ export default function TrendScanner({
         direction of the trend MA, with an ATR stop. Rides trends (the complement to SMC/OTE). Last run:{" "}
         {ago(settings?.last_run_at ?? null)}.
       </p>
+      <ScannerInfo
+        whatItIs="A classic Donchian/'Turtle' breakout — it buys new highs (or sells new lows) to ride sustained trends. The opposite edge to the structure scanners: it chases momentum instead of fading it."
+        bestWhen="Strong, trending markets that keep making new highs or lows."
+        how={[
+          "On 1-hour bars, tracks the highest high / lowest low of the last N bars (the 'breakout length').",
+          "Enters on a fresh break of that level (only the bar that crosses out, so it doesn't re-fire).",
+          "…but only in the direction of the longer trend moving average.",
+          "Stop is a multiple of ATR; target is a fixed reward:risk (e.g. 3R).",
+        ]}
+        reading="'signal' = a fresh breakout aligned with the trend. 'no-setup' = price is still inside the range."
+        judge="Breakouts have LOWER win rates but bigger winners — judge by net R / profit factor, NOT win rate."
+      />
       <button
         onClick={runScanNow}
         disabled={scanning}

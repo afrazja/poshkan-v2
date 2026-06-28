@@ -3,6 +3,7 @@
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import ScannerCard from "./ScannerCard";
+import ScannerInfo from "./ScannerInfo";
 import SymbolSearch from "@/components/SymbolSearch";
 import { marketUniverse, symbolLabel, assetTypeError } from "@/lib/assets";
 import { FX_PAIRS } from "@/lib/forex";
@@ -164,6 +165,18 @@ export default function MeanRevScanner({
         (the middle band is the target), with an ATR stop, optionally only with the longer trend. Profits
         in ranges (the complement to the trend/structure scanners). Last run: {ago(settings?.last_run_at ?? null)}.
       </p>
+      <ScannerInfo
+        whatItIs="A Bollinger-Band 'bounce' — it fades over-stretched prices back toward the average. When something spikes too far too fast, it bets on a snap-back to the mean."
+        bestWhen="Range-bound, choppy markets — the exact opposite of when Trend Breakout shines."
+        how={[
+          "On 1-hour bars, draws Bollinger bands (a moving average ± volatility).",
+          "When price closes beyond a band (over-stretched)…",
+          "…it enters the other way, targeting the middle band (the mean).",
+          "Stop is a multiple of ATR. By default it only fades WITH the bigger trend — set Trend MA to 0 to fade both ways.",
+        ]}
+        reading="'signal' = a fresh stretch beyond the band. Otherwise price is sitting inside the bands (no edge)."
+        judge="Mean-reversion wins OFTEN but small — judge by win rate AND profit factor together."
+      />
       <button
         onClick={runScanNow}
         disabled={scanning}

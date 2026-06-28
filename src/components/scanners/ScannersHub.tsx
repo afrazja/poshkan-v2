@@ -44,8 +44,10 @@ export default function ScannersHub({
         <div>
           <h1 className="text-xl font-semibold">📡 Scanners</h1>
           <p className="mt-1 text-sm text-muted">
-            Automated strategy scanners that watch the market for you — alert you or trade on their own.
-            Both run on any account; pick which account to configure each on. Free.
+            Automated strategy scanners that watch the market for you 24/7 — they alert you, or trade on
+            their own within the risk limits you set. Each uses a different <em>edge</em> (trend-following,
+            mean-reversion, smart-money structure, or AI judgement), so they shine in different market
+            conditions. Open any card and tap <strong>“How it works”</strong> to learn what it does. Free.
           </p>
         </div>
         <Link

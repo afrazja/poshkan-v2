@@ -3,6 +3,7 @@
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import ScannerCard from "./ScannerCard";
+import ScannerInfo from "./ScannerInfo";
 import SymbolSearch from "@/components/SymbolSearch";
 import { marketUniverse, symbolLabel, assetTypeError } from "@/lib/assets";
 import { FX_PAIRS } from "@/lib/forex";
@@ -156,6 +157,18 @@ export default function OteScanner({
         Optimal Trade Entry — H1 trend (BOS) + a Fibonacci 62–79% zone of the last external leg, then an
         M15 liquidity sweep + confirmation close. Last run: {ago(settings?.last_run_at ?? null)}.
       </p>
+      <ScannerInfo
+        whatItIs="'Optimal Trade Entry' — an ICT-style pullback strategy that enters into the 62–79% Fibonacci 'sweet spot' of a move, right after a stop-hunt, aiming for a big reward:risk."
+        bestWhen="Trending markets that pull back before continuing."
+        how={[
+          "Reads the 1-hour trend and draws a Fibonacci of the last leg.",
+          "Waits for price to retrace into the 62–79% OTE zone.",
+          "On the 15-min chart, a swing inside the zone gets swept (a stop-hunt).",
+          "Enters on a confirmation close past the trigger candle. Stop beyond the sweep; target the prior swing — only if it clears your minimum reward:risk.",
+        ]}
+        reading="Each symbol shows zone → sweep → confirm. 'signal' = all three plus a good R; otherwise it's still waiting or out of the zone."
+        judge="Selective by design. Use net R and profit factor over the ~8-week backtest."
+      />
       <button
         onClick={runScanNow}
         disabled={scanning}
