@@ -164,7 +164,7 @@ export default function CandleRangeScanner({
   return (
     <ScannerCard icon="📦" name="Candle Range" defaultOpen={defaultOpen}>
       <p className="text-xs text-muted">
-        Range / box trading on 1-hour bars — finds a sideways range price has been bouncing inside, then
+        Range / box trading on 15-minute bars — finds a sideways range price has been bouncing inside, then
         buys near the support edge and sells near the resistance edge, targeting the opposite side with a
         stop just beyond. Profits in choppy, range-bound markets. Last run: {ago(settings?.last_run_at ?? null)}.
       </p>
@@ -172,7 +172,7 @@ export default function CandleRangeScanner({
         whatItIs="A range (box) trader — when price keeps bouncing between a floor (support) and ceiling (resistance), it buys the floor and sells the ceiling."
         bestWhen="Sideways, range-bound markets with no clear trend (the opposite of breakout conditions)."
         how={[
-          "On 1-hour bars, marks the recent range high (resistance) and low (support).",
+          "On 15-minute bars, marks the recent range high (resistance) and low (support).",
           "Confirms it's a real range — price has touched both edges a few times (not trending).",
           "Near the lower edge with a bullish candle → LONG; near the upper edge with a bearish candle → SHORT.",
           "Target is the opposite edge; stop sits just beyond the edge you entered at. Skips when price breaks out of the box.",
@@ -336,7 +336,7 @@ export default function CandleRangeScanner({
           </button>
         </div>
         <p className="mt-1 text-[11px] text-muted">
-          Replays this exact strategy on ~1 year of 1-hour data for your watched symbols. R = risk
+          Replays this exact strategy on the last ~60 days of 15-minute data for your watched symbols. R = risk
           multiple (a win banks the setup&apos;s reward:risk, which varies; a loss is −1R).
         </p>
         {btErr && <p className="mt-2 text-xs text-negative">{btErr}</p>}

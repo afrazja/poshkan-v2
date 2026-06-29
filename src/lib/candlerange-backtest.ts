@@ -44,7 +44,7 @@ export interface CandleRangeBtResult {
 }
 
 async function backtestSymbol(symbol: string, params: CandleRangeParams): Promise<CandleRangeBtSymbol> {
-  const c = realBars(await getOhlc(symbol, "1h", 12000, 365), 60);
+  const c = realBars(await getOhlc(symbol, "15min", 12000, 60), 15);
   const trades: CandleRangeTrade[] = [];
 
   let i = LOOKBACK;

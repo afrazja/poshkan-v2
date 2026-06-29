@@ -46,13 +46,13 @@ export interface OteBtResult {
 }
 
 async function backtestSymbol(symbol: string, params: OteParams): Promise<OteBtSymbol> {
-  // Deepest window Yahoo allows: ~180d of 1h trend, ~58d of 15-min entries.
+  // Deepest window Yahoo allows for intraday: ~58d of 15-min trend / 5-min entries.
   const [h1raw, m15raw] = await Promise.all([
-    getOhlc(symbol, "1h", 5000, 180),
     getOhlc(symbol, "15min", 8000, 58),
+    getOhlc(symbol, "5min", 8000, 58),
   ]);
-  const h1 = realBars(h1raw, 60);
-  const m15 = realBars(m15raw, 15);
+  const h1 = realBars(h1raw, 15);
+  const m15 = realBars(m15raw, 5);
   const trades: OteTrade[] = [];
   const h1Time = h1.map((c) => new Date(c.datetime).getTime());
 

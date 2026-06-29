@@ -154,16 +154,16 @@ export default function OteScanner({
   return (
     <ScannerCard icon="🎯" name="OTE Scanner" defaultOpen={defaultOpen}>
       <p className="text-xs text-muted">
-        Optimal Trade Entry — H1 trend (BOS) + a Fibonacci 62–79% zone of the last external leg, then an
-        M15 liquidity sweep + confirmation close. Last run: {ago(settings?.last_run_at ?? null)}.
+        Optimal Trade Entry — 15-min trend (BOS) + a Fibonacci 62–79% zone of the last external leg, then a
+        5-min liquidity sweep + confirmation close. Last run: {ago(settings?.last_run_at ?? null)}.
       </p>
       <ScannerInfo
         whatItIs="'Optimal Trade Entry' — an ICT-style pullback strategy that enters into the 62–79% Fibonacci 'sweet spot' of a move, right after a stop-hunt, aiming for a big reward:risk."
         bestWhen="Trending markets that pull back before continuing."
         how={[
-          "Reads the 1-hour trend and draws a Fibonacci of the last leg.",
+          "Reads the 15-minute trend and draws a Fibonacci of the last leg.",
           "Waits for price to retrace into the 62–79% OTE zone.",
-          "On the 15-min chart, a swing inside the zone gets swept (a stop-hunt).",
+          "On the 5-min chart, a swing inside the zone gets swept (a stop-hunt).",
           "Enters on a confirmation close past the trigger candle. Stop beyond the sweep; target the prior swing — only if it clears your minimum reward:risk.",
         ]}
         reading="Each symbol shows zone → sweep → confirm. 'signal' = all three plus a good R; otherwise it's still waiting or out of the zone."
@@ -311,7 +311,7 @@ export default function OteScanner({
           </button>
         </div>
         <p className="mt-1 text-[11px] text-muted">
-          Replays this exact strategy on the last ~8 weeks of 15-min data for your watched symbols. R =
+          Replays this exact strategy on the last ~8 weeks of 5-min data for your watched symbols. R =
           risk multiple (a win banks the setup&apos;s reward:risk, which varies; a loss is −1R).
         </p>
         {btErr && <p className="mt-2 text-xs text-negative">{btErr}</p>}

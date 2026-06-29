@@ -3,7 +3,7 @@ import { getOhlc, getQuote, type OhlcCandle } from "./marketdata";
 import { realBars, atr, type Trend } from "./smc";
 
 // ─────────────────────────────────────────────────────────────────────────────
-// CANDLE RANGE (box) trading — deterministic, single timeframe (1h).
+// CANDLE RANGE (box) trading — deterministic, single timeframe (15-minute).
 //   Find a horizontal range (support/resistance) that price has oscillated inside,
 //   then trade the bounce: LONG near the lower edge, SHORT near the upper edge,
 //   TARGET the opposite edge, stop just beyond the entry edge. Profits in sideways
@@ -51,13 +51,13 @@ export async function evaluateCandleRangeSymbol(
   symbol: string,
   params: CandleRangeParams = CANDLERANGE_DEFAULTS
 ): Promise<CandleRangeEval> {
-  const [raw, quote] = await Promise.all([getOhlc(symbol, "1h", 250), getQuote(symbol).catch(() => null)]);
-  const res = evaluateCandleRangeAt(symbol, realBars(raw, 60), params);
+  const [raw, quote] = await Promise.all([getOhlc(symbol, "15min", 300), getQuote(symbol).catch(() => null)]);
+  const res = evaluateCandleRangeAt(symbol, realBars(raw, 15), params);
   if (quote?.price) res.price = quote.price; // live price for display only
   return res;
 }
 
-// Pure evaluation on a 1-hour window — the last bar is treated as "now".
+// Pure evaluation on a 15-minute window — the last bar is treated as "now".
 export function evaluateCandleRangeAt(
   symbol: string,
   c: OhlcCandle[],

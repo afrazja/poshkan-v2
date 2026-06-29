@@ -53,11 +53,11 @@ function lastSwing(s: { i: number; price: number }[]): { i: number; price: numbe
 
 export async function evaluateOteSymbol(symbol: string, params: OteParams = OTE_DEFAULTS): Promise<OteEval> {
   const [h1raw, m15raw, quote] = await Promise.all([
-    getOhlc(symbol, "1h", 180),
-    getOhlc(symbol, "15min", 200),
+    getOhlc(symbol, "15min", 200), // higher-timeframe trend
+    getOhlc(symbol, "5min", 250), // entry timeframe
     getQuote(symbol).catch(() => null),
   ]);
-  const res = evaluateOteAt(symbol, realBars(h1raw, 60), realBars(m15raw, 15), params);
+  const res = evaluateOteAt(symbol, realBars(h1raw, 15), realBars(m15raw, 5), params);
   if (quote?.price) res.price = quote.price; // live price for display only
   return res;
 }
