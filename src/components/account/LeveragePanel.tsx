@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import type { FxPosition, Quote } from "@/lib/types";
 import { formatCurrency, formatSignedCurrency, formatPercent, changeColor } from "@/lib/format";
 import { floatingPnl, marginFor, FX_LEVERAGE } from "@/lib/forex";
-import { openFxPositionAction, closeFxPositionAction } from "@/app/dashboard/[accountId]/actions";
+import { openFxPositionAction, closeFxPositionAction, setFxSlTpAction } from "@/app/dashboard/[accountId]/actions";
 import SymbolSearch from "@/components/SymbolSearch";
 import Modal from "@/components/Modal";
 
@@ -30,6 +30,7 @@ export default function LeveragePanel({
   const router = useRouter();
   const [open, setOpenModal] = useState(false);
   const [closing, setClosing] = useState<string | null>(null);
+  const [editSltp, setEditSltp] = useState<FxPosition | null>(null);
 
   const live = positions.filter((p) => p.status === "open");
   const closed = positions
@@ -92,19 +93,31 @@ export default function LeveragePanel({
                     {pct != null && <span className="ml-1 text-xs">({formatPercent(pct)})</span>}
                   </span>
                 </div>
-                <div className="mt-1 flex items-center justify-between text-xs text-muted">
-                  <span>
-                    {Number(p.units).toLocaleString("en-US")} {unit} · {formatCurrency(Number(p.open_rate))} →{" "}
-                    {rate ? formatCurrency(rate) : "…"} · margin {formatCurrency(Number(p.margin))}
-                    {p.auto_close_at && <span className="ml-1">· ⏱ {closesIn(p.auto_close_at)}</span>}
+                <div className="mt-1 text-xs text-muted">
+                  {Number(p.units).toLocaleString("en-US")} {unit} · {formatCurrency(Number(p.open_rate))} →{" "}
+                  {rate ? formatCurrency(rate) : "…"} · margin {formatCurrency(Number(p.margin))}
+                  {p.auto_close_at && <span className="ml-1">· ⏱ {closesIn(p.auto_close_at)}</span>}
+                </div>
+                <div className="mt-1.5 flex items-center justify-between gap-2 text-xs">
+                  <span className="text-muted">
+                    SL {p.stop_loss != null ? formatCurrency(Number(p.stop_loss)) : "—"} · TP{" "}
+                    {p.take_profit != null ? formatCurrency(Number(p.take_profit)) : "—"}
                   </span>
-                  <button
-                    onClick={() => close(p.id)}
-                    disabled={closing === p.id}
-                    className="rounded-md border border-border px-2 py-1 font-medium hover:bg-card disabled:opacity-50"
-                  >
-                    {closing === p.id ? "Closing…" : "Close"}
-                  </button>
+                  <span className="flex shrink-0 gap-1.5">
+                    <button
+                      onClick={() => setEditSltp(p)}
+                      className="rounded-md border border-border px-2 py-1 font-medium hover:bg-card"
+                    >
+                      SL/TP
+                    </button>
+                    <button
+                      onClick={() => close(p.id)}
+                      disabled={closing === p.id}
+                      className="rounded-md border border-border px-2 py-1 font-medium hover:bg-card disabled:opacity-50"
+                    >
+                      {closing === p.id ? "Closing…" : "Close"}
+                    </button>
+                  </span>
                 </div>
               </div>
             );
@@ -150,6 +163,16 @@ export default function LeveragePanel({
           leverage={leverage}
           unit={unit}
           onClose={() => setOpenModal(false)}
+        />
+      )}
+
+      {editSltp && (
+        <SlTpModal
+          accountId={accountId}
+          position={editSltp}
+          rate={quotes[editSltp.symbol.toUpperCase()]?.price}
+          unit={unit}
+          onClose={() => setEditSltp(null)}
         />
       )}
     </section>
@@ -357,6 +380,96 @@ function OpenModal({
             <p className="text-center text-xs text-muted">Auto-closes (stop-out) if the loss reaches your reserved margin.</p>
           </>
         )}
+      </div>
+    </Modal>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Edit a leveraged position's stop-loss / take-profit (parity with forex).
+function SlTpModal({
+  accountId,
+  position,
+  rate,
+  unit,
+  onClose,
+}: {
+  accountId: string;
+  position: FxPosition;
+  rate?: number;
+  unit: string;
+  onClose: () => void;
+}) {
+  const router = useRouter();
+  const [sl, setSl] = useState(position.stop_loss != null ? String(position.stop_loss) : "");
+  const [tp, setTp] = useState(position.take_profit != null ? String(position.take_profit) : "");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const isLong = position.direction === "LONG";
+
+  async function save() {
+    setError(null);
+    setLoading(true);
+    const res = await setFxSlTpAction({
+      positionId: position.id,
+      accountId,
+      stopLoss: sl.trim() ? Number(sl) : null,
+      takeProfit: tp.trim() ? Number(tp) : null,
+    });
+    setLoading(false);
+    if (res.error) return setError(res.error);
+    onClose();
+    router.refresh();
+  }
+
+  const inputClass =
+    "w-full rounded-lg border border-border bg-input px-3 py-2 text-sm outline-none focus:border-primary";
+
+  return (
+    <Modal title={`SL / TP — ${position.symbol}`} onClose={onClose}>
+      <div className="space-y-4">
+        {error && (
+          <div className="rounded-lg border border-negative/30 bg-negative/10 px-3 py-2 text-sm text-negative">{error}</div>
+        )}
+        <div className="flex items-center justify-between rounded-lg bg-background px-3 py-2 text-sm">
+          <span>
+            <strong>{isLong ? "Long" : "Short"}</strong> {Number(position.units).toLocaleString("en-US")} {unit} ·
+            opened {formatCurrency(Number(position.open_rate))}
+          </span>
+          <span className="text-muted">now {rate ? formatCurrency(rate) : "…"}</span>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <label className="mb-1 block text-xs font-medium text-muted">Stop-loss</label>
+            <input
+              type="number"
+              step="any"
+              value={sl}
+              onChange={(e) => setSl(e.target.value)}
+              className={inputClass}
+              placeholder={isLong ? "Below price" : "Above price"}
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-muted">Take-profit</label>
+            <input
+              type="number"
+              step="any"
+              value={tp}
+              onChange={(e) => setTp(e.target.value)}
+              className={inputClass}
+              placeholder={isLong ? "Above price" : "Below price"}
+            />
+          </div>
+        </div>
+        <button
+          onClick={save}
+          disabled={loading}
+          className="w-full rounded-lg bg-primary py-2.5 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50"
+        >
+          {loading ? "Saving…" : "Save SL / TP"}
+        </button>
+        <p className="text-center text-xs text-muted">Leave a field blank to remove that level.</p>
       </div>
     </Modal>
   );
