@@ -370,7 +370,9 @@ export default function AccountView({
       <div className="rounded-2xl border border-border bg-card p-5">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <div>
-            <div className="text-3xl font-bold">{formatCurrency(isForex ? fxEquity : totalValue)}</div>
+            <div className="text-3xl font-bold">
+              {formatCurrency(isForex ? fxEquity : totalValue + fxMargin + fxFloating)}
+            </div>
             <div className="text-xs capitalize text-muted">
               {account.type} account · {isForex ? "equity" : "total value"}
             </div>
@@ -416,14 +418,18 @@ export default function AccountView({
               />
               <Stat
                 label="Unrealized P&L"
-                value={`${formatSignedCurrency(totalPnl)} (${formatPercent(totalPnlPct)})`}
-                colorClass={changeColor(totalPnl)}
+                value={
+                  costBasis > 0
+                    ? `${formatSignedCurrency(totalPnl + fxFloating)} (${formatPercent(totalPnlPct)})`
+                    : formatSignedCurrency(totalPnl + fxFloating)
+                }
+                colorClass={changeColor(totalPnl + fxFloating)}
                 onChart={positions.length ? () => setMetricChart("pnl") : undefined}
               />
               <Stat
                 label="Realized P&L"
-                value={formatSignedCurrency(realized)}
-                colorClass={changeColor(realized)}
+                value={formatSignedCurrency(realized + fxRealized)}
+                colorClass={changeColor(realized + fxRealized)}
               />
             </>
           )}

@@ -32,6 +32,9 @@ export default function LeveragePanel({
   const [closing, setClosing] = useState<string | null>(null);
 
   const live = positions.filter((p) => p.status === "open");
+  const closed = positions
+    .filter((p) => p.status !== "open")
+    .sort((a, b) => new Date(b.closed_at ?? 0).getTime() - new Date(a.closed_at ?? 0).getTime());
   const unit = accountType === "crypto" ? "coins" : "shares";
 
   async function close(id: string) {
@@ -105,6 +108,35 @@ export default function LeveragePanel({
               </div>
             );
           })}
+        </div>
+      )}
+
+      {closed.length > 0 && (
+        <div className="mt-4">
+          <div className="mb-1 text-xs font-medium text-muted">Closed positions</div>
+          <div className="space-y-1">
+            {closed.slice(0, 12).map((p) => (
+              <div
+                key={p.id}
+                className="flex items-center justify-between gap-2 rounded-lg border border-border bg-background px-3 py-2 text-xs"
+              >
+                <span>
+                  <span className={p.direction === "LONG" ? "font-medium text-positive" : "font-medium text-negative"}>
+                    {p.direction === "LONG" ? "Long" : "Short"}
+                  </span>{" "}
+                  {p.symbol} · {Number(p.units).toLocaleString("en-US")} {unit}
+                  <span className="mt-0.5 block text-muted">
+                    {formatCurrency(Number(p.open_rate))} →{" "}
+                    {p.close_rate != null ? formatCurrency(Number(p.close_rate)) : "—"} · {outcomeLabel(p.status)}
+                    {p.closed_at ? ` · ${fmtClosed(p.closed_at)}` : ""}
+                  </span>
+                </span>
+                <span className={`shrink-0 font-medium ${changeColor(Number(p.pnl ?? 0))}`}>
+                  {formatSignedCurrency(Number(p.pnl ?? 0))}
+                </span>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
@@ -337,6 +369,27 @@ function closesIn(iso: string): string {
   const h = Math.floor(mins / 60);
   const m = mins % 60;
   return `closes in ${h}h${m ? ` ${m}m` : ""}`;
+}
+
+// Human label for a closed position's exit reason.
+function outcomeLabel(status: string): string {
+  return status === "sl"
+    ? "Stop-loss"
+    : status === "tp"
+      ? "Take-profit"
+      : status === "stopped"
+        ? "Stop-out"
+        : "Closed";
+}
+
+function fmtClosed(iso: string): string {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "";
+  return (
+    d.toLocaleDateString("en-US", { month: "short", day: "numeric" }) +
+    ", " +
+    d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })
+  );
 }
 
 function Row({ label, value, bold }: { label: string; value: string; bold?: boolean }) {
