@@ -135,6 +135,7 @@ export interface FxPosition {
   closed_at: string | null;
   close_rate: number | null;
   pnl: number | null;
+  source?: string | null; // which scanner opened it (null = manual)
 }
 
 export interface FxTpLevel {

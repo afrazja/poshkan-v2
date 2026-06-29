@@ -190,6 +190,7 @@ export async function GET(request: Request) {
               p_take_profit: tp,
             });
             if (!error) {
+              await db.from("fx_positions").update({ source: "meanrev" }).eq("account_id", acc.id).eq("symbol", symbol).eq("status", "open");
               await logAlert(db, acc, { ...ev, entry: liveRate, stop: sl, takeProfit: tp }, true);
               placed++;
               try {

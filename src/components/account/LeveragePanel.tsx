@@ -85,6 +85,7 @@ export default function LeveragePanel({
                     >
                       {p.direction === "LONG" ? "Long" : "Short"}
                     </span>
+                    <SourceBadge source={p.source} />
                   </span>
                   <span className={`font-medium ${fl != null ? changeColor(fl) : ""}`}>
                     {fl != null ? formatSignedCurrency(fl) : "…"}
@@ -125,6 +126,7 @@ export default function LeveragePanel({
                     {p.direction === "LONG" ? "Long" : "Short"}
                   </span>{" "}
                   {p.symbol} · {Number(p.units).toLocaleString("en-US")} {unit}
+                  <SourceBadge source={p.source} />
                   <span className="mt-0.5 block text-muted">
                     {formatCurrency(Number(p.open_rate))} →{" "}
                     {p.close_rate != null ? formatCurrency(Number(p.close_rate)) : "—"} · {outcomeLabel(p.status)}
@@ -369,6 +371,24 @@ function closesIn(iso: string): string {
   const h = Math.floor(mins / 60);
   const m = mins % 60;
   return `closes in ${h}h${m ? ` ${m}m` : ""}`;
+}
+
+// Badge showing which scanner opened the position (or "Manual").
+function SourceBadge({ source }: { source?: string | null }) {
+  const labels: Record<string, string> = {
+    ai: "🤖 AI",
+    smc: "📈 SMC",
+    ote: "🎯 OTE",
+    trend: "🚀 Trend",
+    meanrev: "↩️ Mean Rev",
+    candlerange: "📦 Range",
+  };
+  const label = source ? labels[source] ?? source : "👤 Manual";
+  return (
+    <span className="ml-1 whitespace-nowrap rounded-md bg-muted/20 px-1.5 py-0.5 text-[10px] font-medium text-muted">
+      {label}
+    </span>
+  );
 }
 
 // Human label for a closed position's exit reason.

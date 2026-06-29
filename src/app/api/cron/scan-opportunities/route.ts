@@ -247,6 +247,7 @@ export async function GET(request: Request) {
             p_take_profit: tp,
           });
           if (!openErr) {
+            await db.from("fx_positions").update({ source: "ai" }).eq("account_id", acc.id).eq("symbol", symbol).eq("status", "open");
             await db
               .from("fx_scan_alerts")
               .insert({ account_id: acc.id, symbol, direction: setup.direction, executed: true });
