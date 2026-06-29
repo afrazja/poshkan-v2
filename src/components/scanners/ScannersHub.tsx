@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { deactivateScanner } from "@/app/dashboard/scanners/actions";
 import AiScanner, { type AutoSettings } from "@/components/account/AiScanner";
 import SmcScanner from "@/components/account/SmcScanner";
 import OteScanner from "@/components/account/OteScanner";
@@ -64,6 +66,8 @@ export default function ScannersHub({
 
       <StrategyBlock
         accounts={accounts}
+        scannerKey="ai"
+        isActive={(a) => a.autoSettings.enabled}
         render={(a) => (
           <AiScanner
             accountId={a.id}
@@ -77,6 +81,8 @@ export default function ScannersHub({
 
       <StrategyBlock
         accounts={accounts}
+        scannerKey="smc"
+        isActive={(a) => !!a.smcSettings?.enabled}
         render={(a) => (
           <SmcScanner
             accountId={a.id}
@@ -89,6 +95,8 @@ export default function ScannersHub({
 
       <StrategyBlock
         accounts={accounts}
+        scannerKey="ote"
+        isActive={(a) => !!a.oteSettings?.enabled}
         render={(a) => (
           <OteScanner
             accountId={a.id}
@@ -101,6 +109,8 @@ export default function ScannersHub({
 
       <StrategyBlock
         accounts={accounts}
+        scannerKey="trend"
+        isActive={(a) => !!a.trendSettings?.enabled}
         render={(a) => (
           <TrendScanner
             accountId={a.id}
@@ -113,6 +123,8 @@ export default function ScannersHub({
 
       <StrategyBlock
         accounts={accounts}
+        scannerKey="meanrev"
+        isActive={(a) => !!a.meanrevSettings?.enabled}
         render={(a) => (
           <MeanRevScanner
             accountId={a.id}
@@ -125,6 +137,8 @@ export default function ScannersHub({
 
       <StrategyBlock
         accounts={accounts}
+        scannerKey="candlerange"
+        isActive={(a) => !!a.candlerangeSettings?.enabled}
         render={(a) => (
           <CandleRangeScanner
             accountId={a.id}
@@ -141,11 +155,25 @@ export default function ScannersHub({
 function StrategyBlock({
   accounts,
   render,
+  scannerKey,
+  isActive,
 }: {
   accounts: ScanAcct[];
   render: (account: ScanAcct) => React.ReactNode;
+  scannerKey: string;
+  isActive: (a: ScanAcct) => boolean;
 }) {
+  const router = useRouter();
   const [selectedId, setSelectedId] = useState(accounts[0]?.id ?? "");
+  const [busy, setBusy] = useState<string | null>(null);
+  const active = accounts.filter(isActive);
+
+  async function deactivate(id: string) {
+    setBusy(id);
+    await deactivateScanner(id, scannerKey);
+    setBusy(null);
+    router.refresh();
+  }
 
   if (accounts.length === 0) {
     return (
@@ -165,6 +193,28 @@ function StrategyBlock({
 
   return (
     <div className="space-y-2">
+      {active.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-xs text-muted">Active on</span>
+          {active.map((a) => (
+            <span
+              key={a.id}
+              className="flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs font-medium text-emerald-600 dark:text-emerald-400"
+            >
+              {a.name} ({a.type})
+              <button
+                onClick={() => deactivate(a.id)}
+                disabled={busy === a.id}
+                aria-label={`Deactivate for ${a.name}`}
+                title="Deactivate for this account"
+                className="rounded-full leading-none hover:text-negative disabled:opacity-50"
+              >
+                ×
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
       {accounts.length > 1 && (
         <div className="flex items-center gap-2">
           <span className="text-xs text-muted">Account</span>
