@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { Account } from "@/lib/types";
@@ -26,6 +26,41 @@ export default function AccountsGrid({
   const [resetFor, setResetFor] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [order, setOrder] = useState<string[]>(accounts.map((a) => a.id));
+  const [dragId, setDragId] = useState<string | null>(null);
+
+  // Restore a saved card order (per-browser), reconciled with current accounts:
+  // new accounts append, removed ones drop.
+  useEffect(() => {
+    const ids = accounts.map((a) => a.id);
+    let saved: string[] = [];
+    try {
+      saved = JSON.parse(localStorage.getItem("poshkan-account-order") || "[]");
+    } catch {}
+    setOrder([...saved.filter((id) => ids.includes(id)), ...ids.filter((id) => !saved.includes(id))]);
+  }, [accounts]);
+
+  function persistOrder(next: string[]) {
+    setOrder(next);
+    try {
+      localStorage.setItem("poshkan-account-order", JSON.stringify(next));
+    } catch {}
+  }
+
+  function dropOn(targetId: string) {
+    if (!dragId || dragId === targetId) return;
+    const next = [...order];
+    const from = next.indexOf(dragId);
+    const to = next.indexOf(targetId);
+    if (from === -1 || to === -1) return;
+    next.splice(from, 1);
+    next.splice(to, 0, dragId);
+    persistOrder(next);
+  }
+
+  const orderedAccounts = order
+    .map((id) => accounts.find((a) => a.id === id))
+    .filter((a): a is Account => !!a);
 
   async function doRename() {
     if (!renameFor) return;
@@ -52,16 +87,33 @@ export default function AccountsGrid({
   return (
     <>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {accounts.map((acc) => {
+        {orderedAccounts.map((acc) => {
           const s = summary[acc.id] ?? { marketValue: 0, holdings: 0, unrealized: 0, realized: 0 };
           const total = Number(acc.cash_balance) + s.marketValue;
           return (
-            <div key={acc.id} className="relative">
+            <div
+              key={acc.id}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={() => dropOn(acc.id)}
+              className={`relative transition ${dragId === acc.id ? "opacity-40" : ""}`}
+            >
+              {/* Drag handle to reorder cards */}
+              <div
+                draggable
+                onDragStart={() => setDragId(acc.id)}
+                onDragEnd={() => setDragId(null)}
+                title="Drag to reorder"
+                aria-label="Drag to reorder"
+                className="absolute left-2 top-4 z-20 cursor-grab select-none px-1 text-muted hover:text-foreground active:cursor-grabbing"
+              >
+                ⠿
+              </div>
               <Link
                 href={`/dashboard/${acc.id}`}
+                draggable={false}
                 className="group block rounded-2xl border border-border bg-card p-5 transition hover:border-primary hover:shadow-md"
               >
-                <div className="mb-3 flex items-center gap-2 pr-8">
+                <div className="mb-3 flex items-center gap-2 pl-6 pr-8">
                   <h3 className="font-semibold">{acc.name}</h3>
                   <span className="rounded-full bg-background px-2 py-0.5 text-xs font-medium capitalize text-muted">
                     {acc.type}
