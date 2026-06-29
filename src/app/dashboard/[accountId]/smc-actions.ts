@@ -17,6 +17,7 @@ export interface SmcSettings {
   max_open: number;
   max_per_day: number;
   daily_loss_pct: number;
+  auto_close_hours: number;
   last_run_at: string | null;
   last_status: SmcStatusItem[] | null;
 }
@@ -172,6 +173,7 @@ export interface SaveSmcInput {
   maxOpen: number;
   maxPerDay: number;
   dailyLossPct: number;
+  autoCloseHours: number;
 }
 
 export async function saveSmcSettings(input: SaveSmcInput): Promise<{ error?: string }> {
@@ -195,6 +197,7 @@ export async function saveSmcSettings(input: SaveSmcInput): Promise<{ error?: st
       max_open: Math.min(5, Math.max(1, Math.round(input.maxOpen))),
       max_per_day: Math.min(20, Math.max(1, Math.round(input.maxPerDay))),
       daily_loss_pct: Math.min(0.2, Math.max(0.01, input.dailyLossPct)),
+      auto_close_hours: Math.max(0, Math.round(input.autoCloseHours || 0)),
       updated_at: new Date().toISOString(),
     },
     { onConflict: "account_id" }

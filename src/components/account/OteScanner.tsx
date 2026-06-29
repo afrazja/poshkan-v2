@@ -62,6 +62,7 @@ export default function OteScanner({
   const [maxOpen, setMaxOpen] = useState((initialSettings?.max_open ?? 2).toString());
   const [maxPerDay, setMaxPerDay] = useState((initialSettings?.max_per_day ?? 5).toString());
   const [dailyLoss, setDailyLoss] = useState(((initialSettings?.daily_loss_pct ?? 0.04) * 100).toString());
+  const [autoCloseHours, setAutoCloseHours] = useState((initialSettings?.auto_close_hours ?? 0).toString());
 
   const [scanning, setScanning] = useState(false);
   const [openRead, setOpenRead] = useState<string | null>(null);
@@ -131,6 +132,7 @@ export default function OteScanner({
         maxOpen: Number(maxOpen),
         maxPerDay: Number(maxPerDay),
         dailyLossPct: Number(dailyLoss) / 100,
+        autoCloseHours: Number(autoCloseHours),
       });
       if (!res.error) {
         setSaved(true);
@@ -288,6 +290,7 @@ export default function OteScanner({
           <Field label="Max open" value={maxOpen} onChange={setMaxOpen} />
           <Field label="Max trades / day" value={maxPerDay} onChange={setMaxPerDay} />
           <Field label="Daily loss limit (%)" value={dailyLoss} onChange={setDailyLoss} />
+          <Field label="Auto-close after (hours, 0 = off)" value={autoCloseHours} onChange={setAutoCloseHours} />
         </div>
 
         <button

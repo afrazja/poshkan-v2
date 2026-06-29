@@ -23,6 +23,7 @@ interface MeanRevRow {
   max_open: number;
   max_per_day: number;
   daily_loss_pct: number;
+  auto_close_hours: number;
 }
 interface AccRow {
   id: string;
@@ -179,7 +180,7 @@ export async function GET(request: Request) {
           }
 
           if (units > 0 && margin <= cash) {
-            const { error } = await db.rpc("fx_open", {
+            const { data: newId, error } = await db.rpc("fx_open", {
               p_account_id: acc.id,
               p_symbol: symbol,
               p_direction: ev.direction,
@@ -191,6 +192,9 @@ export async function GET(request: Request) {
             });
             if (!error) {
               await db.from("fx_positions").update({ source: "meanrev" }).eq("account_id", acc.id).eq("symbol", symbol).eq("status", "open");
+              if (Number(s.auto_close_hours) > 0 && newId) {
+                await db.rpc("fx_set_auto_close", { p_position_id: newId, p_minutes: Math.round(Number(s.auto_close_hours) * 60) });
+              }
               await logAlert(db, acc, { ...ev, entry: liveRate, stop: sl, takeProfit: tp }, true);
               placed++;
               try {
