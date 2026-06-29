@@ -5,6 +5,7 @@ import { getSmcData } from "./smc-actions";
 import { getOteData } from "./ote-actions";
 import { getTrendData } from "./trend-actions";
 import { getMeanRevData } from "./meanrev-actions";
+import { getCandleRangeData } from "./candlerange-actions";
 import type { Account, Position, WatchlistItem, Transaction, Order, FxPosition, FxOrder, FxTpLevel } from "@/lib/types";
 
 export default async function AccountPage({
@@ -71,11 +72,12 @@ export default async function AccountPage({
 
   // Scanner config for this account (powers the active indicators + their popups).
   const acc = account as Account;
-  const [smc, ote, trend, meanrev] = await Promise.all([
+  const [smc, ote, trend, meanrev, candlerange] = await Promise.all([
     getSmcData(accountId),
     getOteData(accountId),
     getTrendData(accountId),
     getMeanRevData(accountId),
+    getCandleRangeData(accountId),
   ]);
   const autoSettings = {
     enabled: !!acc.auto_trade_enabled,
@@ -106,6 +108,8 @@ export default async function AccountPage({
       trendSignals={trend?.signals ?? []}
       meanrevSettings={meanrev?.settings ?? null}
       meanrevSignals={meanrev?.signals ?? []}
+      candlerangeSettings={candlerange?.settings ?? null}
+      candlerangeSignals={candlerange?.signals ?? []}
     />
   );
 }

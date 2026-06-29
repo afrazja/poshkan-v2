@@ -13,10 +13,12 @@ import SmcScanner from "./SmcScanner";
 import OteScanner from "./OteScanner";
 import TrendScanner from "./TrendScanner";
 import MeanRevScanner from "./MeanRevScanner";
+import CandleRangeScanner from "./CandleRangeScanner";
 import type { SmcSettings, SmcSignal } from "@/app/dashboard/[accountId]/smc-actions";
 import type { OteSettings, OteSignal } from "@/app/dashboard/[accountId]/ote-actions";
 import type { TrendSettings, TrendSignal } from "@/app/dashboard/[accountId]/trend-actions";
 import type { MeanRevSettings, MeanRevSignal } from "@/app/dashboard/[accountId]/meanrev-actions";
+import type { CandleRangeSettings, CandleRangeSignal } from "@/app/dashboard/[accountId]/candlerange-actions";
 import { useQuotes } from "@/lib/useQuotes";
 import { realizedPnl } from "@/lib/pnl";
 import {
@@ -65,6 +67,8 @@ export default function AccountView({
   trendSignals = [],
   meanrevSettings = null,
   meanrevSignals = [],
+  candlerangeSettings = null,
+  candlerangeSignals = [],
 }: {
   account: Account;
   initialPositions: Position[];
@@ -84,18 +88,23 @@ export default function AccountView({
   trendSignals?: TrendSignal[];
   meanrevSettings?: MeanRevSettings | null;
   meanrevSignals?: MeanRevSignal[];
+  candlerangeSettings?: CandleRangeSettings | null;
+  candlerangeSignals?: CandleRangeSignal[];
 }) {
   const router = useRouter();
   const [selected, setSelected] = useState<{ symbol: string; name: string } | null>(null);
   const [trade, setTrade] = useState<{ side: "BUY" | "SELL"; symbol: string } | null>(null);
   const [cashModal, setCashModal] = useState<"DEPOSIT" | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
-  const [scannerModal, setScannerModal] = useState<"ai" | "smc" | "ote" | "trend" | "meanrev" | null>(null);
+  const [scannerModal, setScannerModal] = useState<
+    "ai" | "smc" | "ote" | "trend" | "meanrev" | "candlerange" | null
+  >(null);
   const aiActive = !!autoSettings?.enabled;
   const smcActive = !!smcSettings?.enabled;
   const oteActive = !!oteSettings?.enabled;
   const trendActive = !!trendSettings?.enabled;
   const meanrevActive = !!meanrevSettings?.enabled;
+  const candlerangeActive = !!candlerangeSettings?.enabled;
   const [metricChart, setMetricChart] = useState<"holdings" | "pnl" | null>(null);
   const [tab, setTab] = useState<Tab>("holdings");
 
@@ -303,7 +312,7 @@ export default function AccountView({
       </div>
 
       {/* Active scanners on this account — tap to configure/disable in place */}
-      {(aiActive || smcActive || oteActive || trendActive || meanrevActive) && (
+      {(aiActive || smcActive || oteActive || trendActive || meanrevActive || candlerangeActive) && (
         <div className="flex flex-wrap items-center gap-2 text-xs">
           <span className="text-muted">Active scanners</span>
           {aiActive && (
@@ -344,6 +353,14 @@ export default function AccountView({
               className="rounded-full bg-emerald-500/15 px-2 py-0.5 font-medium text-emerald-600 hover:bg-emerald-500/25 dark:text-emerald-400"
             >
               ↩️ Mean Reversion
+            </button>
+          )}
+          {candlerangeActive && (
+            <button
+              onClick={() => setScannerModal("candlerange")}
+              className="rounded-full bg-emerald-500/15 px-2 py-0.5 font-medium text-emerald-600 hover:bg-emerald-500/25 dark:text-emerald-400"
+            >
+              📦 Candle Range
             </button>
           )}
         </div>
@@ -687,6 +704,17 @@ export default function AccountView({
             accountType={account.type}
             initialSettings={meanrevSettings}
             initialSignals={meanrevSignals}
+            defaultOpen
+          />
+        </Modal>
+      )}
+      {scannerModal === "candlerange" && (
+        <Modal title={`${account.name} · scanner`} onClose={() => setScannerModal(null)} wide>
+          <CandleRangeScanner
+            accountId={account.id}
+            accountType={account.type}
+            initialSettings={candlerangeSettings}
+            initialSignals={candlerangeSignals}
             defaultOpen
           />
         </Modal>

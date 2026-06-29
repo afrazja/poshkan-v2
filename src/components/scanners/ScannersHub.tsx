@@ -7,11 +7,13 @@ import SmcScanner from "@/components/account/SmcScanner";
 import OteScanner from "@/components/account/OteScanner";
 import TrendScanner from "@/components/account/TrendScanner";
 import MeanRevScanner from "@/components/account/MeanRevScanner";
+import CandleRangeScanner from "@/components/account/CandleRangeScanner";
 import ScannerOnboard from "@/components/scanners/ScannerOnboard";
 import type { SmcSettings, SmcSignal } from "@/app/dashboard/[accountId]/smc-actions";
 import type { OteSettings, OteSignal } from "@/app/dashboard/[accountId]/ote-actions";
 import type { TrendSettings, TrendSignal } from "@/app/dashboard/[accountId]/trend-actions";
 import type { MeanRevSettings, MeanRevSignal } from "@/app/dashboard/[accountId]/meanrev-actions";
+import type { CandleRangeSettings, CandleRangeSignal } from "@/app/dashboard/[accountId]/candlerange-actions";
 
 export interface ScanAcct {
   id: string;
@@ -28,6 +30,8 @@ export interface ScanAcct {
   trendSignals: TrendSignal[];
   meanrevSettings: MeanRevSettings | null;
   meanrevSignals: MeanRevSignal[];
+  candlerangeSettings: CandleRangeSettings | null;
+  candlerangeSignals: CandleRangeSignal[];
 }
 
 export default function ScannersHub({
@@ -115,6 +119,18 @@ export default function ScannersHub({
             accountType={a.type}
             initialSettings={a.meanrevSettings}
             initialSignals={a.meanrevSignals}
+          />
+        )}
+      />
+
+      <StrategyBlock
+        accounts={accounts}
+        render={(a) => (
+          <CandleRangeScanner
+            accountId={a.id}
+            accountType={a.type}
+            initialSettings={a.candlerangeSettings}
+            initialSignals={a.candlerangeSignals}
           />
         )}
       />

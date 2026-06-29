@@ -5,6 +5,7 @@ import type { SmcSettings, SmcSignal } from "../[accountId]/smc-actions";
 import type { OteSettings, OteSignal } from "../[accountId]/ote-actions";
 import type { TrendSettings, TrendSignal } from "../[accountId]/trend-actions";
 import type { MeanRevSettings, MeanRevSignal } from "../[accountId]/meanrev-actions";
+import type { CandleRangeSettings, CandleRangeSignal } from "../[accountId]/candlerange-actions";
 
 export default async function ScannersPage({
   searchParams,
@@ -127,6 +128,33 @@ export default async function ScannersPage({
     }
   }
 
+  // Candle-Range settings + recent signals (degrades if candlerange-scanner.sql unrun).
+  const candlerangeSettingsBy: Record<string, CandleRangeSettings> = {};
+  const candlerangeSignalsBy: Record<string, CandleRangeSignal[]> = {};
+  if (ids.length) {
+    try {
+      const [{ data: settings }, { data: signals }] = await Promise.all([
+        supabase.from("candlerange_settings").select("*").in("account_id", ids),
+        supabase
+          .from("candlerange_signals")
+          .select("*")
+          .in("account_id", ids)
+          .order("created_at", { ascending: false })
+          .limit(120),
+      ]);
+      (settings ?? []).forEach((s) => {
+        candlerangeSettingsBy[(s as CandleRangeSettings).account_id] = s as CandleRangeSettings;
+      });
+      (signals ?? []).forEach((sig) => {
+        const row = sig as CandleRangeSignal & { account_id: string };
+        const arr = candlerangeSignalsBy[row.account_id] ?? (candlerangeSignalsBy[row.account_id] = []);
+        if (arr.length < 20) arr.push(row);
+      });
+    } catch {
+      // candlerange-scanner.sql not run yet — scanner still renders, just with no history.
+    }
+  }
+
   const scanAccounts: ScanAcct[] = accounts.map((a) => ({
     id: a.id,
     name: a.name,
@@ -149,6 +177,8 @@ export default async function ScannersPage({
     trendSignals: trendSignalsBy[a.id] ?? [],
     meanrevSettings: meanrevSettingsBy[a.id] ?? null,
     meanrevSignals: meanrevSignalsBy[a.id] ?? [],
+    candlerangeSettings: candlerangeSettingsBy[a.id] ?? null,
+    candlerangeSignals: candlerangeSignalsBy[a.id] ?? [],
   }));
 
   return <ScannersHub accounts={scanAccounts} onboard={onboard === "1"} />;
