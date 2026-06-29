@@ -17,6 +17,11 @@ create table if not exists public.trend_settings (
   updated_at     timestamptz   not null default now()
 );
 
+-- Trend-quality gates (added later — run these if you created the table earlier).
+alter table public.trend_settings add column if not exists adx_min       int           not null default 20;   -- require ADX ≥ this (0 = off)
+alter table public.trend_settings add column if not exists ma_slope      boolean       not null default true; -- MA must slope in the trade direction
+alter table public.trend_settings add column if not exists max_chase_atr numeric(4, 2) not null default 1.5;  -- skip if breakout ran > this ×ATR past the level (0 = off)
+
 alter table public.trend_settings enable row level security;
 
 drop policy if exists "owner reads trend_settings" on public.trend_settings;

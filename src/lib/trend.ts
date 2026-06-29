@@ -16,6 +16,10 @@ export interface TrendParams {
   atrPeriod: number;
   slAtrMult: number; // stop = this × ATR from entry
   tpRR: number; // take-profit reward:risk
+  adxPeriod: number; // ADX lookback
+  adxMin: number; // require ADX ≥ this to confirm a real trend (0 disables)
+  maSlope: boolean; // require the trend MA to slope in the trade direction
+  maxChaseAtr: number; // skip if the breakout closed > this × ATR past the level (0 disables)
 }
 
 export const TREND_DEFAULTS: TrendParams = {
@@ -24,7 +28,13 @@ export const TREND_DEFAULTS: TrendParams = {
   atrPeriod: 14,
   slAtrMult: 2,
   tpRR: 3,
+  adxPeriod: 14,
+  adxMin: 20,
+  maSlope: true,
+  maxChaseAtr: 1.5,
 };
+
+const SLOPE_LOOKBACK = 5; // bars back used to measure the trend-MA slope
 
 export type TrendStatus = "signal" | "no-setup" | "neutral" | "no-data";
 
@@ -60,6 +70,38 @@ function sma(c: OhlcCandle[], n: number): number {
   return last.reduce((a, b) => a + b.close, 0) / (last.length || 1);
 }
 
+// Wilder ADX (trend-strength) at the last bar. ~0 in chop, rising as a trend builds.
+function adx(c: OhlcCandle[], n: number): number {
+  if (c.length < n * 2 + 1) return 0;
+  let trN = 0;
+  let plusN = 0;
+  let minusN = 0;
+  for (let i = 1; i <= n; i++) {
+    const up = c[i].high - c[i - 1].high;
+    const dn = c[i - 1].low - c[i].low;
+    trN += Math.max(c[i].high - c[i].low, Math.abs(c[i].high - c[i - 1].close), Math.abs(c[i].low - c[i - 1].close));
+    plusN += up > dn && up > 0 ? up : 0;
+    minusN += dn > up && dn > 0 ? dn : 0;
+  }
+  const dxs: number[] = [];
+  for (let i = n + 1; i < c.length; i++) {
+    const up = c[i].high - c[i - 1].high;
+    const dn = c[i - 1].low - c[i].low;
+    const tr = Math.max(c[i].high - c[i].low, Math.abs(c[i].high - c[i - 1].close), Math.abs(c[i].low - c[i - 1].close));
+    trN = trN - trN / n + tr;
+    plusN = plusN - plusN / n + (up > dn && up > 0 ? up : 0);
+    minusN = minusN - minusN / n + (dn > up && dn > 0 ? dn : 0);
+    const plusDI = trN > 0 ? (100 * plusN) / trN : 0;
+    const minusDI = trN > 0 ? (100 * minusN) / trN : 0;
+    const denom = plusDI + minusDI;
+    dxs.push(denom > 0 ? (100 * Math.abs(plusDI - minusDI)) / denom : 0);
+  }
+  if (dxs.length === 0) return 0;
+  let val = dxs.slice(0, n).reduce((a, b) => a + b, 0) / Math.min(n, dxs.length);
+  for (let i = n; i < dxs.length; i++) val = (val * (n - 1) + dxs[i]) / n;
+  return val;
+}
+
 export async function evaluateTrendSymbol(symbol: string, params: TrendParams = TREND_DEFAULTS): Promise<TrendEval> {
   const [raw, quote] = await Promise.all([getOhlc(symbol, "1h", 250), getQuote(symbol).catch(() => null)]);
   const res = evaluateTrendAt(symbol, realBars(raw, 60), params);
@@ -79,7 +121,7 @@ export function evaluateTrendAt(symbol: string, c: OhlcCandle[], params: TrendPa
     reason: "insufficient candle data",
     checks: { trend: false, breakout: false },
   };
-  const need = Math.max(params.donchianN + 3, params.trendMa + 1, params.atrPeriod + 1);
+  const need = Math.max(params.donchianN + 3, params.trendMa + SLOPE_LOOKBACK + 1, params.atrPeriod + 1, params.adxPeriod * 2 + 1);
   if (len < need) return base;
 
   const last = c[len - 1];
@@ -91,6 +133,12 @@ export function evaluateTrendAt(symbol: string, c: OhlcCandle[], params: TrendPa
   const ma = useMa ? sma(c, params.trendMa) : last.close;
   const trend: Trend = !useMa ? "neutral" : last.close > ma ? "bullish" : last.close < ma ? "bearish" : "neutral";
   base.trend = trend;
+
+  // Trend-quality reads: ADX strength + MA slope (the MA `SLOPE_LOOKBACK` bars ago).
+  const adxVal = params.adxPeriod > 0 ? adx(c, params.adxPeriod) : Infinity;
+  const maPast = useMa ? sma(c.slice(0, Math.max(1, len - SLOPE_LOOKBACK)), params.trendMa) : ma;
+  const maRising = ma > maPast;
+  const maFalling = ma < maPast;
 
   // Donchian channels for the last bar and the one before (to detect a FRESH cross).
   const upLast = highestHigh(c, len - 1, params.donchianN);
@@ -124,6 +172,24 @@ export function evaluateTrendAt(symbol: string, c: OhlcCandle[], params: TrendPa
   }
 
   const isLong = direction === "LONG";
+
+  // Gate 1 — a CONFIRMED trend: ADX must show real directional strength (not chop).
+  if (params.adxPeriod > 0 && adxVal < params.adxMin) {
+    return { ...base, status: "no-setup", reason: `${direction} ${params.donchianN}-bar breakout, but ADX ${adxVal.toFixed(0)} < ${params.adxMin} — no confirmed trend yet (likely chop / fakeout)`, checks: { trend: false, breakout: true } };
+  }
+  // Gate 2 — the trend MA must be sloping the right way (not a poke above a flat MA).
+  if (params.maSlope && useMa && !(isLong ? maRising : maFalling)) {
+    return { ...base, status: "no-setup", reason: `${direction} breakout, but the ${params.trendMa}-MA isn't ${isLong ? "rising" : "falling"} yet — trend direction not confirmed`, checks: { trend: false, breakout: true } };
+  }
+  // Gate 3 — room to run: don't chase a breakout that already ran far past the level.
+  if (params.maxChaseAtr > 0 && a > 0) {
+    const level = isLong ? upLast : dnLast;
+    const ext = Math.abs(last.close - level) / a;
+    if (ext > params.maxChaseAtr) {
+      return { ...base, status: "no-setup", reason: `${direction} breakout already extended ${ext.toFixed(1)}×ATR past the level — too far to chase (little room left)`, checks: { trend: true, breakout: false } };
+    }
+  }
+
   const entry = last.close;
   const risk = params.slAtrMult * a;
   const stop = isLong ? entry - risk : entry + risk;
@@ -134,7 +200,7 @@ export function evaluateTrendAt(symbol: string, c: OhlcCandle[], params: TrendPa
     trend,
     price: entry,
     status: "signal",
-    reason: `${direction}: fresh ${params.donchianN}-bar ${isLong ? "high" : "low"} breakout${useMa ? `, with the ${params.trendMa}-MA trend` : ""} (${params.tpRR}R target)`,
+    reason: `${direction}: confirmed ${params.donchianN}-bar ${isLong ? "high" : "low"} breakout${useMa && params.maSlope ? `, ${params.trendMa}-MA ${isLong ? "rising" : "falling"}` : ""}${params.adxPeriod > 0 ? `, ADX ${adxVal.toFixed(0)}` : ""} (${params.tpRR}R target)`,
     checks: { trend: true, breakout: true },
     direction,
     entry,

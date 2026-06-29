@@ -14,6 +14,9 @@ export interface TrendSettings {
   risk_pct: number;
   donchian_n: number;
   tp_rr: number;
+  adx_min: number;
+  ma_slope: boolean;
+  max_chase_atr: number;
   max_open: number;
   max_per_day: number;
   daily_loss_pct: number;
@@ -54,11 +57,21 @@ async function guard(accountId: string) {
   return { supabase, type: (account.type as string) ?? "" };
 }
 
-function paramsFrom(donchianN?: number, tpRR?: number): TrendParams {
+function paramsFrom(
+  donchianN?: number,
+  tpRR?: number,
+  adxMin?: number,
+  maSlope?: boolean,
+  maxChaseAtr?: number
+): TrendParams {
+  const num = (v: number | undefined, d: number) => (v == null || isNaN(Number(v)) ? d : Number(v));
   return {
     ...TREND_DEFAULTS,
     donchianN: Math.min(100, Math.max(5, Math.round(Number(donchianN) || TREND_DEFAULTS.donchianN))),
     tpRR: Math.min(8, Math.max(1, Number(tpRR) || TREND_DEFAULTS.tpRR)),
+    adxMin: Math.min(60, Math.max(0, Math.round(num(adxMin, TREND_DEFAULTS.adxMin)))),
+    maSlope: maSlope ?? TREND_DEFAULTS.maSlope,
+    maxChaseAtr: Math.min(10, Math.max(0, num(maxChaseAtr, TREND_DEFAULTS.maxChaseAtr))),
   };
 }
 
@@ -67,6 +80,9 @@ export async function backtestTrendAction(input: {
   symbols: string[];
   donchianN?: number;
   tpRR?: number;
+  adxMin?: number;
+  maSlope?: boolean;
+  maxChaseAtr?: number;
 }): Promise<{ result?: TrendBtResult; error?: string }> {
   const g = await guard(input.accountId);
   if (!g) return { error: "Not authorized" };
@@ -77,7 +93,10 @@ export async function backtestTrendAction(input: {
     .slice(0, 8);
   if (symbols.length === 0) return { error: "Pick at least one valid symbol to backtest." };
   try {
-    const result = await backtestTrend(symbols, paramsFrom(input.donchianN, input.tpRR));
+    const result = await backtestTrend(
+      symbols,
+      paramsFrom(input.donchianN, input.tpRR, input.adxMin, input.maSlope, input.maxChaseAtr)
+    );
     return { result };
   } catch (e) {
     return { error: `Backtest failed: ${(e as Error).message}` };
@@ -93,7 +112,7 @@ export async function refreshTrendRead(
 
   const { data: row } = await supabase
     .from("trend_settings")
-    .select("symbols, donchian_n, tp_rr")
+    .select("symbols, donchian_n, tp_rr, adx_min, ma_slope, max_chase_atr")
     .eq("account_id", accountId)
     .maybeSingle();
 
@@ -101,7 +120,7 @@ export async function refreshTrendRead(
   const watch = chosen.filter((s) => assetTypeError(type, s) === null).slice(0, 8);
   if (watch.length === 0) return { error: "No valid symbols to scan." };
 
-  const params = paramsFrom(row?.donchian_n, row?.tp_rr);
+  const params = paramsFrom(row?.donchian_n, row?.tp_rr, row?.adx_min, row?.ma_slope, row?.max_chase_atr);
   try {
     const evals = await Promise.all(watch.map((s) => evaluateTrendSymbol(s, params)));
     const status: TrendStatusItem[] = evals.map((e) => ({
@@ -156,6 +175,9 @@ export interface SaveTrendInput {
   riskPct: number;
   donchianN: number;
   tpRR: number;
+  adxMin: number;
+  maSlope: boolean;
+  maxChaseAtr: number;
   maxOpen: number;
   maxPerDay: number;
   dailyLossPct: number;
@@ -180,6 +202,9 @@ export async function saveTrendSettings(input: SaveTrendInput): Promise<{ error?
       risk_pct: Math.min(0.03, Math.max(0.005, input.riskPct)),
       donchian_n: Math.min(100, Math.max(5, Math.round(input.donchianN))),
       tp_rr: Math.min(8, Math.max(1, input.tpRR)),
+      adx_min: Math.min(60, Math.max(0, Math.round(input.adxMin))),
+      ma_slope: !!input.maSlope,
+      max_chase_atr: Math.min(10, Math.max(0, input.maxChaseAtr)),
       max_open: Math.min(5, Math.max(1, Math.round(input.maxOpen))),
       max_per_day: Math.min(20, Math.max(1, Math.round(input.maxPerDay))),
       daily_loss_pct: Math.min(0.2, Math.max(0.01, input.dailyLossPct)),

@@ -60,6 +60,9 @@ export default function TrendScanner({
   const [riskPct, setRiskPct] = useState(((initialSettings?.risk_pct ?? 0.02) * 100).toString());
   const [donchianN, setDonchianN] = useState((initialSettings?.donchian_n ?? 20).toString());
   const [tpRR, setTpRR] = useState((initialSettings?.tp_rr ?? 3).toString());
+  const [adxMin, setAdxMin] = useState((initialSettings?.adx_min ?? 20).toString());
+  const [maSlope, setMaSlope] = useState(initialSettings?.ma_slope ?? true);
+  const [maxChase, setMaxChase] = useState((initialSettings?.max_chase_atr ?? 1.5).toString());
   const [maxOpen, setMaxOpen] = useState((initialSettings?.max_open ?? 2).toString());
   const [maxPerDay, setMaxPerDay] = useState((initialSettings?.max_per_day ?? 5).toString());
   const [dailyLoss, setDailyLoss] = useState(((initialSettings?.daily_loss_pct ?? 0.04) * 100).toString());
@@ -88,7 +91,15 @@ export default function TrendScanner({
     setBtErr(null);
     setBt(null);
     try {
-      const res = await backtestTrendAction({ accountId, symbols, donchianN: Number(donchianN), tpRR: Number(tpRR) });
+      const res = await backtestTrendAction({
+        accountId,
+        symbols,
+        donchianN: Number(donchianN),
+        tpRR: Number(tpRR),
+        adxMin: Number(adxMin),
+        maSlope,
+        maxChaseAtr: Number(maxChase),
+      });
       if (res.error) setBtErr(res.error);
       else setBt(res.result ?? null);
     } catch (e) {
@@ -128,6 +139,9 @@ export default function TrendScanner({
         riskPct: Number(riskPct) / 100,
         donchianN: Number(donchianN),
         tpRR: Number(tpRR),
+        adxMin: Number(adxMin),
+        maSlope,
+        maxChaseAtr: Number(maxChase),
         maxOpen: Number(maxOpen),
         maxPerDay: Number(maxPerDay),
         dailyLossPct: Number(dailyLoss) / 100,
@@ -163,10 +177,11 @@ export default function TrendScanner({
         how={[
           "On 1-hour bars, tracks the highest high / lowest low of the last N bars (the 'breakout length').",
           "Enters on a fresh break of that level (only the bar that crosses out, so it doesn't re-fire).",
-          "…but only in the direction of the longer trend moving average.",
+          "Confirms a REAL trend first: ADX above your threshold and the trend MA sloping the right way — filters out choppy fake-outs.",
+          "Leaves room to run: skips breakouts that already ran too far past the level (no chasing the top).",
           "Stop is a multiple of ATR; target is a fixed reward:risk (e.g. 3R).",
         ]}
-        reading="'signal' = a fresh breakout aligned with the trend. 'no-setup' = price is still inside the range."
+        reading="'signal' = a confirmed, fresh breakout with room left. 'no-setup' tells you why it's waiting (inside range, weak ADX, flat MA, or already extended)."
         judge="Breakouts have LOWER win rates but bigger winners — judge by net R / profit factor, NOT win rate."
       />
       <button
@@ -281,10 +296,28 @@ export default function TrendScanner({
           <Field label="Risk per trade (%)" value={riskPct} onChange={setRiskPct} />
           <Field label="Breakout length (bars)" value={donchianN} onChange={setDonchianN} />
           <Field label="Target (R)" value={tpRR} onChange={setTpRR} />
+          <Field label="Min ADX (0 = off)" value={adxMin} onChange={setAdxMin} />
+          <Field label="Max chase (×ATR, 0 = off)" value={maxChase} onChange={setMaxChase} />
           <Field label="Max open" value={maxOpen} onChange={setMaxOpen} />
           <Field label="Max trades / day" value={maxPerDay} onChange={setMaxPerDay} />
           <Field label="Daily loss limit (%)" value={dailyLoss} onChange={setDailyLoss} />
         </div>
+
+        <label className="flex items-start gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={maSlope}
+            onChange={(e) => setMaSlope(e.target.checked)}
+            className="mt-0.5"
+          />
+          <span>
+            Require the trend MA to be sloping
+            <span className="block text-[11px] text-muted">
+              Only take a breakout when the trend moving-average is actually rising (longs) or falling
+              (shorts) — confirms a real new trend instead of a poke above a flat average.
+            </span>
+          </span>
+        </label>
 
         <button
           onClick={save}

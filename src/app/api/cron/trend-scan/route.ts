@@ -18,6 +18,9 @@ interface TrendRow {
   risk_pct: number;
   donchian_n: number;
   tp_rr: number;
+  adx_min: number;
+  ma_slope: boolean;
+  max_chase_atr: number;
   max_open: number;
   max_per_day: number;
   daily_loss_pct: number;
@@ -82,6 +85,9 @@ export async function GET(request: Request) {
       ...TREND_DEFAULTS,
       donchianN: Math.min(100, Math.max(5, Math.round(Number(s.donchian_n) || TREND_DEFAULTS.donchianN))),
       tpRR: Math.min(8, Math.max(1, Number(s.tp_rr) || TREND_DEFAULTS.tpRR)),
+      adxMin: Math.min(60, Math.max(0, Math.round(s.adx_min == null ? TREND_DEFAULTS.adxMin : Number(s.adx_min)))),
+      maSlope: s.ma_slope ?? TREND_DEFAULTS.maSlope,
+      maxChaseAtr: Math.min(10, Math.max(0, s.max_chase_atr == null ? TREND_DEFAULTS.maxChaseAtr : Number(s.max_chase_atr))),
     };
     const universe = marketUniverse(acc.type);
     const chosen = s.symbols && s.symbols.length ? s.symbols : universe;
