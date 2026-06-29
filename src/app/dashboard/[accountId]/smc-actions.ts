@@ -27,7 +27,7 @@ export interface SmcStatusItem {
   price: number | null;
   status: string;
   reason: string;
-  checks: { retest: boolean; sweep: boolean; confirm: boolean };
+  checks: { retest: boolean; confirm: boolean };
 }
 
 export interface SmcSignal {

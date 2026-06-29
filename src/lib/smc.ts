@@ -3,8 +3,8 @@ import { getOhlc, getQuote, type OhlcCandle } from "./marketdata";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SMC PRO MTF — deterministic engine (see docs/smc-strategy-spec.md).
-// Pure, reproducible math: H1 trend via BOS, M5 entry via FVG + liquidity sweep
-// + confirmation candle. NO AI in the decision — same candles → same answer.
+// Pure, reproducible math: H1 trend via BOS, M5 entry via FVG retest + confirmation
+// candle. NO AI in the decision — same candles → same answer.
 // ─────────────────────────────────────────────────────────────────────────────
 
 // Liquid crypto majors only (clean structure; microcaps break FVG/swing logic).
@@ -39,7 +39,7 @@ export interface SmcEval {
   price: number | null;
   status: SmcStatus;
   reason: string;
-  checks: { retest: boolean; sweep: boolean; confirm: boolean };
+  checks: { retest: boolean; confirm: boolean };
   // present only when status === "signal"
   direction?: "LONG" | "SHORT";
   entry?: number;
@@ -181,7 +181,7 @@ export function evaluateAt(
     price,
     status: "no-data",
     reason: "insufficient candle data",
-    checks: { retest: false, sweep: false, confirm: false },
+    checks: { retest: false, confirm: false },
   };
   if (h1.length < 30 || m5.length < 30) return base;
 
@@ -226,29 +226,15 @@ export function evaluateAt(
 
   const f = chosen;
 
-  // Liquidity sweep: the most recent prior swing (low for longs / high for shorts)
-  // must be taken (wicked beyond) at some point after the FVG formed.
-  let sweep = false;
-  if (f.type === "bullish") {
-    const pl = sl.filter((s) => s.i < f.i).slice(-1)[0];
-    if (pl) sweep = m5.slice(f.i).some((cc) => cc.low < pl.price);
-  } else {
-    const ph = sh.filter((s) => s.i < f.i).slice(-1)[0];
-    if (ph) sweep = m5.slice(f.i).some((cc) => cc.high > ph.price);
-  }
-
   // Confirmation candle on the last CLOSED bar: in-zone + trend-direction close.
   const last = m5[lastIdx];
   const inZone = last.close >= f.bottom && last.close <= f.top;
   const dirOk = f.type === "bullish" ? last.close > last.open : last.close < last.open;
   const confirm = inZone && dirOk;
-  const checks = { retest: true, sweep, confirm };
+  const checks = { retest: true, confirm };
 
-  if (!sweep) {
-    return { ...base, status: "waiting", reason: `${trend}: FVG retested — waiting for a liquidity sweep`, checks };
-  }
   if (!confirm) {
-    return { ...base, status: "waiting", reason: `${trend}: retest + sweep done — waiting for a confirmation candle in the FVG`, checks };
+    return { ...base, status: "waiting", reason: `${trend}: FVG retested — waiting for a confirmation candle in the FVG`, checks };
   }
 
   // ── Signal ──
@@ -275,7 +261,7 @@ export function evaluateAt(
     trend,
     price: entry,
     status: "signal",
-    reason: `${direction}: ${trend} BOS + FVG retest + liquidity sweep + confirmation candle`,
+    reason: `${direction}: ${trend} BOS + FVG retest + confirmation candle`,
     checks,
     direction,
     entry,
