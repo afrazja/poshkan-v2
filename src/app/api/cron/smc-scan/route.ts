@@ -150,8 +150,8 @@ export async function GET(request: Request) {
         alerted++;
         continue;
       }
-      // Correlation cap: the majors move together → max one position per direction.
-      if (open.some((p) => p.direction === ev.direction)) {
+      // One direction at a time — never hold a long and a short together (don't fight yourself).
+      if (open.some((p) => p.direction !== ev.direction)) {
         await logAlert(db, acc, ev, false);
         alerted++;
         continue;

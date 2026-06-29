@@ -177,7 +177,7 @@ export async function GET(request: Request) {
 
       // Skip if they already hold a position or pending order on this symbol.
       const [{ data: pos }, { data: ord }] = await Promise.all([
-        db.from("fx_positions").select("symbol").eq("account_id", acc.id).eq("status", "open"),
+        db.from("fx_positions").select("symbol, direction").eq("account_id", acc.id).eq("status", "open"),
         db.from("fx_orders").select("symbol").eq("account_id", acc.id).eq("status", "pending"),
       ]);
       const held = [...(pos ?? []), ...(ord ?? [])];
@@ -187,8 +187,14 @@ export async function GET(request: Request) {
       const cap = autoTrade ? maxOpen : 3;
       if (countForCap >= cap) continue;
 
+      // One direction at a time — don't auto-trade opposite an already-open position.
+      const opposing = (pos ?? []).some((p) => {
+        const d = (p as { direction?: string }).direction;
+        return d != null && d !== setup.direction;
+      });
+
       // ── Autonomous execution path ──
-      if (autoTrade) {
+      if (autoTrade && !opposing) {
         const { count } = await db
           .from("fx_scan_alerts")
           .select("id", { count: "exact", head: true })
