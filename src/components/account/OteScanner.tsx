@@ -64,6 +64,7 @@ export default function OteScanner({
   const [dailyLoss, setDailyLoss] = useState(((initialSettings?.daily_loss_pct ?? 0.04) * 100).toString());
 
   const [scanning, setScanning] = useState(false);
+  const [openRead, setOpenRead] = useState<string | null>(null);
 
   // Light polling so the live feed updates without a manual refresh.
   useEffect(() => {
@@ -377,20 +378,25 @@ export default function OteScanner({
             </p>
           )}
           {status.map((s: OteStatusItem) => (
-            <div key={s.symbol} className="rounded-lg border border-border bg-background p-2 text-xs">
+            <div
+              key={s.symbol}
+              onClick={() => setOpenRead(openRead === s.symbol ? null : s.symbol)}
+              className="cursor-pointer rounded-lg border border-border bg-background p-2 text-xs"
+            >
               <div className="flex items-center justify-between">
                 <span className="font-medium">{symbolLabel(s.symbol)}</span>
                 <span className="flex items-center gap-2">
                   <TrendBadge trend={s.trend} />
                   <StatusBadge status={s.status} />
+                  <span className={`text-muted transition-transform ${openRead === s.symbol ? "rotate-90" : ""}`}>›</span>
                 </span>
               </div>
               <p className="mt-1 text-muted">{s.reason}</p>
-              {(s.status === "waiting" || s.status === "signal") && (
-                <div className="mt-1 flex gap-3 text-[11px]">
-                  <Check ok={s.checks.zone} label="zone" />
-                  <Check ok={s.checks.sweep} label="sweep" />
-                  <Check ok={s.checks.confirm} label="confirm" />
+              {openRead === s.symbol && (
+                <div className="mt-1 flex flex-wrap gap-3 text-[11px]">
+                  {Object.entries(s.checks).map(([k, v]) => (
+                    <Check key={k} ok={v} label={k} />
+                  ))}
                 </div>
               )}
             </div>
