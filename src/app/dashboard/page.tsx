@@ -1,10 +1,12 @@
 import { createClient } from "@/lib/supabase/server";
 import { getQuotes } from "@/lib/marketdata";
+import { realizedPnl } from "@/lib/pnl";
+import { floatingPnl } from "@/lib/forex";
 import AccountsGrid from "@/components/accounts/AccountsGrid";
 import AlertsCard from "@/components/accounts/AlertsCard";
 import GettingStarted from "@/components/accounts/GettingStarted";
 import WelcomeHero from "@/components/accounts/WelcomeHero";
-import type { Account, Position, Alert, Quote } from "@/lib/types";
+import type { Account, Position, Alert, Quote, Transaction } from "@/lib/types";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -18,11 +20,15 @@ export default async function DashboardPage() {
     .from("positions")
     .select("account_id, symbol, quantity, avg_cost");
 
-  // Open forex margin counts toward a forex account's value.
-  const { data: fxOpen } = await supabase
+  // Forex/leveraged positions: open → margin + floating P&L; closed → realized P&L.
+  const { data: fxAll } = await supabase
     .from("fx_positions")
-    .select("account_id, margin")
-    .eq("status", "open");
+    .select("account_id, symbol, direction, units, open_rate, pnl, margin, status");
+
+  // Transaction ledger → realized P&L for spot (stocks/crypto) holdings.
+  const { data: txns } = await supabase
+    .from("transactions")
+    .select("account_id, side, symbol, quantity, price, created_at");
 
   // Price alerts (table may not exist until upgrades.sql is run — degrades to none).
   const { data: alerts } = await supabase
@@ -46,8 +52,25 @@ export default async function DashboardPage() {
 
   // Live market value per account (batched quotes, server-side cache).
   const posRows = (positions ?? []) as Pick<Position, "account_id" | "symbol" | "quantity" | "avg_cost">[];
+  const fxRows = (fxAll ?? []) as Array<{
+    account_id: string;
+    symbol: string;
+    direction: "LONG" | "SHORT";
+    units: number;
+    open_rate: number;
+    pnl: number | null;
+    margin: number;
+    status: string;
+  }>;
+  const fxOpenRows = fxRows.filter((f) => f.status === "open");
+
   let quotes: Record<string, Quote> = {};
-  const symbols = Array.from(new Set(posRows.map((p) => p.symbol.toUpperCase())));
+  const symbols = Array.from(
+    new Set([
+      ...posRows.map((p) => p.symbol.toUpperCase()),
+      ...fxOpenRows.map((f) => f.symbol.toUpperCase()),
+    ])
+  );
   if (symbols.length) {
     try {
       quotes = await getQuotes(symbols);
@@ -56,16 +79,41 @@ export default async function DashboardPage() {
     }
   }
 
-  const summary: Record<string, { marketValue: number; holdings: number }> = {};
+  type Sum = { marketValue: number; holdings: number; unrealized: number; realized: number };
+  const summary: Record<string, Sum> = {};
+  const ensure = (id: string): Sum =>
+    (summary[id] ??= { marketValue: 0, holdings: 0, unrealized: 0, realized: 0 });
+
+  // Spot holdings: market value + unrealized P&L vs average cost.
   for (const p of posRows) {
-    const s = (summary[p.account_id] ??= { marketValue: 0, holdings: 0 });
+    const s = ensure(p.account_id);
     const q = quotes[p.symbol.toUpperCase()];
-    s.marketValue += Number(p.quantity) * (q?.price ?? Number(p.avg_cost));
+    const price = q?.price ?? Number(p.avg_cost);
+    s.marketValue += Number(p.quantity) * price;
+    s.unrealized += Number(p.quantity) * (price - Number(p.avg_cost));
     s.holdings += 1;
   }
-  for (const f of fxOpen ?? []) {
-    const s = (summary[f.account_id] ??= { marketValue: 0, holdings: 0 });
+
+  // Leveraged/forex: open → margin (value) + floating P&L; closed → realized P&L.
+  for (const f of fxOpenRows) {
+    const s = ensure(f.account_id);
     s.marketValue += Number(f.margin);
+    const q = quotes[f.symbol.toUpperCase()];
+    if (q?.price) {
+      s.unrealized += floatingPnl(f.direction, Number(f.units), Number(f.open_rate), q.price, f.symbol);
+    }
+  }
+  for (const f of fxRows) {
+    if (f.status !== "open") ensure(f.account_id).realized += Number(f.pnl ?? 0);
+  }
+
+  // Spot realized P&L reconstructed from each account's ledger.
+  const txByAccount: Record<string, Transaction[]> = {};
+  for (const t of (txns ?? []) as unknown as Array<Transaction & { account_id: string }>) {
+    (txByAccount[t.account_id] ??= []).push(t);
+  }
+  for (const [id, list] of Object.entries(txByAccount)) {
+    ensure(id).realized += realizedPnl(list);
   }
 
   return (

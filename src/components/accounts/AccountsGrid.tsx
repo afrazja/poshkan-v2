@@ -4,7 +4,7 @@ import { useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { Account } from "@/lib/types";
-import { formatCurrency } from "@/lib/format";
+import { formatCurrency, formatSignedCurrency, changeColor } from "@/lib/format";
 import CreateAccountModal from "./CreateAccountModal";
 import CashModal from "@/components/account/CashModal";
 import Modal from "@/components/Modal";
@@ -15,7 +15,7 @@ export default function AccountsGrid({
   summary,
 }: {
   accounts: Account[];
-  summary: Record<string, { marketValue: number; holdings: number }>;
+  summary: Record<string, { marketValue: number; holdings: number; unrealized: number; realized: number }>;
 }) {
   const router = useRouter();
   const [showCreate, setShowCreate] = useState(false);
@@ -53,7 +53,7 @@ export default function AccountsGrid({
     <>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {accounts.map((acc) => {
-          const s = summary[acc.id] ?? { marketValue: 0, holdings: 0 };
+          const s = summary[acc.id] ?? { marketValue: 0, holdings: 0, unrealized: 0, realized: 0 };
           const total = Number(acc.cash_balance) + s.marketValue;
           return (
             <div key={acc.id} className="relative">
@@ -75,6 +75,16 @@ export default function AccountsGrid({
                   </span>
                   <span className="text-muted">
                     {s.holdings} holding{s.holdings === 1 ? "" : "s"}
+                  </span>
+                </div>
+                <div className="mt-2 flex justify-between text-xs">
+                  <span className="text-muted">
+                    Unrealized{" "}
+                    <span className={changeColor(s.unrealized)}>{formatSignedCurrency(s.unrealized)}</span>
+                  </span>
+                  <span className="text-muted">
+                    Realized{" "}
+                    <span className={changeColor(s.realized)}>{formatSignedCurrency(s.realized)}</span>
                   </span>
                 </div>
               </Link>
