@@ -211,8 +211,12 @@ export async function GET(request: Request) {
       alerted++;
       try {
         await sendPushToUser(acc.user_id, {
-          title: `🎯 OTE signal: ${ev.direction} ${symbol} (${ev.rr}R)`,
-          body: `Entry ~${fmt(ev.entry)} · SL ${fmt(ev.stop)} · TP ${fmt(ev.takeProfit)}. ${ev.reason}`,
+          title: autoMode
+            ? `🎯 OTE: ${ev.direction} ${symbol} — auto-trade skipped`
+            : `🎯 OTE signal: ${ev.direction} ${symbol} (${ev.rr}R)`,
+          body: autoMode
+            ? `Found a setup but didn't open it — a daily limit was hit or it couldn't be sized within your cash. Entry ~${fmt(ev.entry)} · SL ${fmt(ev.stop)} · TP ${fmt(ev.takeProfit)}.`
+            : `Alert-only mode — no trade placed. Entry ~${fmt(ev.entry)} · SL ${fmt(ev.stop)} · TP ${fmt(ev.takeProfit)}. ${ev.reason}`,
           url: `/dashboard/${acc.id}`,
         });
       } catch {}

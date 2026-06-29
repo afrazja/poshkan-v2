@@ -214,8 +214,12 @@ export async function GET(request: Request) {
       alerted++;
       try {
         await sendPushToUser(acc.user_id, {
-          title: `↩️ Mean-rev signal: ${ev.direction} ${symbol} (${ev.rr}R)`,
-          body: `Entry ~${fmt(ev.entry)} · SL ${fmt(ev.stop)} · TP ${fmt(ev.takeProfit)}. ${ev.reason}`,
+          title: autoMode
+            ? `↩️ Mean-rev: ${ev.direction} ${symbol} — auto-trade skipped`
+            : `↩️ Mean-rev signal: ${ev.direction} ${symbol} (${ev.rr}R)`,
+          body: autoMode
+            ? `Found a setup but didn't open it — a daily limit was hit or it couldn't be sized within your cash. Entry ~${fmt(ev.entry)} · SL ${fmt(ev.stop)} · TP ${fmt(ev.takeProfit)}.`
+            : `Alert-only mode — no trade placed. Entry ~${fmt(ev.entry)} · SL ${fmt(ev.stop)} · TP ${fmt(ev.takeProfit)}. ${ev.reason}`,
           url: `/dashboard/${acc.id}`,
         });
       } catch {}
