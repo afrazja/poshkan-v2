@@ -13,6 +13,7 @@ import CandleRangeScanner from "@/components/account/CandleRangeScanner";
 import ScannerOnboard from "@/components/scanners/ScannerOnboard";
 import CronHealth from "@/components/scanners/CronHealth";
 import ScannerCompare from "@/components/scanners/ScannerCompare";
+import ScannerActivity, { type ActivityItem } from "@/components/scanners/ScannerActivity";
 import type { SmcSettings, SmcSignal } from "@/app/dashboard/[accountId]/smc-actions";
 import type { OteSettings, OteSignal } from "@/app/dashboard/[accountId]/ote-actions";
 import type { TrendSettings, TrendSignal } from "@/app/dashboard/[accountId]/trend-actions";
@@ -49,6 +50,42 @@ export default function ScannersHub({
   lastRunAt?: string | null;
   anyEnabled?: boolean;
 }) {
+  // One chronological activity feed, built from the signals already loaded above.
+  type Sig = {
+    id: string;
+    symbol: string;
+    direction: "LONG" | "SHORT";
+    entry: number | null;
+    take_profit: number | null;
+    reason: string | null;
+    executed: boolean;
+    created_at: string;
+  };
+  const activity: ActivityItem[] = accounts.flatMap((a) => {
+    const groups: { arr: Sig[]; icon: string; name: string }[] = [
+      { arr: a.smcSignals as unknown as Sig[], icon: "📈", name: "SMC" },
+      { arr: a.oteSignals as unknown as Sig[], icon: "🎯", name: "OTE" },
+      { arr: a.trendSignals as unknown as Sig[], icon: "🚀", name: "Trend" },
+      { arr: a.meanrevSignals as unknown as Sig[], icon: "↩️", name: "Mean Rev" },
+      { arr: a.candlerangeSignals as unknown as Sig[], icon: "📦", name: "Range" },
+    ];
+    return groups.flatMap((g) =>
+      (g.arr ?? []).map((sig) => ({
+        id: `${g.name}-${sig.id}`,
+        createdAt: sig.created_at,
+        accountName: a.name,
+        icon: g.icon,
+        scanner: g.name,
+        symbol: sig.symbol,
+        direction: sig.direction,
+        executed: sig.executed,
+        entry: sig.entry,
+        takeProfit: sig.take_profit,
+        reason: sig.reason,
+      }))
+    );
+  });
+
   return (
     <div className="space-y-6">
       {onboard && <ScannerOnboard />}
@@ -157,6 +194,8 @@ export default function ScannersHub({
           />
         )}
       />
+
+      <ScannerActivity items={activity} />
     </div>
   );
 }
