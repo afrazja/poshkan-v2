@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { getScannerHealth } from "@/app/dashboard/scanners/actions";
 
 const ago = (iso: string) => {
   const m = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
@@ -12,17 +13,31 @@ const ago = (iso: string) => {
 // "Is my cron alive?" banner. All scanners share one /api/cron/scanners ping, so
 // the freshest enabled-scanner run time tells us whether the cron is firing.
 export default function CronHealth({
-  lastRunAt,
-  anyEnabled = false,
+  lastRunAt: initialLastRun,
+  anyEnabled: initialEnabled = false,
 }: {
   lastRunAt: string | null;
   anyEnabled?: boolean;
 }) {
-  // Re-render periodically so the staleness reading stays current.
-  const [, setTick] = useState(0);
+  // Seed from the server render, then poll the actual latest run time so the
+  // banner stays accurate while the page is open (not just a stale prop aging).
+  const [lastRunAt, setLastRunAt] = useState(initialLastRun);
+  const [anyEnabled, setAnyEnabled] = useState(initialEnabled);
   useEffect(() => {
-    const id = setInterval(() => setTick((t) => t + 1), 30_000);
-    return () => clearInterval(id);
+    let active = true;
+    const refresh = async () => {
+      try {
+        const h = await getScannerHealth();
+        if (!active) return;
+        setLastRunAt(h.lastRunAt);
+        setAnyEnabled(h.anyEnabled);
+      } catch {}
+    };
+    const id = setInterval(refresh, 60_000);
+    return () => {
+      active = false;
+      clearInterval(id);
+    };
   }, []);
 
   if (!anyEnabled) return null; // nothing to monitor until a scanner is on
