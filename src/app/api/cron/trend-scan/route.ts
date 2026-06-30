@@ -137,85 +137,97 @@ export async function GET(request: Request) {
         .eq("account_id", acc.id)
         .eq("status", "open");
       const open = pos ?? [];
-      if (open.some((p) => (p.symbol ?? "").toUpperCase() === symbol)) continue;
-      if (open.length >= (Number(s.max_open) || 2)) {
-        await logAlert(db, acc, ev, false);
-        alerted++;
-        continue;
-      }
-      // One direction at a time — never hold a long and a short together (don't fight yourself).
-      if (open.some((p) => p.direction !== ev.direction)) {
-        await logAlert(db, acc, ev, false);
-        alerted++;
-        continue;
-      }
+      if (open.some((p) => (p.symbol ?? "").toUpperCase() === symbol)) continue; // already in it
+
+      // Decide whether to auto-trade; capture WHY we don't, to explain in the alert.
+      let why = autoMode ? "" : "scanner is in Alert-only mode";
+      let didTrade = false;
 
       if (autoMode) {
-        const { count: tradesToday } = await db
-          .from("trend_signals")
-          .select("id", { count: "exact", head: true })
-          .eq("account_id", acc.id)
-          .eq("executed", true)
-          .gte("created_at", dayStart.toISOString());
-        const { data: closedToday } = await db
-          .from("fx_positions")
-          .select("pnl")
-          .eq("account_id", acc.id)
-          .neq("status", "open")
-          .gte("closed_at", dayStart.toISOString());
-        const realizedToday = (closedToday ?? []).reduce((sum, r) => sum + Number(r.pnl ?? 0), 0);
-        const cash = Number(acc.cash_balance);
-        const lossHit = realizedToday <= -Math.abs(cash * (Number(s.daily_loss_pct) || 0.04));
+        if (open.length >= (Number(s.max_open) || 2)) {
+          why = "max open positions reached";
+        } else if (open.some((p) => p.direction !== ev.direction)) {
+          // One direction at a time — never hold a long and a short together.
+          why = "already holding an opposite-direction position (one direction at a time)";
+        } else {
+          const { count: tradesToday } = await db
+            .from("trend_signals")
+            .select("id", { count: "exact", head: true })
+            .eq("account_id", acc.id)
+            .eq("executed", true)
+            .gte("created_at", dayStart.toISOString());
+          const { data: closedToday } = await db
+            .from("fx_positions")
+            .select("pnl")
+            .eq("account_id", acc.id)
+            .neq("status", "open")
+            .gte("closed_at", dayStart.toISOString());
+          const realizedToday = (closedToday ?? []).reduce((sum, r) => sum + Number(r.pnl ?? 0), 0);
+          const cash = Number(acc.cash_balance);
+          const lossHit = realizedToday <= -Math.abs(cash * (Number(s.daily_loss_pct) || 0.04));
 
-        if ((tradesToday ?? 0) < (Number(s.max_per_day) || 5) && !lossHit) {
-          const q = await getQuote(symbol).catch(() => null);
-          const liveRate = q?.price ?? ev.entry;
-          const riskDist = Math.abs(ev.entry - ev.stop);
-          const rewardDist = Math.abs(ev.takeProfit - ev.entry);
-          const sl = isLong ? liveRate - riskDist : liveRate + riskDist;
-          const tp = isLong ? liveRate + rewardDist : liveRate - rewardDist;
+          if ((tradesToday ?? 0) >= (Number(s.max_per_day) || 5)) {
+            why = "daily trade cap reached";
+          } else if (lossHit) {
+            why = "daily loss limit hit";
+          } else {
+            const q = await getQuote(symbol).catch(() => null);
+            const liveRate = q?.price ?? ev.entry;
+            const riskDist = Math.abs(ev.entry - ev.stop);
+            const rewardDist = Math.abs(ev.takeProfit - ev.entry);
+            const sl = isLong ? liveRate - riskDist : liveRate + riskDist;
+            const tp = isLong ? liveRate + rewardDist : liveRate - rewardDist;
 
-          const lev = clampTradeLeverage(s.leverage);
-          // Cap each trade's margin to the user's chosen slice of free cash (default 25%),
-          // so one signal can't swallow the account — important now leverage can be 1×.
-          const marginCap = cash * (Number(s.max_position_pct) || 0.25);
-          let units = roundUnits(riskDist > 0 ? (cash * (Number(s.risk_pct) || 0.02)) / riskDist : 0, acc.type);
-          let margin = marginFor(units, liveRate, lev, symbol);
-          if (margin > marginCap && margin > 0) {
-            units = roundUnits((marginCap / margin) * units, acc.type);
-            margin = marginFor(units, liveRate, lev, symbol);
-          }
+            const lev = clampTradeLeverage(s.leverage);
+            // Cap each trade's margin to the user's chosen slice of free cash (default 25%),
+            // so one signal can't swallow the account — important now leverage can be 1×.
+            const marginCap = cash * (Number(s.max_position_pct) || 0.25);
+            let units = roundUnits(riskDist > 0 ? (cash * (Number(s.risk_pct) || 0.02)) / riskDist : 0, acc.type);
+            let margin = marginFor(units, liveRate, lev, symbol);
+            if (margin > marginCap && margin > 0) {
+              units = roundUnits((marginCap / margin) * units, acc.type);
+              margin = marginFor(units, liveRate, lev, symbol);
+            }
 
-          if (units > 0 && margin <= cash) {
-            const { data: newId, error } = await db.rpc("fx_open", {
-              p_account_id: acc.id,
-              p_symbol: symbol,
-              p_direction: ev.direction,
-              p_units: units,
-              p_rate: liveRate,
-              p_margin: margin,
-              p_stop_loss: sl,
-              p_take_profit: tp,
-            });
-            if (!error) {
-              await db.from("fx_positions").update({ source: "trend" }).eq("account_id", acc.id).eq("symbol", symbol).eq("status", "open");
-              if (Number(s.auto_close_hours) > 0 && newId) {
-                await db.rpc("fx_set_auto_close", { p_position_id: newId, p_minutes: Math.round(Number(s.auto_close_hours) * 60) });
+            if (units <= 0) {
+              why = "position rounds to 0 — account cash too small for this symbol's minimum size";
+            } else if (margin > cash) {
+              why = "not enough free cash for the required margin";
+            } else {
+              const { data: newId, error } = await db.rpc("fx_open", {
+                p_account_id: acc.id,
+                p_symbol: symbol,
+                p_direction: ev.direction,
+                p_units: units,
+                p_rate: liveRate,
+                p_margin: margin,
+                p_stop_loss: sl,
+                p_take_profit: tp,
+              });
+              if (!error) {
+                await db.from("fx_positions").update({ source: "trend" }).eq("account_id", acc.id).eq("symbol", symbol).eq("status", "open");
+                if (Number(s.auto_close_hours) > 0 && newId) {
+                  await db.rpc("fx_set_auto_close", { p_position_id: newId, p_minutes: Math.round(Number(s.auto_close_hours) * 60) });
+                }
+                await logAlert(db, acc, { ...ev, entry: liveRate, stop: sl, takeProfit: tp }, true);
+                placed++;
+                didTrade = true;
+                try {
+                  await sendPushToUser(acc.user_id, {
+                    title: `🚀 Trend auto-trade: ${ev.direction} ${symbol}`,
+                    body: `${units} @ ${fmt(liveRate)} · SL ${fmt(sl)} · TP ${fmt(tp)} (${ev.rr}R). ${ev.reason}`,
+                    url: `/dashboard/${acc.id}`,
+                  });
+                } catch {}
+              } else {
+                why = `order rejected (${error.message})`;
               }
-              await logAlert(db, acc, { ...ev, entry: liveRate, stop: sl, takeProfit: tp }, true);
-              placed++;
-              try {
-                await sendPushToUser(acc.user_id, {
-                  title: `🚀 Trend auto-trade: ${ev.direction} ${symbol}`,
-                  body: `${units} @ ${fmt(liveRate)} · SL ${fmt(sl)} · TP ${fmt(tp)} (${ev.rr}R). ${ev.reason}`,
-                  url: `/dashboard/${acc.id}`,
-                });
-              } catch {}
-              continue;
             }
           }
         }
       }
+
+      if (didTrade) continue;
 
       await logAlert(db, acc, ev, false);
       alerted++;
@@ -225,7 +237,7 @@ export async function GET(request: Request) {
             ? `🚀 Trend: ${ev.direction} ${symbol} — auto-trade skipped`
             : `🚀 Trend signal: ${ev.direction} ${symbol} (${ev.rr}R)`,
           body: autoMode
-            ? `Found a setup but didn't open it — a daily limit was hit or it couldn't be sized within your cash. Entry ~${fmt(ev.entry)} · SL ${fmt(ev.stop)} · TP ${fmt(ev.takeProfit)}.`
+            ? `Auto-trade skipped: ${why}. Setup: entry ~${fmt(ev.entry)} · SL ${fmt(ev.stop)} · TP ${fmt(ev.takeProfit)}.`
             : `Alert-only mode — no trade placed. Entry ~${fmt(ev.entry)} · SL ${fmt(ev.stop)} · TP ${fmt(ev.takeProfit)}. ${ev.reason}`,
           url: `/dashboard/${acc.id}`,
         });
