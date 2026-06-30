@@ -12,13 +12,20 @@ const items = [
       p === "/dashboard" ||
       (p.startsWith("/dashboard/") &&
         !p.startsWith("/dashboard/scanners") &&
-        !p.startsWith("/dashboard/leaderboard")),
+        !p.startsWith("/dashboard/leaderboard") &&
+        !p.startsWith("/dashboard/history")),
   },
   {
     href: "/dashboard/scanners",
     label: "Scanners",
     icon: "📡",
     match: (p: string) => p.startsWith("/dashboard/scanners"),
+  },
+  {
+    href: "/dashboard/history",
+    label: "History",
+    icon: "🧾",
+    match: (p: string) => p.startsWith("/dashboard/history"),
   },
   {
     href: "/dashboard/leaderboard",

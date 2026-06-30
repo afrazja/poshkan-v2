@@ -156,6 +156,12 @@ export default function TopBar({
           >
             📡 Scanners
           </Link>
+          <Link
+            href="/dashboard/history"
+            className="hidden rounded-lg px-2 py-1 text-sm font-medium text-muted transition hover:bg-background hover:text-foreground sm:inline-block"
+          >
+            🧾 History
+          </Link>
         </div>
 
         {/* Right: settings (left of avatar) + avatar */}
