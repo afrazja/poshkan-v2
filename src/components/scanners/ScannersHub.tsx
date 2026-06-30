@@ -11,6 +11,7 @@ import TrendScanner from "@/components/account/TrendScanner";
 import MeanRevScanner from "@/components/account/MeanRevScanner";
 import CandleRangeScanner from "@/components/account/CandleRangeScanner";
 import ScannerOnboard from "@/components/scanners/ScannerOnboard";
+import CronHealth from "@/components/scanners/CronHealth";
 import type { SmcSettings, SmcSignal } from "@/app/dashboard/[accountId]/smc-actions";
 import type { OteSettings, OteSignal } from "@/app/dashboard/[accountId]/ote-actions";
 import type { TrendSettings, TrendSignal } from "@/app/dashboard/[accountId]/trend-actions";
@@ -39,13 +40,18 @@ export interface ScanAcct {
 export default function ScannersHub({
   accounts,
   onboard = false,
+  lastRunAt = null,
+  anyEnabled = false,
 }: {
   accounts: ScanAcct[];
   onboard?: boolean;
+  lastRunAt?: string | null;
+  anyEnabled?: boolean;
 }) {
   return (
     <div className="space-y-6">
       {onboard && <ScannerOnboard />}
+      <CronHealth lastRunAt={lastRunAt} anyEnabled={anyEnabled} />
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-xl font-semibold">📡 Scanners</h1>

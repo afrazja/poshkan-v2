@@ -183,5 +183,28 @@ export default async function ScannersPage({
     candlerangeSignals: candlerangeSignalsBy[a.id] ?? [],
   }));
 
-  return <ScannersHub accounts={scanAccounts} onboard={onboard === "1"} />;
+  // Cron health: the freshest run across all ENABLED scanners (they share one
+  // /api/cron/scanners ping, so this is a reliable "is my cron alive?" signal).
+  const allSettings = [
+    ...Object.values(smcSettingsBy),
+    ...Object.values(oteSettingsBy),
+    ...Object.values(trendSettingsBy),
+    ...Object.values(meanrevSettingsBy),
+    ...Object.values(candlerangeSettingsBy),
+  ] as Array<{ enabled?: boolean; last_run_at?: string | null }>;
+  const enabledRuns = allSettings
+    .filter((s) => s.enabled)
+    .map((s) => s.last_run_at)
+    .filter(Boolean) as string[];
+  const lastRunAt = enabledRuns.length ? enabledRuns.sort().slice(-1)[0] : null;
+  const anyEnabled = allSettings.some((s) => s.enabled);
+
+  return (
+    <ScannersHub
+      accounts={scanAccounts}
+      onboard={onboard === "1"}
+      lastRunAt={lastRunAt}
+      anyEnabled={anyEnabled}
+    />
+  );
 }
