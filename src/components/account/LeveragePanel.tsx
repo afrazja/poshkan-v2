@@ -8,6 +8,7 @@ import { floatingPnl, marginFor, FX_LEVERAGE } from "@/lib/forex";
 import { openFxPositionAction, closeFxPositionAction, setFxSlTpAction } from "@/app/dashboard/[accountId]/actions";
 import SymbolSearch from "@/components/SymbolSearch";
 import Modal from "@/components/Modal";
+import SourceBadge from "./SourceBadge";
 
 // Leveraged long/short positions for stock & crypto accounts — the same engine
 // as forex (margin, SL/TP, stop-out), surfaced for these markets so the user can
@@ -95,9 +96,10 @@ export default function LeveragePanel({
                 </div>
                 <div className="mt-1 text-xs text-muted">
                   {Number(p.units).toLocaleString("en-US")} {unit} · {formatCurrency(Number(p.open_rate))} →{" "}
-                  {rate ? formatCurrency(rate) : "…"} · margin {formatCurrency(Number(p.margin))}
+                  {rate ? formatCurrency(rate) : "…"} · margin {formatCurrency(Number(p.margin))} · {levOf(p)}× lev
                   {p.auto_close_at && <span className="ml-1">· ⏱ {closesIn(p.auto_close_at)}</span>}
                 </div>
+                <div className="mt-0.5 text-[11px] text-muted">Opened {fmtClosed(p.opened_at)}</div>
                 <div className="mt-1.5 flex items-center justify-between gap-2 text-xs">
                   <span className="text-muted">
                     SL {p.stop_loss != null ? formatCurrency(Number(p.stop_loss)) : "—"} · TP{" "}
@@ -144,6 +146,9 @@ export default function LeveragePanel({
                     {formatCurrency(Number(p.open_rate))} →{" "}
                     {p.close_rate != null ? formatCurrency(Number(p.close_rate)) : "—"} · {outcomeLabel(p.status)}
                     {p.closed_at ? ` · ${fmtClosed(p.closed_at)}` : ""}
+                  </span>
+                  <span className="block text-[10px] text-muted">
+                    {levOf(p)}× · opened {fmtClosed(p.opened_at)}
                   </span>
                 </span>
                 <span className={`shrink-0 font-medium ${changeColor(Number(p.pnl ?? 0))}`}>
@@ -486,22 +491,10 @@ function closesIn(iso: string): string {
   return `closes in ${h}h${m ? ` ${m}m` : ""}`;
 }
 
-// Badge showing which scanner opened the position (or "Manual").
-function SourceBadge({ source }: { source?: string | null }) {
-  const labels: Record<string, string> = {
-    ai: "🤖 AI",
-    smc: "📈 SMC",
-    ote: "🎯 OTE",
-    trend: "🚀 Trend",
-    meanrev: "↩️ Mean Rev",
-    candlerange: "📦 Range",
-  };
-  const label = source ? labels[source] ?? source : "👤 Manual";
-  return (
-    <span className="ml-1 whitespace-nowrap rounded-md bg-muted/20 px-1.5 py-0.5 text-[10px] font-medium text-muted">
-      {label}
-    </span>
-  );
+// Effective leverage of a position = notional ÷ margin.
+function levOf(p: FxPosition): number {
+  const m = Number(p.margin);
+  return m > 0 ? Math.max(1, Math.round((Number(p.units) * Number(p.open_rate)) / m)) : 0;
 }
 
 // Human label for a closed position's exit reason.

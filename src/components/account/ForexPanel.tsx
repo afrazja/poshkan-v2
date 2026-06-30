@@ -34,6 +34,7 @@ import {
 import Modal from "@/components/Modal";
 import PriceChart from "./PriceChart";
 import PositionChartModal from "./PositionChartModal";
+import SourceBadge from "./SourceBadge";
 
 // Pending "At rate…" entry orders: lets users set a better entry at a pullback
 // level instead of chasing market. Set false to hide (market-only forex).
@@ -324,6 +325,7 @@ export default function ForexPanel({
                       >
                         {p.direction === "LONG" ? "Long" : "Short"}
                       </span>
+                      <SourceBadge source={p.source} />
                     </div>
                     <span className={`font-medium ${fl != null ? changeColor(fl) : ""}`}>
                       {fl != null ? formatSignedCurrency(fl) : "…"}
@@ -338,6 +340,7 @@ export default function ForexPanel({
                         {pp.toFixed(1)} pips)
                       </span>
                     )}
+                    <span className="ml-1">· {leverage}× lev</span>
                     {p.auto_close_at && <span className="ml-1">· ⏱ {autoCloseLabel(p.auto_close_at)}</span>}
                   </div>
                   <div className="mt-0.5 text-xs text-muted">Opened {fmtDateTime(p.opened_at)}</div>
@@ -406,6 +409,10 @@ export default function ForexPanel({
                           <span className="block text-xs font-normal text-muted">⏱ {autoCloseLabel(p.auto_close_at)}</span>
                         )}
                         <span className="block text-xs font-normal text-muted">Opened {fmtDateTime(p.opened_at)}</span>
+                        <span className="block text-xs font-normal text-muted">
+                          {leverage}× lev
+                          <SourceBadge source={p.source} />
+                        </span>
                       </td>
                       <td className="px-4 py-3">
                         <span
