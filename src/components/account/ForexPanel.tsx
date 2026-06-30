@@ -33,6 +33,7 @@ import Modal from "@/components/Modal";
 import PriceChart from "./PriceChart";
 import PositionChartModal from "./PositionChartModal";
 import SourceBadge from "./SourceBadge";
+import PositionCard from "./PositionCard";
 
 // Pending "At rate…" entry orders: lets users set a better entry at a pullback
 // level instead of chasing market. Set false to hide (market-only forex).
@@ -299,89 +300,32 @@ export default function ForexPanel({
           {/* Mobile: position cards */}
           <div className="space-y-2 sm:hidden">
             {open.map((p) => {
-              const q = quotes[p.symbol.toUpperCase()];
-              const rate = q?.price;
-              const fl = rate ? floatingPnl(p.direction, Number(p.units), Number(p.open_rate), rate, p.symbol) : null;
-              const pp = rate ? pips(p.direction, Number(p.open_rate), rate, p.symbol) : null;
-              const isExpanded = expandedFx === p.id;
+              const rate = quotes[p.symbol.toUpperCase()]?.price;
               return (
-                <div key={p.id} className="rounded-xl border border-border bg-card">
-                  {/* Collapsed header — tap the row to expand (pair name still opens the chart) */}
-                  <div
-                    onClick={() => setExpandedFx(isExpanded ? null : p.id)}
-                    className="flex cursor-pointer items-center justify-between p-3"
-                  >
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setChartPos(p);
-                        }}
-                        className="font-semibold hover:underline"
-                        title="View chart"
-                      >
-                        {pairName(p.symbol)}
-                      </button>
-                      <span
-                        className={`rounded-md px-2 py-0.5 text-xs font-medium ${
-                          p.direction === "LONG" ? "bg-positive/15 text-positive" : "bg-negative/15 text-negative"
-                        }`}
-                      >
-                        {p.direction === "LONG" ? "Long" : "Short"}
-                      </span>
-                      <SourceBadge source={p.source} />
-                    </div>
-                    <span className="flex items-center gap-2">
-                      <span className={`font-medium ${fl != null ? changeColor(fl) : ""}`}>
-                        {fl != null ? formatSignedCurrency(fl) : "…"}
-                      </span>
-                      <span className={`text-lg leading-none text-muted transition-transform ${isExpanded ? "rotate-90" : ""}`}>
-                        ›
-                      </span>
-                    </span>
-                  </div>
-
-                  {isExpanded && (
-                    <div className="border-t border-border p-3 pt-2">
-                      <div className="text-xs text-muted">
-                        {Number(p.units).toLocaleString("en-US")} units · {formatRate(Number(p.open_rate))} →{" "}
-                        {rate ? formatRate(rate) : "…"}
-                        {pp != null && (
-                          <span className={`ml-1 ${changeColor(pp)}`}>
-                            ({pp >= 0 ? "+" : ""}
-                            {pp.toFixed(1)} pips)
-                          </span>
-                        )}
-                        <span className="ml-1">· {fxLevOf(p)}× lev</span>
-                        {p.auto_close_at && <span className="ml-1">· ⏱ {autoCloseLabel(p.auto_close_at)}</span>}
+                <PositionCard
+                  key={p.id}
+                  position={p}
+                  title={pairName(p.symbol)}
+                  rate={rate}
+                  unitLabel="units"
+                  fmtPrice={(n) => formatRate(n, p.symbol)}
+                  metric="pips"
+                  surfaceClass="bg-card"
+                  expanded={expandedFx === p.id}
+                  onToggle={() => setExpandedFx(expandedFx === p.id ? null : p.id)}
+                  onTitleClick={() => setChartPos(p)}
+                  onEditSltp={() => setEditSltp(p)}
+                  onClose={() => closePosition(p.id)}
+                  closing={closing === p.id}
+                  autoCloseLabel={p.auto_close_at ? autoCloseLabel(p.auto_close_at) : null}
+                  sltpExtra={
+                    p.stop_loss != null || p.take_profit != null ? (
+                      <div className="text-right">
+                        <SlTpPnl p={p} />
                       </div>
-                      <div className="mt-0.5 text-xs text-muted">Opened {fmtDateTime(p.opened_at)}</div>
-                      <div className="mt-2 flex gap-2">
-                        <button
-                          onClick={() => setEditSltp(p)}
-                          className="flex-1 rounded-md border border-border px-2 py-1.5 text-xs hover:bg-background"
-                        >
-                          {p.stop_loss != null || p.take_profit != null
-                            ? `SL ${p.stop_loss != null ? formatRate(Number(p.stop_loss)) : "—"} / TP ${p.take_profit != null ? formatRate(Number(p.take_profit)) : "—"}`
-                            : "Set SL / TP"}
-                        </button>
-                        <button
-                          onClick={() => closePosition(p.id)}
-                          disabled={closing === p.id}
-                          className="flex-1 rounded-md border border-border px-2 py-1.5 text-xs hover:bg-background disabled:opacity-50"
-                        >
-                          {closing === p.id ? "Closing…" : "Close"}
-                        </button>
-                      </div>
-                      {(p.stop_loss != null || p.take_profit != null) && (
-                        <div className="mt-1 text-right">
-                          <SlTpPnl p={p} />
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
+                    ) : null
+                  }
+                />
               );
             })}
           </div>

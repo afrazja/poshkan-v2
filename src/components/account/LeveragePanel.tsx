@@ -3,12 +3,13 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { FxPosition, Quote } from "@/lib/types";
-import { formatCurrency, formatSignedCurrency, formatPercent, changeColor } from "@/lib/format";
-import { floatingPnl, marginFor, TRADE_LEVERAGE_OPTIONS } from "@/lib/forex";
+import { formatCurrency, formatSignedCurrency, changeColor } from "@/lib/format";
+import { marginFor, TRADE_LEVERAGE_OPTIONS } from "@/lib/forex";
 import { openFxPositionAction, closeFxPositionAction, setFxSlTpAction } from "@/app/dashboard/[accountId]/actions";
 import SymbolSearch from "@/components/SymbolSearch";
 import Modal from "@/components/Modal";
 import SourceBadge from "./SourceBadge";
+import PositionCard from "./PositionCard";
 
 // Leveraged long/short positions for stock & crypto accounts — the same engine
 // as forex (margin, SL/TP, stop-out), surfaced for these markets so the user can
@@ -67,75 +68,24 @@ export default function LeveragePanel({
       ) : (
         <div className="space-y-2">
           {live.map((p) => {
-            const q = quotes[p.symbol.toUpperCase()];
-            const rate = q?.price;
-            const fl = rate ? floatingPnl(p.direction, Number(p.units), Number(p.open_rate), rate, p.symbol) : null;
-            const pct =
-              rate && Number(p.open_rate) > 0
-                ? ((rate - Number(p.open_rate)) / Number(p.open_rate)) * 100 * (p.direction === "SHORT" ? -1 : 1)
-                : null;
-            const isExpanded = expandedId === p.id;
+            const rate = quotes[p.symbol.toUpperCase()]?.price;
             return (
-              <div key={p.id} className="rounded-xl border border-border bg-background">
-                {/* Collapsed header — tap to expand */}
-                <button
-                  onClick={() => setExpandedId(isExpanded ? null : p.id)}
-                  className="flex w-full items-center justify-between gap-2 p-3 text-left"
-                >
-                  <span className="font-semibold">
-                    {p.symbol}{" "}
-                    <span
-                      className={`ml-1 rounded-md px-2 py-0.5 text-xs font-medium ${
-                        p.direction === "LONG" ? "bg-positive/15 text-positive" : "bg-negative/15 text-negative"
-                      }`}
-                    >
-                      {p.direction === "LONG" ? "Long" : "Short"}
-                    </span>
-                    <SourceBadge source={p.source} />
-                  </span>
-                  <span className="flex items-center gap-2">
-                    <span className={`font-medium ${fl != null ? changeColor(fl) : ""}`}>
-                      {fl != null ? formatSignedCurrency(fl) : "…"}
-                      {pct != null && <span className="ml-1 text-xs">({formatPercent(pct)})</span>}
-                    </span>
-                    <span className={`text-lg leading-none text-muted transition-transform ${isExpanded ? "rotate-90" : ""}`}>
-                      ›
-                    </span>
-                  </span>
-                </button>
-
-                {isExpanded && (
-                  <div className="space-y-1.5 border-t border-border p-3 pt-2">
-                    <div className="text-xs text-muted">
-                      {Number(p.units).toLocaleString("en-US")} {unit} · {formatCurrency(Number(p.open_rate))} →{" "}
-                      {rate ? formatCurrency(rate) : "…"} · margin {formatCurrency(Number(p.margin))} · {levOf(p)}× lev
-                      {p.auto_close_at && <span className="ml-1">· ⏱ {closesIn(p.auto_close_at)}</span>}
-                    </div>
-                    <div className="text-[11px] text-muted">Opened {fmtClosed(p.opened_at)}</div>
-                    <div className="flex items-center justify-between gap-2 text-xs">
-                      <span className="text-muted">
-                        SL {p.stop_loss != null ? formatCurrency(Number(p.stop_loss)) : "—"} · TP{" "}
-                        {p.take_profit != null ? formatCurrency(Number(p.take_profit)) : "—"}
-                      </span>
-                      <span className="flex shrink-0 gap-1.5">
-                        <button
-                          onClick={() => setEditSltp(p)}
-                          className="rounded-md border border-border px-2 py-1 font-medium hover:bg-card"
-                        >
-                          SL/TP
-                        </button>
-                        <button
-                          onClick={() => close(p.id)}
-                          disabled={closing === p.id}
-                          className="rounded-md border border-border px-2 py-1 font-medium hover:bg-card disabled:opacity-50"
-                        >
-                          {closing === p.id ? "Closing…" : "Close"}
-                        </button>
-                      </span>
-                    </div>
-                  </div>
-                )}
-              </div>
+              <PositionCard
+                key={p.id}
+                position={p}
+                title={p.symbol}
+                rate={rate}
+                unitLabel={unit}
+                fmtPrice={formatCurrency}
+                metric="percent"
+                surfaceClass="bg-background"
+                expanded={expandedId === p.id}
+                onToggle={() => setExpandedId(expandedId === p.id ? null : p.id)}
+                onEditSltp={() => setEditSltp(p)}
+                onClose={() => close(p.id)}
+                closing={closing === p.id}
+                autoCloseLabel={p.auto_close_at ? closesIn(p.auto_close_at) : null}
+              />
             );
           })}
         </div>
