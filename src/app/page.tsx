@@ -6,9 +6,9 @@ import RecoveryRedirect from "@/components/auth/RecoveryRedirect";
 import LandingThemeToggle from "@/components/auth/LandingThemeToggle";
 
 export const metadata = {
-  title: "Poshkan — Practice trading stocks, crypto & forex with virtual money",
+  title: "Poshkan — Automated strategy scanners for stocks, crypto & forex (virtual money)",
   description:
-    "A risk-free trading simulator with live prices, real order types, strategy scanners that find & auto-trade setups, an AI coach, and a leaderboard. 100% virtual money.",
+    "A library of strategy scanners that find & auto-trade setups, go long or short with 1–10× leverage, an AI coach, and a leaderboard — across US stocks, crypto, and forex. 100% virtual money, risk-free.",
 };
 
 export default async function LandingPage({
@@ -56,10 +56,10 @@ export default async function LandingPage({
             </p>
             <ul className="mt-8 space-y-3 text-white/90">
               <li className="flex items-center gap-3">
-                <Dot /> Strategy scanners that hunt &amp; trade setups for you
+                <Dot /> Six strategy scanners that hunt &amp; trade setups for you
               </li>
               <li className="flex items-center gap-3">
-                <Dot /> Stocks, crypto &amp; forex — one playground
+                <Dot /> Go long or short — stocks, crypto &amp; forex, 1–10× leverage
               </li>
               <li className="flex items-center gap-3">
                 <Dot /> An AI coach that critiques your trading
@@ -76,39 +76,79 @@ export default async function LandingPage({
       <section className="border-t border-border px-6 py-8 text-center lg:hidden">
         <h1 className="text-2xl font-extrabold tracking-tight">Trade fearlessly. Lose nothing.</h1>
         <p className="mx-auto mt-2 max-w-md text-sm text-muted">
-          Practice stocks, crypto, and forex with live prices and 100% virtual money — with an AI
-          coach and a leaderboard.
+          A library of strategy scanners across stocks, crypto, and forex — long or short, with an AI
+          coach and a leaderboard. 100% virtual money.
         </p>
       </section>
 
-      {/* Scanners — the hero feature */}
+      {/* Scanners — the hero feature: a library across all markets */}
       <section className="border-t border-border bg-card px-6 py-14 sm:px-12">
-        <div className="mx-auto max-w-4xl text-center">
+        <div className="mx-auto max-w-5xl text-center">
           <span className="inline-block rounded-full bg-primary/15 px-3 py-1 text-xs font-semibold text-primary">
-            ✦ Strategy scanners
+            ✦ Strategy scanner library
           </span>
           <h2 className="mt-3 text-2xl font-bold tracking-tight sm:text-3xl">
-            Scanners that watch the market so you don&apos;t have to
+            Six scanners. Three markets. One playground.
           </h2>
           <p className="mx-auto mt-3 max-w-2xl text-sm text-muted">
-            Flip a scanner on and it hunts setups around the clock — pinging your phone, or trading on
-            its own within the risk limits you set. Pick your symbols, set your strategy, walk away.
+            Flip a scanner on and it hunts setups around the clock — on US stocks, crypto, or forex —
+            pinging your phone, or trading on its own within the risk limits you set. Pick your symbols,
+            set your strategy, walk away.
           </p>
-          <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
-            <MiniFeature
-              icon="🧪"
-              title="Backtest before you trust it"
-              text="See how a strategy would've performed on recent history — win rate, net R, and an equity curve — before you risk a cent."
+
+          {/* Markets the scanners run on */}
+          <div className="mt-6 flex flex-wrap justify-center gap-2">
+            <MarketChip label="US stocks" />
+            <MarketChip label="Crypto" />
+            <MarketChip label="Forex" />
+          </div>
+
+          {/* The library */}
+          <div className="mt-8 grid grid-cols-1 gap-4 text-left sm:grid-cols-2 lg:grid-cols-3">
+            <ScannerTile icon="🤖" title="AI Scanner" text="Claude reads the market and your plain-English rules to decide trades." />
+            <ScannerTile icon="📈" title="Smart Money Concepts" text="Order-block and fair-value-gap retests, confirmed before entry." />
+            <ScannerTile icon="🎯" title="Optimal Trade Entry" text="Fibonacci pullbacks into the OTE zone of an established trend." />
+            <ScannerTile icon="🚀" title="Trend Breakout" text="Confirmed breakouts with ADX strength and room left to run." />
+            <ScannerTile icon="↩️" title="Mean Reversion" text="Fades stretched moves back toward the middle of the band." />
+            <ScannerTile icon="📦" title="Candle Range" text="Buys support and sells resistance inside a price box." />
+          </div>
+
+          {/* Backtest → alert → auto-trade */}
+          <div className="mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-muted">
+            <span>🧪 Backtest it first</span>
+            <span>🔔 Alert your phone</span>
+            <span>⚡ Auto-trade, 1–10× leverage</span>
+          </div>
+          <p className="mt-6 text-xs text-muted">
+            New strategies land regularly — and they&apos;re free while we grow the library.
+          </p>
+        </div>
+      </section>
+
+      {/* Trade any market, your way */}
+      <section className="border-t border-border px-6 py-14 sm:px-12">
+        <div className="mx-auto max-w-5xl">
+          <h2 className="text-center text-2xl font-bold tracking-tight sm:text-3xl">
+            Trade any market, your way
+          </h2>
+          <p className="mx-auto mt-2 max-w-2xl text-center text-sm text-muted">
+            Not just buy-and-hold. Trade however the setup demands — by hand, or by scanner.
+          </p>
+          <div className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <Feature
+              icon="💵"
+              title="Spot — own it"
+              text="Buy and hold US stocks, ETFs, and crypto with virtual cash. Realized and unrealized P&amp;L tracked on every position."
             />
-            <MiniFeature
-              icon="📡"
-              title="Two engines"
-              text="A deterministic Smart-Money-Concepts scanner, and a Claude-powered AI scanner you steer in plain English."
+            <Feature
+              icon="🔀"
+              title="Long or short, with leverage"
+              text="Go long or short on stocks, crypto, and forex — pick 1–10× leverage per trade, with stop-loss, take-profit, stop-out, and timed auto-close."
             />
-            <MiniFeature
-              icon="🤖"
-              title="Hands-off auto-trade"
-              text="Let it open positions on its own — capped by your risk %, max trades, and daily loss limit. You stay in control."
+            <Feature
+              icon="⚡"
+              title="Real order types"
+              text="Market and limit orders, Day/GTC, forex entry orders — filled 24/7 by background workers, even while you sleep."
             />
           </div>
         </div>
@@ -127,11 +167,6 @@ export default async function LandingPage({
 
           <div className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <Feature
-              icon="📈"
-              title="Three real markets"
-              text="US stocks & ETFs, crypto, and leveraged forex pairs — each with live prices, charts, and its own account type."
-            />
-            <Feature
               icon="🤖"
               title="An AI coach in your corner"
               text="Journal why you make each trade. Claude reviews your reasoning against the outcomes and tells you which habits to fix."
@@ -142,14 +177,19 @@ export default async function LandingPage({
               text="Every account is ranked by % return on a live leaderboard. Fair math: deposits don't buy rank, resets restart your history."
             />
             <Feature
-              icon="⚡"
-              title="Real order types"
-              text="Market and limit orders, Day/GTC, stop-loss & take-profit, forex entry orders — filled 24/7 by background workers, even while you sleep."
-            />
-            <Feature
               icon="🔔"
               title="Alerts that find you"
-              text="Price alerts and order fills arrive by email and push notification — on your phone's lock screen if you install the app."
+              text="Scanner signals, order fills, and price alerts arrive by push and email — and live in the app's notification center so nothing slips by."
+            />
+            <Feature
+              icon="🛡️"
+              title="Risk guardrails built in"
+              text="Every scanner is capped by your risk %, max open trades, max per day, and a daily loss limit — and never fights itself with opposing trades."
+            />
+            <Feature
+              icon="🧪"
+              title="Backtest before you trust it"
+              text="See how a deterministic scanner would've performed on recent history — win rate, net R, and an equity curve — before you risk a cent."
             />
             <Feature
               icon="📊"
@@ -204,7 +244,7 @@ export default async function LandingPage({
           <div className="mt-10 grid grid-cols-1 gap-8 text-center sm:grid-cols-3">
             <Step n="1" title="Create a free account" text="Email, username, password. No card, no broker forms, nothing real at stake." />
             <Step n="2" title="Fund it with virtual cash" text="Open stock, crypto, or forex accounts and seed them with as much play money as you like." />
-            <Step n="3" title="Trade, compete, improve" text="Buy your first stock in seconds. Journal your reasoning. Let the AI coach sharpen you." />
+            <Step n="3" title="Trade — or let a scanner do it" text="Buy in seconds, or flip on a strategy scanner and let it find and trade setups while you watch and learn." />
           </div>
           <p className="mt-10 text-center text-sm text-muted">
             Ready? Scroll up and create your account — it takes a minute. ↑
@@ -232,13 +272,21 @@ function Alternative({ title, point, catchLine }: { title: string; point: string
   );
 }
 
-function MiniFeature({ icon, title, text }: { icon: string; title: string; text: string }) {
+function ScannerTile({ icon, title, text }: { icon: string; title: string; text: string }) {
   return (
-    <div className="rounded-2xl border border-border bg-background p-5 text-left">
+    <div className="rounded-2xl border border-border bg-background p-5">
       <div className="text-2xl">{icon}</div>
       <h3 className="mt-2 font-semibold">{title}</h3>
       <p className="mt-1 text-sm leading-relaxed text-muted">{text}</p>
     </div>
+  );
+}
+
+function MarketChip({ label }: { label: string }) {
+  return (
+    <span className="rounded-full border border-border bg-background px-4 py-1.5 text-sm font-medium">
+      {label}
+    </span>
   );
 }
 
@@ -269,7 +317,7 @@ function Dot() {
 }
 
 function TickerBackdrop() {
-  const rows = ["AAPL +1.2%", "TSLA -0.8%", "NVDA +3.4%", "MSFT +0.5%", "AMZN -1.1%", "GOOGL +0.9%"];
+  const rows = ["AAPL +1.2%", "BTC +2.1%", "NVDA +3.4%", "ETH -0.7%", "EURUSD +0.3%", "SOL +4.4%", "TSLA -0.8%", "MSFT +0.5%"];
   return (
     <div className="flex h-full flex-col justify-around font-mono text-2xl">
       {Array.from({ length: 8 }).map((_, i) => (
