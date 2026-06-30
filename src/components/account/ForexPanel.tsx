@@ -296,9 +296,7 @@ export default function ForexPanel({
             No open positions. Pick a pair above to place your first trade.
           </div>
         ) : (
-          <>
-          {/* Mobile: position cards */}
-          <div className="space-y-2 sm:hidden">
+          <div className="space-y-2">
             {open.map((p) => {
               const rate = quotes[p.symbol.toUpperCase()]?.price;
               return (
@@ -329,111 +327,6 @@ export default function ForexPanel({
               );
             })}
           </div>
-
-          {/* Desktop: full table */}
-          <div className="hidden overflow-x-auto rounded-2xl border border-border bg-card sm:block">
-            <table className="w-full min-w-[760px] text-sm">
-              <thead>
-                <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted">
-                  <th className="px-4 py-3 font-medium">Pair</th>
-                  <th className="px-4 py-3 font-medium">Side</th>
-                  <th className="px-4 py-3 text-right font-medium">Units</th>
-                  <th className="px-4 py-3 text-right font-medium">Open rate</th>
-                  <th className="px-4 py-3 text-right font-medium">Rate now</th>
-                  <th className="px-4 py-3 text-right font-medium">Pips</th>
-                  <th className="px-4 py-3 text-right font-medium">P&L</th>
-                  <th className="px-4 py-3 text-right font-medium">Margin</th>
-                  <th className="px-4 py-3 text-right font-medium">SL / TP</th>
-                  <th className="px-4 py-3 text-right font-medium"></th>
-                </tr>
-              </thead>
-              <tbody>
-                {open.map((p) => {
-                  const q = quotes[p.symbol.toUpperCase()];
-                  const rate = q?.price;
-                  const fl = rate ? floatingPnl(p.direction, Number(p.units), Number(p.open_rate), rate, p.symbol) : null;
-                  const pp = rate ? pips(p.direction, Number(p.open_rate), rate, p.symbol) : null;
-                  return (
-                    <tr key={p.id} className="border-b border-border last:border-0">
-                      <td className="px-4 py-3 font-semibold">
-                        <button
-                          type="button"
-                          onClick={() => setChartPos(p)}
-                          className="hover:underline"
-                          title="View chart"
-                        >
-                          {pairName(p.symbol)}
-                        </button>
-                        {p.auto_close_at && (
-                          <span className="block text-xs font-normal text-muted">⏱ {autoCloseLabel(p.auto_close_at)}</span>
-                        )}
-                        <span className="block text-xs font-normal text-muted">Opened {fmtDateTime(p.opened_at)}</span>
-                        <span className="block text-xs font-normal text-muted">
-                          {fxLevOf(p)}× lev
-                          <SourceBadge source={p.source} />
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span
-                          className={`rounded-md px-2 py-0.5 text-xs font-medium ${
-                            p.direction === "LONG" ? "bg-positive/15 text-positive" : "bg-negative/15 text-negative"
-                          }`}
-                        >
-                          {p.direction === "LONG" ? "Long" : "Short"}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-right">{Number(p.units).toLocaleString("en-US")}</td>
-                      <td className="px-4 py-3 text-right">{formatRate(Number(p.open_rate))}</td>
-                      <td className="px-4 py-3 text-right">{rate ? formatRate(rate) : "…"}</td>
-                      <td className={`px-4 py-3 text-right ${pp != null ? changeColor(pp) : ""}`}>
-                        {pp != null ? `${pp >= 0 ? "+" : ""}${pp.toFixed(1)}` : "…"}
-                      </td>
-                      <td className={`px-4 py-3 text-right font-medium ${fl != null ? changeColor(fl) : ""}`}>
-                        {fl != null ? formatSignedCurrency(fl) : "…"}
-                      </td>
-                      <td className="px-4 py-3 text-right text-muted">{formatCurrency(Number(p.margin))}</td>
-                      <td className="px-4 py-3 text-right">
-                        <button
-                          onClick={() => setEditSltp(p)}
-                          className="rounded-md border border-border px-2 py-1 text-xs hover:bg-background"
-                          title="Set stop-loss / take-profit"
-                        >
-                          {p.stop_loss != null || p.take_profit != null ? (
-                            <>
-                              <span className="text-negative">
-                                {p.stop_loss != null ? formatRate(Number(p.stop_loss)) : "—"}
-                              </span>
-                              {" / "}
-                              <span className="text-positive">
-                                {p.take_profit != null ? formatRate(Number(p.take_profit)) : "—"}
-                              </span>
-                            </>
-                          ) : (
-                            "Set"
-                          )}
-                        </button>
-                        {(p.stop_loss != null || p.take_profit != null) && (
-                          <div className="mt-0.5">
-                            <SlTpPnl p={p} />
-                          </div>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <button
-                          onClick={() => closePosition(p.id)}
-                          disabled={closing === p.id}
-                          className="rounded-md border border-border px-2.5 py-1 text-xs font-medium hover:bg-background disabled:opacity-50"
-                        >
-                          {closing === p.id ? "Closing…" : "Close"}
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-          </>
         )}
       </section>
 
