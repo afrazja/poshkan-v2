@@ -13,6 +13,7 @@ export interface CandleRangeSettings {
   mode: "alert" | "auto";
   symbols: string[];
   risk_pct: number;
+  max_position_pct: number;
   range_period: number;
   edge_zone: number;
   sl_atr_mult: number;
@@ -169,6 +170,7 @@ export interface SaveCandleRangeInput {
   mode: "alert" | "auto";
   symbols: string[];
   riskPct: number;
+  maxPositionPct: number;
   rangePeriod: number;
   edgeZone: number;
   slAtrMult: number;
@@ -197,6 +199,7 @@ export async function saveCandleRangeSettings(input: SaveCandleRangeInput): Prom
       mode: input.mode,
       symbols,
       risk_pct: Math.min(0.03, Math.max(0.005, input.riskPct)),
+      max_position_pct: Math.min(1, Math.max(0.05, input.maxPositionPct)),
       range_period: Math.min(100, Math.max(8, Math.round(input.rangePeriod))),
       edge_zone: Math.min(0.45, Math.max(0.1, input.edgeZone)),
       sl_atr_mult: Math.min(3, Math.max(0.1, input.slAtrMult)),

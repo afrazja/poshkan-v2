@@ -738,6 +738,7 @@ export async function setAutoSettingsAction(
     dailyLossPct: number; // percent
     minMinutes: number;
     leverage: number; // per-trade leverage 1/2/5/10
+    maxPositionPct: number; // max % of account per trade
   }
 ): Promise<{ error?: string }> {
   const supabase = await createClient();
@@ -757,6 +758,7 @@ export async function setAutoSettingsAction(
       auto_daily_loss_pct: clamp(s.dailyLossPct, 0.5, 50) / 100,
       auto_min_minutes: Math.round(clamp(s.minMinutes, 5, 1440)),
       auto_leverage: clampTradeLeverage(s.leverage),
+      auto_max_position_pct: clamp(s.maxPositionPct, 5, 100) / 100,
     })
     .eq("id", accountId);
   if (error) return { error: error.message };

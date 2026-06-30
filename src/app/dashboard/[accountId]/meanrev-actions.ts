@@ -13,6 +13,7 @@ export interface MeanRevSettings {
   mode: "alert" | "auto";
   symbols: string[];
   risk_pct: number;
+  max_position_pct: number;
   bb_period: number;
   bb_k: number;
   trend_ma: number;
@@ -166,6 +167,7 @@ export interface SaveMeanRevInput {
   mode: "alert" | "auto";
   symbols: string[];
   riskPct: number;
+  maxPositionPct: number;
   bbPeriod: number;
   bbK: number;
   trendMa: number;
@@ -194,6 +196,7 @@ export async function saveMeanRevSettings(input: SaveMeanRevInput): Promise<{ er
       mode: input.mode,
       symbols,
       risk_pct: Math.min(0.03, Math.max(0.005, input.riskPct)),
+      max_position_pct: Math.min(1, Math.max(0.05, input.maxPositionPct)),
       bb_period: Math.min(100, Math.max(5, Math.round(input.bbPeriod))),
       bb_k: Math.min(4, Math.max(1, input.bbK)),
       trend_ma: Math.min(400, Math.max(0, Math.round(input.trendMa))),

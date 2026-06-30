@@ -58,6 +58,7 @@ export default function OteScanner({
   const [mode, setMode] = useState<"alert" | "auto">(initialSettings?.mode ?? "alert");
   const [symbols, setSymbols] = useState<string[]>(initialSettings?.symbols ?? universe);
   const [riskPct, setRiskPct] = useState(((initialSettings?.risk_pct ?? 0.02) * 100).toString());
+  const [maxPositionPct, setMaxPositionPct] = useState(((initialSettings?.max_position_pct ?? 0.25) * 100).toString());
   const [minRr, setMinRr] = useState((initialSettings?.min_rr ?? 2.5).toString());
   const [maxOpen, setMaxOpen] = useState((initialSettings?.max_open ?? 2).toString());
   const [maxPerDay, setMaxPerDay] = useState((initialSettings?.max_per_day ?? 5).toString());
@@ -129,6 +130,7 @@ export default function OteScanner({
         mode,
         symbols,
         riskPct: Number(riskPct) / 100,
+        maxPositionPct: Number(maxPositionPct) / 100,
         minRr: Number(minRr),
         maxOpen: Number(maxOpen),
         maxPerDay: Number(maxPerDay),
@@ -288,6 +290,7 @@ export default function OteScanner({
 
         <div className="grid grid-cols-2 gap-2">
           <Field label="Risk per trade (%)" value={riskPct} onChange={setRiskPct} />
+          <Field label="Max position size (%)" value={maxPositionPct} onChange={setMaxPositionPct} />
           <Field label="Min reward : risk" value={minRr} onChange={setMinRr} />
           <Field label="Max open" value={maxOpen} onChange={setMaxOpen} />
           <Field label="Max trades / day" value={maxPerDay} onChange={setMaxPerDay} />

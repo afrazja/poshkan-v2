@@ -58,6 +58,7 @@ export default function CandleRangeScanner({
   const [mode, setMode] = useState<"alert" | "auto">(initialSettings?.mode ?? "alert");
   const [symbols, setSymbols] = useState<string[]>(initialSettings?.symbols ?? universe);
   const [riskPct, setRiskPct] = useState(((initialSettings?.risk_pct ?? 0.02) * 100).toString());
+  const [maxPositionPct, setMaxPositionPct] = useState(((initialSettings?.max_position_pct ?? 0.25) * 100).toString());
   const [rangePeriod, setRangePeriod] = useState((initialSettings?.range_period ?? 20).toString());
   const [edgeZone, setEdgeZone] = useState(((initialSettings?.edge_zone ?? 0.25) * 100).toString());
   const [slAtrMult, setSlAtrMult] = useState((initialSettings?.sl_atr_mult ?? 0.5).toString());
@@ -138,6 +139,7 @@ export default function CandleRangeScanner({
         mode,
         symbols,
         riskPct: Number(riskPct) / 100,
+        maxPositionPct: Number(maxPositionPct) / 100,
         rangePeriod: Number(rangePeriod),
         edgeZone: Number(edgeZone) / 100,
         slAtrMult: Number(slAtrMult),
@@ -295,6 +297,7 @@ export default function CandleRangeScanner({
 
         <div className="grid grid-cols-2 gap-2">
           <Field label="Risk per trade (%)" value={riskPct} onChange={setRiskPct} />
+          <Field label="Max position size (%)" value={maxPositionPct} onChange={setMaxPositionPct} />
           <Field label="Range length (bars)" value={rangePeriod} onChange={setRangePeriod} />
           <Field label="Edge zone (%)" value={edgeZone} onChange={setEdgeZone} />
           <Field label="Stop buffer (×ATR)" value={slAtrMult} onChange={setSlAtrMult} />

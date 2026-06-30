@@ -13,6 +13,7 @@ export interface TrendSettings {
   mode: "alert" | "auto";
   symbols: string[];
   risk_pct: number;
+  max_position_pct: number;
   donchian_n: number;
   tp_rr: number;
   adx_min: number;
@@ -176,6 +177,7 @@ export interface SaveTrendInput {
   mode: "alert" | "auto";
   symbols: string[];
   riskPct: number;
+  maxPositionPct: number;
   donchianN: number;
   tpRR: number;
   adxMin: number;
@@ -205,6 +207,7 @@ export async function saveTrendSettings(input: SaveTrendInput): Promise<{ error?
       mode: input.mode,
       symbols,
       risk_pct: Math.min(0.03, Math.max(0.005, input.riskPct)),
+      max_position_pct: Math.min(1, Math.max(0.05, input.maxPositionPct)),
       donchian_n: Math.min(100, Math.max(5, Math.round(input.donchianN))),
       tp_rr: Math.min(8, Math.max(1, input.tpRR)),
       adx_min: Math.min(60, Math.max(0, Math.round(input.adxMin))),

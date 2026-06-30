@@ -13,6 +13,7 @@ export interface SmcSettings {
   mode: "alert" | "auto";
   symbols: string[];
   risk_pct: number;
+  max_position_pct: number;
   tp_rr: number;
   sl_mode: "swing" | "fvg";
   max_open: number;
@@ -170,6 +171,7 @@ export interface SaveSmcInput {
   mode: "alert" | "auto";
   symbols: string[];
   riskPct: number;
+  maxPositionPct: number;
   tpRR: number;
   slMode: "swing" | "fvg";
   maxOpen: number;
@@ -195,6 +197,7 @@ export async function saveSmcSettings(input: SaveSmcInput): Promise<{ error?: st
       mode: input.mode,
       symbols,
       risk_pct: Math.min(0.03, Math.max(0.005, input.riskPct)),
+      max_position_pct: Math.min(1, Math.max(0.05, input.maxPositionPct)),
       tp_rr: Math.min(4, Math.max(1, input.tpRR)),
       sl_mode: input.slMode,
       max_open: Math.min(5, Math.max(1, Math.round(input.maxOpen))),

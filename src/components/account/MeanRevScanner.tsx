@@ -58,6 +58,7 @@ export default function MeanRevScanner({
   const [mode, setMode] = useState<"alert" | "auto">(initialSettings?.mode ?? "alert");
   const [symbols, setSymbols] = useState<string[]>(initialSettings?.symbols ?? universe);
   const [riskPct, setRiskPct] = useState(((initialSettings?.risk_pct ?? 0.02) * 100).toString());
+  const [maxPositionPct, setMaxPositionPct] = useState(((initialSettings?.max_position_pct ?? 0.25) * 100).toString());
   const [bbPeriod, setBbPeriod] = useState((initialSettings?.bb_period ?? 20).toString());
   const [bbK, setBbK] = useState((initialSettings?.bb_k ?? 2).toString());
   const [trendMa, setTrendMa] = useState((initialSettings?.trend_ma ?? 100).toString());
@@ -138,6 +139,7 @@ export default function MeanRevScanner({
         mode,
         symbols,
         riskPct: Number(riskPct) / 100,
+        maxPositionPct: Number(maxPositionPct) / 100,
         bbPeriod: Number(bbPeriod),
         bbK: Number(bbK),
         trendMa: Number(trendMa),
@@ -295,6 +297,7 @@ export default function MeanRevScanner({
 
         <div className="grid grid-cols-2 gap-2">
           <Field label="Risk per trade (%)" value={riskPct} onChange={setRiskPct} />
+          <Field label="Max position size (%)" value={maxPositionPct} onChange={setMaxPositionPct} />
           <Field label="Band length (bars)" value={bbPeriod} onChange={setBbPeriod} />
           <Field label="Band width (×σ)" value={bbK} onChange={setBbK} />
           <Field label="Trend MA (0 = off)" value={trendMa} onChange={setTrendMa} />

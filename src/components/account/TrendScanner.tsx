@@ -58,6 +58,7 @@ export default function TrendScanner({
   const [mode, setMode] = useState<"alert" | "auto">(initialSettings?.mode ?? "alert");
   const [symbols, setSymbols] = useState<string[]>(initialSettings?.symbols ?? universe);
   const [riskPct, setRiskPct] = useState(((initialSettings?.risk_pct ?? 0.02) * 100).toString());
+  const [maxPositionPct, setMaxPositionPct] = useState(((initialSettings?.max_position_pct ?? 0.25) * 100).toString());
   const [donchianN, setDonchianN] = useState((initialSettings?.donchian_n ?? 20).toString());
   const [tpRR, setTpRR] = useState((initialSettings?.tp_rr ?? 3).toString());
   const [adxMin, setAdxMin] = useState((initialSettings?.adx_min ?? 20).toString());
@@ -140,6 +141,7 @@ export default function TrendScanner({
         mode,
         symbols,
         riskPct: Number(riskPct) / 100,
+        maxPositionPct: Number(maxPositionPct) / 100,
         donchianN: Number(donchianN),
         tpRR: Number(tpRR),
         adxMin: Number(adxMin),
@@ -299,6 +301,7 @@ export default function TrendScanner({
 
         <div className="grid grid-cols-2 gap-2">
           <Field label="Risk per trade (%)" value={riskPct} onChange={setRiskPct} />
+          <Field label="Max position size (%)" value={maxPositionPct} onChange={setMaxPositionPct} />
           <Field label="Breakout length (bars)" value={donchianN} onChange={setDonchianN} />
           <Field label="Target (R)" value={tpRR} onChange={setTpRR} />
           <Field label="Min ADX (0 = off)" value={adxMin} onChange={setAdxMin} />

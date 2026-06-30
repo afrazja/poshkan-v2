@@ -49,6 +49,7 @@ interface AccRow {
   cash_balance: number;
   leverage: number;
   auto_leverage?: number | null;
+  auto_max_position_pct?: number | null;
   ai_instruction: string | null;
   ai_symbols?: string[] | null;
   auto_trade_enabled?: boolean;
@@ -78,7 +79,7 @@ export async function GET(request: Request) {
       db
         .from("accounts")
         .select(
-          "id, user_id, name, type, cash_balance, leverage, auto_leverage, ai_instruction, ai_symbols, auto_trade_enabled, auto_risk_pct, auto_max_open, auto_max_per_day, auto_daily_loss_pct, auto_min_minutes"
+          "id, user_id, name, type, cash_balance, leverage, auto_leverage, auto_max_position_pct, ai_instruction, ai_symbols, auto_trade_enabled, auto_risk_pct, auto_max_open, auto_max_per_day, auto_daily_loss_pct, auto_min_minutes"
         ),
       db.from("push_subscriptions").select("user_id"),
     ]);
@@ -227,9 +228,9 @@ export async function GET(request: Request) {
         const tooSoon = Date.now() - lastAt < minMinutes * 60_000;
 
         const lev = clampTradeLeverage(acc.auto_leverage);
-        // Cap each trade to a slice of free cash (smaller when more positions are allowed),
+        // Cap each trade's margin to the user's chosen slice of free cash (default 25%),
         // so one signal can't swallow the account — important now leverage can be 1×.
-        const marginCap = cash * Math.min(0.25, 1 / Math.max(1, maxOpen));
+        const marginCap = cash * (Number(acc.auto_max_position_pct) || 0.25);
         let units = suggestUnits(cash, setup.entry, setup.stop, setup.pair, market, riskPct);
         let margin = marginFor(units, liveRate, lev, setup.pair);
         if (margin > marginCap && margin > 0) {

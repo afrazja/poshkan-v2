@@ -16,6 +16,7 @@ interface SmcRow {
   mode: string;
   symbols: string[];
   risk_pct: number;
+  max_position_pct: number;
   tp_rr: number;
   sl_mode: string;
   max_open: number;
@@ -188,9 +189,9 @@ export async function GET(request: Request) {
           const tp = isLong ? liveRate + rewardDist : liveRate - rewardDist;
 
           const lev = clampTradeLeverage(s.leverage);
-          // Cap each trade to a slice of free cash (smaller when more positions are allowed),
+          // Cap each trade's margin to the user's chosen slice of free cash (default 25%),
           // so one signal can't swallow the account — important now leverage can be 1×.
-          const marginCap = cash * Math.min(0.25, 1 / Math.max(1, Number(s.max_open) || 2));
+          const marginCap = cash * (Number(s.max_position_pct) || 0.25);
           let units = roundUnits(riskDist > 0 ? (cash * (Number(s.risk_pct) || 0.02)) / riskDist : 0, acc.type);
           // Scale down so required margin never exceeds free cash.
           let margin = marginFor(units, liveRate, lev, symbol);

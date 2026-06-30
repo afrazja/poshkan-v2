@@ -95,6 +95,7 @@ export default function SmcScanner({
   const [mode, setMode] = useState<"alert" | "auto">(initialSettings?.mode ?? "alert");
   const [symbols, setSymbols] = useState<string[]>(initialSettings?.symbols ?? universe);
   const [riskPct, setRiskPct] = useState(((initialSettings?.risk_pct ?? 0.02) * 100).toString());
+  const [maxPositionPct, setMaxPositionPct] = useState(((initialSettings?.max_position_pct ?? 0.25) * 100).toString());
   const [tpRR, setTpRR] = useState((initialSettings?.tp_rr ?? 2).toString());
   const [slMode, setSlMode] = useState<"swing" | "fvg">(initialSettings?.sl_mode ?? "swing");
   const [maxOpen, setMaxOpen] = useState((initialSettings?.max_open ?? 2).toString());
@@ -131,6 +132,7 @@ export default function SmcScanner({
         mode,
         symbols,
         riskPct: Number(riskPct) / 100,
+        maxPositionPct: Number(maxPositionPct) / 100,
         tpRR: Number(tpRR),
         slMode,
         maxOpen: Number(maxOpen),
@@ -298,6 +300,7 @@ export default function SmcScanner({
 
         <div className="grid grid-cols-2 gap-2">
           <Field label="Risk per trade (%)" value={riskPct} onChange={setRiskPct} />
+          <Field label="Max position size (%)" value={maxPositionPct} onChange={setMaxPositionPct} />
           <div>
             <span className="mb-1 block text-xs font-medium text-muted">Take-profit</span>
             <select

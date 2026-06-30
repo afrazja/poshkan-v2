@@ -87,6 +87,7 @@ export default async function AccountPage({
     dailyLossPct: (acc.auto_daily_loss_pct ?? 0.03) * 100,
     minMinutes: acc.auto_min_minutes ?? 60,
     leverage: acc.auto_leverage ?? 1,
+    maxPositionPct: (acc.auto_max_position_pct ?? 0.25) * 100,
   };
 
   return (

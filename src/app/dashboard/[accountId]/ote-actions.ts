@@ -13,6 +13,7 @@ export interface OteSettings {
   mode: "alert" | "auto";
   symbols: string[];
   risk_pct: number;
+  max_position_pct: number;
   min_rr: number;
   max_open: number;
   max_per_day: number;
@@ -160,6 +161,7 @@ export interface SaveOteInput {
   mode: "alert" | "auto";
   symbols: string[];
   riskPct: number;
+  maxPositionPct: number;
   minRr: number;
   maxOpen: number;
   maxPerDay: number;
@@ -185,6 +187,7 @@ export async function saveOteSettings(input: SaveOteInput): Promise<{ error?: st
       mode: input.mode,
       symbols,
       risk_pct: Math.min(0.03, Math.max(0.005, input.riskPct)),
+      max_position_pct: Math.min(1, Math.max(0.05, input.maxPositionPct)),
       min_rr: Math.min(6, Math.max(1.5, input.minRr)),
       max_open: Math.min(5, Math.max(1, Math.round(input.maxOpen))),
       max_per_day: Math.min(20, Math.max(1, Math.round(input.maxPerDay))),

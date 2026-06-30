@@ -21,6 +21,7 @@ export interface AutoSettings {
   dailyLossPct: number; // percent
   minMinutes: number;
   leverage: number; // per-trade leverage 1/2/5/10
+  maxPositionPct: number; // max % of account per trade
 }
 
 export const DEFAULT_AUTO_SETTINGS: AutoSettings = {
@@ -31,6 +32,7 @@ export const DEFAULT_AUTO_SETTINGS: AutoSettings = {
   dailyLossPct: 3,
   minMinutes: 60,
   leverage: 1,
+  maxPositionPct: 25,
 };
 
 // The AI (forex) scanner: autonomous-trading limits + plain-English strategy.
@@ -241,6 +243,7 @@ function AutoSettingsCard({ accountId, initial }: { accountId: string; initial: 
       </p>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         <NumField label="Risk per trade %" value={s.riskPct} step="0.1" onChange={(v) => set({ riskPct: v })} />
+        <NumField label="Max position size %" value={s.maxPositionPct} step="1" onChange={(v) => set({ maxPositionPct: v })} />
         <NumField label="Max open" value={s.maxOpen} step="1" onChange={(v) => set({ maxOpen: v })} />
         <NumField label="Max trades / day" value={s.maxPerDay} step="1" onChange={(v) => set({ maxPerDay: v })} />
         <NumField label="Daily loss limit %" value={s.dailyLossPct} step="0.5" onChange={(v) => set({ dailyLossPct: v })} />
