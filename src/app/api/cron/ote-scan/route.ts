@@ -83,7 +83,7 @@ export async function GET(request: Request) {
 
     const params: OteParams = {
       ...OTE_DEFAULTS,
-      minRR: Math.min(6, Math.max(1.5, Number(s.min_rr) || OTE_DEFAULTS.minRR)),
+      minRR: Math.min(6, Math.max(2, Number(s.min_rr) || OTE_DEFAULTS.minRR)),
     };
     const universe = marketUniverse(acc.type);
     const chosen = s.symbols && s.symbols.length ? s.symbols : universe;

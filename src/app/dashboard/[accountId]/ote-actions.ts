@@ -64,7 +64,7 @@ async function guard(accountId: string) {
 }
 
 function paramsFrom(minRr?: number): OteParams {
-  return { ...OTE_DEFAULTS, minRR: Math.min(6, Math.max(1.5, Number(minRr) || OTE_DEFAULTS.minRR)) };
+  return { ...OTE_DEFAULTS, minRR: Math.min(6, Math.max(2, Number(minRr) || OTE_DEFAULTS.minRR)) };
 }
 
 // Backtest the OTE strategy on the chosen symbols over the available history.
@@ -188,7 +188,7 @@ export async function saveOteSettings(input: SaveOteInput): Promise<{ error?: st
       symbols,
       risk_pct: Math.min(0.03, Math.max(0.005, input.riskPct)),
       max_position_pct: Math.min(1, Math.max(0.05, input.maxPositionPct)),
-      min_rr: Math.min(6, Math.max(1.5, input.minRr)),
+      min_rr: Math.min(6, Math.max(2, input.minRr)),
       max_open: Math.min(5, Math.max(1, Math.round(input.maxOpen))),
       max_per_day: Math.min(20, Math.max(1, Math.round(input.maxPerDay))),
       daily_loss_pct: Math.min(0.2, Math.max(0.01, input.dailyLossPct)),

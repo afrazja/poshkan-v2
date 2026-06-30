@@ -184,6 +184,10 @@ export function evaluateMeanRevAt(
   if (!valid || rr <= 0) {
     return { ...base, status: "no-setup", reason: `${direction} stretch, but the mean isn't a valid target from here`, checks: { band: true, trend: true } };
   }
+  // Require reward ≥ 2× risk — skip setups whose target is too close to pay off.
+  if (rr < 2) {
+    return { ...base, status: "no-setup", reason: `${direction} stretch, but target is only ${rr.toFixed(2)}R (< 2R minimum) — skipped`, checks: { band: true, trend: true } };
+  }
 
   return {
     symbol,
