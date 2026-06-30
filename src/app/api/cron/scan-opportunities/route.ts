@@ -227,8 +227,15 @@ export async function GET(request: Request) {
         const tooSoon = Date.now() - lastAt < minMinutes * 60_000;
 
         const lev = clampTradeLeverage(acc.auto_leverage);
-        const units = suggestUnits(cash, setup.entry, setup.stop, setup.pair, market, riskPct);
-        const margin = marginFor(units, liveRate, lev, setup.pair);
+        // Cap each trade to a slice of free cash (smaller when more positions are allowed),
+        // so one signal can't swallow the account — important now leverage can be 1×.
+        const marginCap = cash * Math.min(0.25, 1 / Math.max(1, maxOpen));
+        let units = suggestUnits(cash, setup.entry, setup.stop, setup.pair, market, riskPct);
+        let margin = marginFor(units, liveRate, lev, setup.pair);
+        if (margin > marginCap && margin > 0) {
+          units = roundUnits((marginCap / margin) * units, market);
+          margin = marginFor(units, liveRate, lev, setup.pair);
+        }
 
         if ((force || (tradedToday < maxPerDay && !lossLimitHit && !tooSoon)) && units > 0 && margin <= cash) {
           // Open at market; anchor SL/TP to the live fill, preserving reward:risk.
