@@ -7,6 +7,15 @@ export const FX_LEVERAGE = 30; // default when an account has no leverage set
 // Leverage choices offered when creating a forex account (30:1 = EU/UK retail).
 export const FX_LEVERAGE_OPTIONS = [30, 50, 100, 200, 500] as const;
 
+// Per-trade leverage: chosen on each leveraged trade (manual or scanner), for
+// stocks, crypto, and forex. 1× = unleveraged (spot-like). Spot buy/sell never
+// uses this. Default 1.
+export const TRADE_LEVERAGE_OPTIONS = [1, 2, 5, 10] as const;
+export function clampTradeLeverage(v?: number | null): number {
+  const n = Number(v);
+  return (TRADE_LEVERAGE_OPTIONS as readonly number[]).includes(n) ? n : 1;
+}
+
 export const FX_PAIRS = [
   { symbol: "EURUSD=X", name: "EUR/USD", label: "Euro / US Dollar" },
   { symbol: "GBPUSD=X", name: "GBP/USD", label: "British Pound / US Dollar" },

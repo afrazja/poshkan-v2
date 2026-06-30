@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getQuote } from "@/lib/marketdata";
-import { marginFor } from "@/lib/forex";
+import { marginFor, clampTradeLeverage } from "@/lib/forex";
 import { aiUniverse, buildSummary, analyzeMarket, fallbackSetup, type PairSummary } from "@/lib/forex-scan";
 import { sendPushToUser } from "@/lib/push";
 import { getUserAnthropicKey } from "@/lib/anthropic-key";
@@ -48,6 +48,7 @@ interface AccRow {
   type: string;
   cash_balance: number;
   leverage: number;
+  auto_leverage?: number | null;
   ai_instruction: string | null;
   ai_symbols?: string[] | null;
   auto_trade_enabled?: boolean;
@@ -77,7 +78,7 @@ export async function GET(request: Request) {
       db
         .from("accounts")
         .select(
-          "id, user_id, name, type, cash_balance, leverage, ai_instruction, ai_symbols, auto_trade_enabled, auto_risk_pct, auto_max_open, auto_max_per_day, auto_daily_loss_pct, auto_min_minutes"
+          "id, user_id, name, type, cash_balance, leverage, auto_leverage, ai_instruction, ai_symbols, auto_trade_enabled, auto_risk_pct, auto_max_open, auto_max_per_day, auto_daily_loss_pct, auto_min_minutes"
         ),
       db.from("push_subscriptions").select("user_id"),
     ]);
@@ -225,7 +226,7 @@ export async function GET(request: Request) {
         const lastAt = lastExec?.[0]?.alerted_at ? new Date(lastExec[0].alerted_at as string).getTime() : 0;
         const tooSoon = Date.now() - lastAt < minMinutes * 60_000;
 
-        const lev = Number(acc.leverage) || 1;
+        const lev = clampTradeLeverage(acc.auto_leverage);
         const units = suggestUnits(cash, setup.entry, setup.stop, setup.pair, market, riskPct);
         const margin = marginFor(units, liveRate, lev, setup.pair);
 

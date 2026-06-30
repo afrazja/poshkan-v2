@@ -166,6 +166,7 @@ export default async function ScannersPage({
       maxPerDay: a.auto_max_per_day ?? 2,
       dailyLossPct: (a.auto_daily_loss_pct ?? 0.03) * 100,
       minMinutes: a.auto_min_minutes ?? 60,
+      leverage: a.auto_leverage ?? 1,
     },
     aiInstruction: a.ai_instruction ?? null,
     aiSymbols: a.ai_symbols ?? null,

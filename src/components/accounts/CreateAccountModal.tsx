@@ -4,7 +4,6 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Modal from "@/components/Modal";
 import SymbolSearch from "@/components/SymbolSearch";
-import { FX_LEVERAGE_OPTIONS } from "@/lib/forex";
 import { createAccountAction, type NewHolding } from "@/app/dashboard/actions";
 
 interface HoldingRow {
@@ -19,7 +18,6 @@ export default function CreateAccountModal({ onClose }: { onClose: () => void })
   const [name, setName] = useState("");
   const [type, setType] = useState("stocks");
   const [cash, setCash] = useState("10000");
-  const [leverage, setLeverage] = useState(30);
   const [rows, setRows] = useState<HoldingRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -62,7 +60,6 @@ export default function CreateAccountModal({ onClose }: { onClose: () => void })
       type,
       initialCash: Number(cash) || 0,
       holdings,
-      leverage: type === "forex" ? leverage : undefined,
     });
     setLoading(false);
 
@@ -122,28 +119,6 @@ export default function CreateAccountModal({ onClose }: { onClose: () => void })
             />
           </div>
         </div>
-
-        {type === "forex" && (
-          <div>
-            <label className="mb-1 block text-sm font-medium">Leverage</label>
-            <select
-              value={leverage}
-              onChange={(e) => setLeverage(Number(e.target.value))}
-              className={inputClass}
-            >
-              {FX_LEVERAGE_OPTIONS.map((l) => (
-                <option key={l} value={l}>
-                  {l}:1
-                </option>
-              ))}
-            </select>
-            <p className="mt-1 text-xs text-muted">
-              How much margin each trade reserves — higher leverage means bigger positions from
-              the same cash, but bigger swings. 30:1 matches EU/UK retail brokers. (Fixed for the
-              life of the account.)
-            </p>
-          </div>
-        )}
 
         {/* Forex accounts start with cash only (positions are leveraged pairs). */}
         <div className={type === "forex" ? "hidden" : undefined}>

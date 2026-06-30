@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { FxPosition, Quote } from "@/lib/types";
 import { formatCurrency, formatSignedCurrency, formatPercent, changeColor } from "@/lib/format";
-import { floatingPnl, marginFor, FX_LEVERAGE } from "@/lib/forex";
+import { floatingPnl, marginFor, TRADE_LEVERAGE_OPTIONS } from "@/lib/forex";
 import { openFxPositionAction, closeFxPositionAction, setFxSlTpAction } from "@/app/dashboard/[accountId]/actions";
 import SymbolSearch from "@/components/SymbolSearch";
 import Modal from "@/components/Modal";
@@ -17,14 +17,12 @@ export default function LeveragePanel({
   accountId,
   accountType,
   cash,
-  leverage = FX_LEVERAGE,
   positions,
   quotes,
 }: {
   accountId: string;
   accountType: string;
   cash: number;
-  leverage?: number;
   positions: FxPosition[];
   quotes: Record<string, Quote>;
 }) {
@@ -52,7 +50,7 @@ export default function LeveragePanel({
       <div className="mb-3 flex items-center justify-between">
         <div>
           <h2 className="text-sm font-semibold">Long / Short positions</h2>
-          <p className="text-xs text-muted">Leverage {leverage}:1 · margin from cash · short to profit when price falls</p>
+          <p className="text-xs text-muted">Choose leverage per trade (1–10×) · margin from cash · short to profit when price falls</p>
         </div>
         <button
           onClick={() => setOpenModal(true)}
@@ -197,7 +195,6 @@ export default function LeveragePanel({
           accountId={accountId}
           accountType={accountType}
           cash={cash}
-          leverage={leverage}
           unit={unit}
           onClose={() => setOpenModal(false)}
         />
@@ -221,14 +218,12 @@ function OpenModal({
   accountId,
   accountType,
   cash,
-  leverage,
   unit,
   onClose,
 }: {
   accountId: string;
   accountType: string;
   cash: number;
-  leverage: number;
   unit: string;
   onClose: () => void;
 }) {
@@ -236,6 +231,7 @@ function OpenModal({
   const [symbol, setSymbol] = useState<{ symbol: string; name: string } | null>(null);
   const [price, setPrice] = useState<number | null>(null);
   const [direction, setDirection] = useState<"LONG" | "SHORT">("LONG");
+  const [lev, setLev] = useState<number>(1);
   const [qty, setQty] = useState("");
   const [sl, setSl] = useState("");
   const [tp, setTp] = useState("");
@@ -260,7 +256,7 @@ function OpenModal({
   }, [symbol]);
 
   const units = Number(qty) || 0;
-  const margin = symbol && price ? marginFor(units, price, leverage, symbol.symbol) : 0;
+  const margin = symbol && price ? marginFor(units, price, lev, symbol.symbol) : 0;
   const affordable = margin > 0 && margin <= cash;
   // Optional trade duration → auto-close after this many minutes (null = none).
   const autoCloseMinutes =
@@ -281,6 +277,7 @@ function OpenModal({
       symbol: symbol.symbol,
       direction,
       units,
+      leverage: lev,
       stopLoss: sl.trim() ? Number(sl) : null,
       takeProfit: tp.trim() ? Number(tp) : null,
       autoCloseMinutes,
@@ -360,6 +357,25 @@ function OpenModal({
               <input type="number" min="0" step="any" value={qty} onChange={(e) => setQty(e.target.value)} className={inputClass} placeholder="0" />
             </div>
 
+            <div>
+              <label className="mb-1 block text-sm font-medium">Leverage</label>
+              <div className="flex gap-1 rounded-lg border border-border bg-background p-1">
+                {TRADE_LEVERAGE_OPTIONS.map((x) => (
+                  <button
+                    key={x}
+                    type="button"
+                    onClick={() => setLev(x)}
+                    className={`flex-1 rounded-md py-2 text-sm font-semibold transition ${
+                      lev === x ? "bg-primary text-primary-foreground" : "text-muted hover:text-foreground"
+                    }`}
+                  >
+                    {x}×
+                  </button>
+                ))}
+              </div>
+              <p className="mt-1 text-xs text-muted">1× = no leverage (full margin). Higher = bigger position, bigger swings.</p>
+            </div>
+
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <label className="mb-1 block text-xs font-medium text-muted">Stop-loss (optional)</label>
@@ -401,7 +417,7 @@ function OpenModal({
 
             <div className="space-y-1 rounded-lg border border-border bg-background p-3 text-sm">
               <Row label={`Notional`} value={price ? formatCurrency(units * price) : "…"} />
-              <Row label={`Margin required (${leverage}:1)`} value={price ? formatCurrency(margin) : "…"} bold />
+              <Row label={`Margin required (${lev}:1)`} value={price ? formatCurrency(margin) : "…"} bold />
               <Row label="Free cash" value={formatCurrency(cash)} />
             </div>
 

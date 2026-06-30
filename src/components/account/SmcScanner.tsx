@@ -101,6 +101,7 @@ export default function SmcScanner({
   const [maxPerDay, setMaxPerDay] = useState((initialSettings?.max_per_day ?? 5).toString());
   const [dailyLoss, setDailyLoss] = useState(((initialSettings?.daily_loss_pct ?? 0.04) * 100).toString());
   const [autoCloseHours, setAutoCloseHours] = useState((initialSettings?.auto_close_hours ?? 0).toString());
+  const [leverage, setLeverage] = useState<number>(initialSettings?.leverage ?? 1);
 
   // Light polling so the live feed updates without a manual refresh.
   useEffect(() => {
@@ -136,6 +137,7 @@ export default function SmcScanner({
         maxPerDay: Number(maxPerDay),
         dailyLossPct: Number(dailyLoss) / 100,
         autoCloseHours: Number(autoCloseHours),
+        leverage: Number(leverage),
       });
       if (!res.error) {
         setSaved(true);
@@ -323,6 +325,18 @@ export default function SmcScanner({
           <Field label="Max trades/day" value={maxPerDay} onChange={setMaxPerDay} />
           <Field label="Daily loss limit (%)" value={dailyLoss} onChange={setDailyLoss} />
           <Field label="Auto-close after (hours, 0 = off)" value={autoCloseHours} onChange={setAutoCloseHours} />
+          <div>
+            <label className="mb-1 block text-xs font-medium text-muted">Leverage</label>
+            <select
+              value={leverage}
+              onChange={(e) => setLeverage(Number(e.target.value))}
+              className="w-full rounded-lg border border-border bg-input px-3 py-2 text-sm outline-none focus:border-primary"
+            >
+              {[1, 2, 5, 10].map((x) => (
+                <option key={x} value={x}>{x}× {x === 1 ? "(no leverage)" : ""}</option>
+              ))}
+            </select>
+          </div>
         </div>
 
         <button

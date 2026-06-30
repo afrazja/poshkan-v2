@@ -445,7 +445,6 @@ export default function AccountView({
           quotes={quotes}
           orders={initialFxOrders}
           tpLevels={initialFxTpLevels}
-          leverage={account.leverage}
         />
       )}
 
@@ -476,7 +475,6 @@ export default function AccountView({
           accountId={account.id}
           accountType={account.type}
           cash={cash}
-          leverage={account.leverage}
           positions={fxPositions}
           quotes={quotes}
         />

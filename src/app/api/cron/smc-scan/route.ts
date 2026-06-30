@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getQuote } from "@/lib/marketdata";
-import { marginFor } from "@/lib/forex";
+import { marginFor, clampTradeLeverage } from "@/lib/forex";
 import { evaluateSymbol, DEFAULT_PARAMS, type SmcEval, type SmcParams } from "@/lib/smc";
 import { marketUniverse, assetTypeError } from "@/lib/assets";
 import { sendPushToUser } from "@/lib/push";
@@ -22,6 +22,7 @@ interface SmcRow {
   max_per_day: number;
   daily_loss_pct: number;
   auto_close_hours: number;
+  leverage: number;
 }
 interface AccRow {
   id: string;
@@ -186,7 +187,7 @@ export async function GET(request: Request) {
           const sl = isLong ? liveRate - riskDist : liveRate + riskDist;
           const tp = isLong ? liveRate + rewardDist : liveRate - rewardDist;
 
-          const lev = Number(acc.leverage) || 1;
+          const lev = clampTradeLeverage(s.leverage);
           let units = roundUnits(riskDist > 0 ? (cash * (Number(s.risk_pct) || 0.02)) / riskDist : 0, acc.type);
           // Scale down so required margin never exceeds free cash.
           let margin = marginFor(units, liveRate, lev, symbol);

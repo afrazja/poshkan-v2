@@ -7,7 +7,7 @@ import { encryptSecret, decryptSecret } from "@/lib/crypto";
 import { getUserAnthropicKey } from "@/lib/anthropic-key";
 import { getQuote, getQuotes } from "@/lib/marketdata";
 import { assetTypeError } from "@/lib/assets";
-import { marginFor, sltpError, autoCloseReason } from "@/lib/forex";
+import { marginFor, sltpError, autoCloseReason, clampTradeLeverage } from "@/lib/forex";
 
 // Server-side guard: does this symbol belong in this account's asset class?
 async function checkAccountAsset(
@@ -166,6 +166,7 @@ export async function openFxPositionAction(input: {
   symbol: string;
   direction: "LONG" | "SHORT";
   units: number;
+  leverage?: number | null;
   stopLoss?: number | null;
   takeProfit?: number | null;
   autoCloseMinutes?: number | null;
@@ -201,7 +202,8 @@ export async function openFxPositionAction(input: {
   const sltpErr = sltpError(input.direction, rate, sl, tp);
   if (sltpErr) return { error: sltpErr };
 
-  const margin = marginFor(input.units, rate, (account as { leverage?: number }).leverage, input.symbol);
+  // Leverage is chosen per trade now (1/2/5/10, default 1 = unleveraged).
+  const margin = marginFor(input.units, rate, clampTradeLeverage(input.leverage), input.symbol);
   const { data: newId, error } = await supabase.rpc("fx_open", {
     p_account_id: input.accountId,
     p_symbol: input.symbol.toUpperCase(),
@@ -261,6 +263,7 @@ export async function placeFxOrderAction(input: {
   symbol: string;
   direction: "LONG" | "SHORT";
   units: number;
+  leverage?: number | null;
   entryRate: number;
   stopLoss?: number | null;
   takeProfit?: number | null;
@@ -297,21 +300,32 @@ export async function placeFxOrderAction(input: {
   const sltpErr = sltpError(input.direction, input.entryRate, sl, tp);
   if (sltpErr) return { error: sltpErr };
 
-  const { error } = await supabase.from("fx_orders").insert({
-    account_id: input.accountId,
-    symbol: input.symbol.toUpperCase(),
-    direction: input.direction,
-    units: input.units,
-    entry_rate: input.entryRate,
-    trigger_when: input.entryRate < rate ? "AT_OR_BELOW" : "AT_OR_ABOVE",
-    stop_loss: sl,
-    take_profit: tp,
-    expires_at:
-      input.expiresMinutes && input.expiresMinutes > 0
-        ? new Date(Date.now() + input.expiresMinutes * 60_000).toISOString()
-        : null,
-  });
+  const { data: inserted, error } = await supabase
+    .from("fx_orders")
+    .insert({
+      account_id: input.accountId,
+      symbol: input.symbol.toUpperCase(),
+      direction: input.direction,
+      units: input.units,
+      entry_rate: input.entryRate,
+      trigger_when: input.entryRate < rate ? "AT_OR_BELOW" : "AT_OR_ABOVE",
+      stop_loss: sl,
+      take_profit: tp,
+      expires_at:
+        input.expiresMinutes && input.expiresMinutes > 0
+          ? new Date(Date.now() + input.expiresMinutes * 60_000).toISOString()
+          : null,
+    })
+    .select("id")
+    .single();
   if (error) return { error: error.message };
+  // Best-effort: persist the per-trade leverage (column may predate the migration).
+  try {
+    await supabase
+      .from("fx_orders")
+      .update({ leverage: clampTradeLeverage(input.leverage) })
+      .eq("id", (inserted as { id: string }).id);
+  } catch {}
   revalidatePath(`/dashboard/${input.accountId}`);
   return {};
 }
@@ -421,19 +435,14 @@ export async function fillFxOrderAction(
     .select("id");
   if (!claimed || claimed.length === 0) return { filled: false };
 
-  const { data: acct } = await supabase
-    .from("accounts")
-    .select("leverage")
-    .eq("id", o.account_id)
-    .single();
-
+  // Margin from the order's own per-trade leverage (defaults to 1× if unset).
   const { error } = await supabase.rpc("fx_open", {
     p_account_id: o.account_id,
     p_symbol: o.symbol,
     p_direction: o.direction,
     p_units: Number(o.units),
     p_rate: rate,
-    p_margin: marginFor(Number(o.units), rate, (acct as { leverage?: number } | null)?.leverage, o.symbol),
+    p_margin: marginFor(Number(o.units), rate, clampTradeLeverage((o as { leverage?: number }).leverage), o.symbol),
     p_stop_loss: o.stop_loss,
     p_take_profit: o.take_profit,
   });
@@ -728,6 +737,7 @@ export async function setAutoSettingsAction(
     maxPerDay: number;
     dailyLossPct: number; // percent
     minMinutes: number;
+    leverage: number; // per-trade leverage 1/2/5/10
   }
 ): Promise<{ error?: string }> {
   const supabase = await createClient();
@@ -746,6 +756,7 @@ export async function setAutoSettingsAction(
       auto_max_per_day: Math.round(clamp(s.maxPerDay, 1, 50)),
       auto_daily_loss_pct: clamp(s.dailyLossPct, 0.5, 50) / 100,
       auto_min_minutes: Math.round(clamp(s.minMinutes, 5, 1440)),
+      auto_leverage: clampTradeLeverage(s.leverage),
     })
     .eq("id", accountId);
   if (error) return { error: error.message };

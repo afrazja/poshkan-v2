@@ -31,6 +31,7 @@ export interface Account {
   auto_max_per_day?: number;
   auto_daily_loss_pct?: number;
   auto_min_minutes?: number;
+  auto_leverage?: number | null; // AI scanner: per-trade leverage (1/2/5/10)
   created_at: string;
 }
 

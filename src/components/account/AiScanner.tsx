@@ -20,6 +20,7 @@ export interface AutoSettings {
   maxPerDay: number;
   dailyLossPct: number; // percent
   minMinutes: number;
+  leverage: number; // per-trade leverage 1/2/5/10
 }
 
 export const DEFAULT_AUTO_SETTINGS: AutoSettings = {
@@ -29,6 +30,7 @@ export const DEFAULT_AUTO_SETTINGS: AutoSettings = {
   maxPerDay: 2,
   dailyLossPct: 3,
   minMinutes: 60,
+  leverage: 1,
 };
 
 // The AI (forex) scanner: autonomous-trading limits + plain-English strategy.
@@ -243,6 +245,20 @@ function AutoSettingsCard({ accountId, initial }: { accountId: string; initial: 
         <NumField label="Max trades / day" value={s.maxPerDay} step="1" onChange={(v) => set({ maxPerDay: v })} />
         <NumField label="Daily loss limit %" value={s.dailyLossPct} step="0.5" onChange={(v) => set({ dailyLossPct: v })} />
         <NumField label="Min minutes between trades" value={s.minMinutes} step="5" onChange={(v) => set({ minMinutes: v })} />
+        <div>
+          <label className="mb-1 block text-xs font-medium text-muted">Leverage</label>
+          <select
+            value={s.leverage}
+            onChange={(e) => set({ leverage: Number(e.target.value) })}
+            className="w-full rounded-lg border border-border bg-input px-3 py-2 text-sm outline-none focus:border-primary"
+          >
+            {[1, 2, 5, 10].map((x) => (
+              <option key={x} value={x}>
+                {x}×{x === 1 ? " (none)" : ""}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
       <div className="mt-3 flex items-center gap-3">
         <button

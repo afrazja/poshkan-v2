@@ -7,8 +7,7 @@ import { formatCurrency, formatSignedCurrency, formatPercent, changeColor } from
 import {
   FX_PAIRS,
   FX_LOTS,
-  FX_LEVERAGE,
-  FX_LEVERAGE_OPTIONS,
+  TRADE_LEVERAGE_OPTIONS,
   pairName,
   marginFor,
   pipValue,
@@ -29,7 +28,6 @@ import {
   fillFxOrderAction,
   setFxTakeProfitLevelsAction,
   fillFxTpLevelsAction,
-  setAccountLeverageAction,
 } from "@/app/dashboard/[accountId]/actions";
 import Modal from "@/components/Modal";
 import PriceChart from "./PriceChart";
@@ -40,6 +38,13 @@ import SourceBadge from "./SourceBadge";
 // level instead of chasing market. Set false to hide (market-only forex).
 const ALLOW_PENDING_FX = true;
 
+// Effective leverage of a forex position = USD notional ÷ reserved margin.
+// marginFor(…, 1, …) returns the 1× notional, so notional ÷ margin = leverage.
+function fxLevOf(p: FxPosition): number {
+  const m = Number(p.margin);
+  return m > 0 ? Math.max(1, Math.round(marginFor(Number(p.units), Number(p.open_rate), 1, p.symbol) / m)) : 0;
+}
+
 export default function ForexPanel({
   accountId,
   cash,
@@ -47,7 +52,6 @@ export default function ForexPanel({
   quotes,
   orders = [],
   tpLevels = [],
-  leverage = FX_LEVERAGE,
 }: {
   accountId: string;
   cash: number;
@@ -55,7 +59,6 @@ export default function ForexPanel({
   quotes: Record<string, Quote>;
   orders?: FxOrder[];
   tpLevels?: FxTpLevel[];
-  leverage?: number;
 }) {
   const router = useRouter();
   const [trade, setTrade] = useState<string | null>(null); // pair to open a position on
@@ -68,7 +71,6 @@ export default function ForexPanel({
   const [editOrder, setEditOrder] = useState<FxOrder | null>(null);
   const [expandedFx, setExpandedFx] = useState<string | null>(null);
   const [pairQuery, setPairQuery] = useState("");
-  const [showLeverage, setShowLeverage] = useState(false);
 
   const query = pairQuery.trim().toLowerCase();
   const visiblePairs = query
@@ -227,13 +229,7 @@ export default function ForexPanel({
         </div>
         <p className="mt-2 text-xs text-muted">
           Tap a pair to select it (ⓘ for its chart &amp; news). Use “+ Open position” to trade the
-          selected pair ({pairName(selectedPair)}) with {leverage}:1 leverage.
-          <button
-            onClick={() => setShowLeverage(true)}
-            className="ml-1 font-medium text-primary hover:underline"
-          >
-            Change
-          </button>
+          selected pair ({pairName(selectedPair)}) — choose leverage (1–10×) per trade.
         </p>
       </div>
 
@@ -357,7 +353,7 @@ export default function ForexPanel({
                             {pp.toFixed(1)} pips)
                           </span>
                         )}
-                        <span className="ml-1">· {leverage}× lev</span>
+                        <span className="ml-1">· {fxLevOf(p)}× lev</span>
                         {p.auto_close_at && <span className="ml-1">· ⏱ {autoCloseLabel(p.auto_close_at)}</span>}
                       </div>
                       <div className="mt-0.5 text-xs text-muted">Opened {fmtDateTime(p.opened_at)}</div>
@@ -429,7 +425,7 @@ export default function ForexPanel({
                         )}
                         <span className="block text-xs font-normal text-muted">Opened {fmtDateTime(p.opened_at)}</span>
                         <span className="block text-xs font-normal text-muted">
-                          {leverage}× lev
+                          {fxLevOf(p)}× lev
                           <SourceBadge source={p.source} />
                         </span>
                       </td>
@@ -621,12 +617,8 @@ export default function ForexPanel({
           symbol={trade}
           quote={quotes[trade]}
           cash={cash}
-          leverage={leverage}
           onClose={() => setTrade(null)}
         />
-      )}
-      {showLeverage && (
-        <LeverageModal accountId={accountId} current={leverage} onClose={() => setShowLeverage(false)} />
       )}
       {editSltp && (
         <SlTpModal
@@ -767,55 +759,6 @@ function EditFxOrderModal({
 }
 
 // ---------------------------------------------------------------------------
-// Change the account's leverage (affects new positions only).
-function LeverageModal({
-  accountId,
-  current,
-  onClose,
-}: {
-  accountId: string;
-  current: number;
-  onClose: () => void;
-}) {
-  const router = useRouter();
-  const [saving, setSaving] = useState<number | null>(null);
-
-  async function pick(lev: number) {
-    setSaving(lev);
-    await setAccountLeverageAction(accountId, lev);
-    router.refresh();
-    onClose();
-  }
-
-  return (
-    <Modal title="Account leverage" onClose={onClose}>
-      <div className="space-y-3">
-        <p className="text-sm text-muted">
-          Higher leverage reserves less margin per trade — so the same cash opens a bigger
-          position, but a smaller loss triggers stop-out. Applies to <strong>new</strong> positions;
-          open ones keep the margin they already reserved.
-        </p>
-        <div className="grid grid-cols-3 gap-2">
-          {FX_LEVERAGE_OPTIONS.map((l) => (
-            <button
-              key={l}
-              onClick={() => pick(l)}
-              disabled={saving !== null}
-              className={`rounded-lg border px-3 py-2.5 text-sm font-semibold transition disabled:opacity-50 ${
-                l === current
-                  ? "border-primary bg-primary/10 text-primary"
-                  : "border-border hover:bg-background"
-              }`}
-            >
-              {saving === l ? "…" : `${l}:1`}
-            </button>
-          ))}
-        </div>
-      </div>
-    </Modal>
-  );
-}
-
 // ---------------------------------------------------------------------------
 // Edit stop-loss / take-profit on an open position.
 function SlTpModal({
@@ -1042,18 +985,17 @@ function FxTradeModal({
   symbol,
   quote,
   cash,
-  leverage,
   onClose,
 }: {
   accountId: string;
   symbol: string;
   quote?: Quote;
   cash: number;
-  leverage: number;
   onClose: () => void;
 }) {
   const router = useRouter();
   const [direction, setDirection] = useState<"LONG" | "SHORT">("LONG");
+  const [lev, setLev] = useState<number>(1);
   const [units, setUnits] = useState(10_000); // default mini lot
   const [custom, setCustom] = useState("");
   const [sl, setSl] = useState("");
@@ -1088,7 +1030,7 @@ function FxTradeModal({
   // Pending orders price at the chosen entry rate; market orders at the live rate.
   const execRate = execMode === "PENDING" ? Number(entryRate) || rate : rate;
   const notional = effUnits * execRate;
-  const margin = execRate > 0 ? marginFor(effUnits, execRate, leverage, symbol) : 0;
+  const margin = execRate > 0 ? marginFor(effUnits, execRate, lev, symbol) : 0;
   const affordable = margin > 0 && margin <= cash;
 
   // Dollar threshold at the SL/TP levels (from the order's entry rate).
@@ -1119,6 +1061,7 @@ function FxTradeModal({
         symbol,
         direction,
         units: effUnits,
+        leverage: lev,
         entryRate: entry,
         stopLoss: slNum,
         takeProfit: tpNum,
@@ -1126,7 +1069,7 @@ function FxTradeModal({
       });
       setLoading(false);
       if (res.error) return setError(res.error);
-      setDone({ rate: entry, margin: marginFor(effUnits, entry, leverage, symbol), pending: true });
+      setDone({ rate: entry, margin: marginFor(effUnits, entry, lev, symbol), pending: true });
       router.refresh();
       return;
     }
@@ -1141,6 +1084,7 @@ function FxTradeModal({
       symbol,
       direction,
       units: effUnits,
+      leverage: lev,
       stopLoss: slNum,
       takeProfit: tpNum,
       autoCloseMinutes,
@@ -1317,6 +1261,26 @@ function FxTradeModal({
             />
           </div>
 
+          {/* Leverage — chosen per trade */}
+          <div>
+            <label className="mb-1 block text-sm font-medium">Leverage</label>
+            <div className="flex gap-1 rounded-lg border border-border bg-background p-1">
+              {TRADE_LEVERAGE_OPTIONS.map((x) => (
+                <button
+                  key={x}
+                  type="button"
+                  onClick={() => setLev(x)}
+                  className={`flex-1 rounded-md py-2 text-sm font-semibold transition ${
+                    lev === x ? "bg-primary text-primary-foreground" : "text-muted hover:text-foreground"
+                  }`}
+                >
+                  {x}×
+                </button>
+              ))}
+            </div>
+            <p className="mt-1 text-xs text-muted">1× = no leverage (full margin). Higher = bigger position, bigger swings.</p>
+          </div>
+
           {/* Risk management (optional) */}
           <div className="grid grid-cols-2 gap-2">
             <div>
@@ -1389,7 +1353,7 @@ function FxTradeModal({
           {/* Order summary */}
           <div className="space-y-1.5 rounded-lg border border-border bg-background p-3 text-sm">
             <Row label="Notional value" value={rate ? formatCurrency(notional) : "…"} />
-            <Row label={`Margin required (${leverage}:1)`} value={rate ? formatCurrency(margin) : "…"} bold />
+            <Row label={`Margin required (${lev}:1)`} value={rate ? formatCurrency(margin) : "…"} bold />
             <Row label="Pip value" value={`${formatCurrency(pipValue(effUnits, symbol, rate))} / pip`} />
             <Row label="Free cash" value={formatCurrency(cash)} />
           </div>

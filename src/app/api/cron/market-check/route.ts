@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getQuotes } from "@/lib/marketdata";
-import { autoCloseReason, marginFor } from "@/lib/forex";
+import { autoCloseReason, marginFor, clampTradeLeverage } from "@/lib/forex";
 import { sendEmail, alertEmailHtml } from "@/lib/email";
 import { sendPushToUser } from "@/lib/push";
 
@@ -47,7 +47,7 @@ export async function GET(request: Request) {
         .from("fx_positions")
         .select("id, account_id, symbol, direction, units, open_rate, margin, stop_loss, take_profit, auto_close_at")
         .eq("status", "open"),
-      db.from("fx_orders").select("*, accounts(leverage)").eq("status", "pending"),
+      db.from("fx_orders").select("*").eq("status", "pending"),
       db
         .from("fx_tp_levels")
         .select("id, price, close_units, position_id, fx_positions(symbol, direction, status, account_id)")
@@ -83,8 +83,8 @@ export async function GET(request: Request) {
     const meets =
       o.trigger_when === "AT_OR_BELOW" ? q.price <= Number(o.entry_rate) : q.price >= Number(o.entry_rate);
     if (!meets) continue;
-    const acc = o.accounts as { leverage?: number } | { leverage?: number }[] | null;
-    const lev = Array.isArray(acc) ? acc[0]?.leverage : acc?.leverage;
+    // Per-trade leverage stored on the order (defaults to 1× if unset).
+    const lev = clampTradeLeverage((o as { leverage?: number }).leverage);
     const { error } = await db.rpc("fx_open", {
       p_account_id: o.account_id,
       p_symbol: o.symbol,

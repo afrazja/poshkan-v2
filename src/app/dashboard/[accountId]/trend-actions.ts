@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { marketUniverse, assetTypeError } from "@/lib/assets";
+import { clampTradeLeverage } from "@/lib/forex";
 import { backtestTrend, type TrendBtResult } from "@/lib/trend-backtest";
 import { TREND_DEFAULTS, evaluateTrendSymbol, type TrendParams } from "@/lib/trend";
 
@@ -21,6 +22,7 @@ export interface TrendSettings {
   max_per_day: number;
   daily_loss_pct: number;
   auto_close_hours: number;
+  leverage: number;
   last_run_at: string | null;
   last_status: TrendStatusItem[] | null;
 }
@@ -183,6 +185,7 @@ export interface SaveTrendInput {
   maxPerDay: number;
   dailyLossPct: number;
   autoCloseHours: number;
+  leverage: number;
 }
 
 export async function saveTrendSettings(input: SaveTrendInput): Promise<{ error?: string }> {
@@ -211,6 +214,7 @@ export async function saveTrendSettings(input: SaveTrendInput): Promise<{ error?
       max_per_day: Math.min(20, Math.max(1, Math.round(input.maxPerDay))),
       daily_loss_pct: Math.min(0.2, Math.max(0.01, input.dailyLossPct)),
       auto_close_hours: Math.max(0, Math.round(input.autoCloseHours || 0)),
+      leverage: clampTradeLeverage(input.leverage),
       updated_at: new Date().toISOString(),
     },
     { onConflict: "account_id" }
