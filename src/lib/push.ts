@@ -16,6 +16,20 @@ export async function sendPushToUser(
       .insert({ user_id: userId, title: payload.title, body: payload.body, url: payload.url ?? null });
   } catch {}
 
+  // Per-account mute: account-specific notifications carry url /dashboard/<id>.
+  // If the user muted that account, keep the in-app record above but skip the push.
+  const acctMatch = payload.url?.match(/\/dashboard\/([0-9a-fA-F-]{36})/);
+  if (acctMatch) {
+    try {
+      const { data: acc } = await createAdminClient()
+        .from("accounts")
+        .select("notify_enabled")
+        .eq("id", acctMatch[1])
+        .single();
+      if (acc && (acc as { notify_enabled?: boolean }).notify_enabled === false) return 0;
+    } catch {}
+  }
+
   const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
   const privateKey = process.env.VAPID_PRIVATE_KEY;
   if (!publicKey || !privateKey) return 0;

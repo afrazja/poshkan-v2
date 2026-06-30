@@ -33,6 +33,7 @@ export interface Account {
   auto_min_minutes?: number;
   auto_leverage?: number | null; // AI scanner: per-trade leverage (1/2/5/10)
   auto_max_position_pct?: number | null; // AI scanner: max % of account per trade (fraction)
+  notify_enabled?: boolean; // false = mute push for this account (in-app log kept)
   created_at: string;
 }
 

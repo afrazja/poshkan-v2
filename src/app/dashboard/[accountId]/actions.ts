@@ -995,6 +995,19 @@ export async function renameAccountAction(accountId: string, name: string): Prom
   return {};
 }
 
+// Toggle per-account push notifications. When off, the account's events still
+// log to the in-app notification center but no longer push to the phone.
+export async function setAccountNotifyAction(
+  accountId: string,
+  enabled: boolean
+): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const { error } = await supabase.from("accounts").update({ notify_enabled: enabled }).eq("id", accountId);
+  if (error) return { error: error.message };
+  revalidatePath("/dashboard");
+  return {};
+}
+
 // Permanently deletes the account; positions, transactions, watchlist, orders,
 // and snapshots cascade in the database.
 export async function deleteAccountAction(accountId: string): Promise<{ error?: string }> {

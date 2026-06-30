@@ -8,7 +8,7 @@ import { formatCurrency, formatSignedCurrency, changeColor } from "@/lib/format"
 import CreateAccountModal from "./CreateAccountModal";
 import CashModal from "@/components/account/CashModal";
 import Modal from "@/components/Modal";
-import { renameAccountAction, deleteAccountAction } from "@/app/dashboard/[accountId]/actions";
+import { renameAccountAction, deleteAccountAction, setAccountNotifyAction } from "@/app/dashboard/[accountId]/actions";
 
 export default function AccountsGrid({
   accounts,
@@ -152,7 +152,7 @@ export default function AccountsGrid({
                   ⋯
                 </button>
                 {menuFor === acc.id && (
-                  <div className="absolute right-0 z-20 mt-1 w-36 overflow-hidden rounded-lg border border-border bg-card py-1 shadow-lg">
+                  <div className="absolute right-0 z-20 mt-1 w-48 overflow-hidden rounded-lg border border-border bg-card py-1 shadow-lg">
                     <MenuItem
                       onClick={() => {
                         setRenameValue(acc.name);
@@ -162,6 +162,15 @@ export default function AccountsGrid({
                       }}
                     >
                       Rename
+                    </MenuItem>
+                    <MenuItem
+                      onClick={async () => {
+                        setMenuFor(null);
+                        await setAccountNotifyAction(acc.id, acc.notify_enabled === false);
+                        router.refresh();
+                      }}
+                    >
+                      {acc.notify_enabled === false ? "🔔 Unmute notifications" : "🔕 Mute notifications"}
                     </MenuItem>
                     <MenuItem
                       onClick={() => {
