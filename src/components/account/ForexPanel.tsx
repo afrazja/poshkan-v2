@@ -66,6 +66,7 @@ export default function ForexPanel({
   const [editSltp, setEditSltp] = useState<FxPosition | null>(null);
   const [chartPos, setChartPos] = useState<FxPosition | null>(null);
   const [editOrder, setEditOrder] = useState<FxOrder | null>(null);
+  const [expandedFx, setExpandedFx] = useState<string | null>(null);
   const [pairQuery, setPairQuery] = useState("");
   const [showLeverage, setShowLeverage] = useState(false);
 
@@ -306,13 +307,21 @@ export default function ForexPanel({
               const rate = q?.price;
               const fl = rate ? floatingPnl(p.direction, Number(p.units), Number(p.open_rate), rate, p.symbol) : null;
               const pp = rate ? pips(p.direction, Number(p.open_rate), rate, p.symbol) : null;
+              const isExpanded = expandedFx === p.id;
               return (
-                <div key={p.id} className="rounded-xl border border-border bg-card p-3">
-                  <div className="flex items-center justify-between">
+                <div key={p.id} className="rounded-xl border border-border bg-card">
+                  {/* Collapsed header — tap the row to expand (pair name still opens the chart) */}
+                  <div
+                    onClick={() => setExpandedFx(isExpanded ? null : p.id)}
+                    className="flex cursor-pointer items-center justify-between p-3"
+                  >
                     <div className="flex items-center gap-2">
                       <button
                         type="button"
-                        onClick={() => setChartPos(p)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setChartPos(p);
+                        }}
                         className="font-semibold hover:underline"
                         title="View chart"
                       >
@@ -327,43 +336,53 @@ export default function ForexPanel({
                       </span>
                       <SourceBadge source={p.source} />
                     </div>
-                    <span className={`font-medium ${fl != null ? changeColor(fl) : ""}`}>
-                      {fl != null ? formatSignedCurrency(fl) : "…"}
+                    <span className="flex items-center gap-2">
+                      <span className={`font-medium ${fl != null ? changeColor(fl) : ""}`}>
+                        {fl != null ? formatSignedCurrency(fl) : "…"}
+                      </span>
+                      <span className={`text-lg leading-none text-muted transition-transform ${isExpanded ? "rotate-90" : ""}`}>
+                        ›
+                      </span>
                     </span>
                   </div>
-                  <div className="mt-1 text-xs text-muted">
-                    {Number(p.units).toLocaleString("en-US")} units · {formatRate(Number(p.open_rate))} →{" "}
-                    {rate ? formatRate(rate) : "…"}
-                    {pp != null && (
-                      <span className={`ml-1 ${changeColor(pp)}`}>
-                        ({pp >= 0 ? "+" : ""}
-                        {pp.toFixed(1)} pips)
-                      </span>
-                    )}
-                    <span className="ml-1">· {leverage}× lev</span>
-                    {p.auto_close_at && <span className="ml-1">· ⏱ {autoCloseLabel(p.auto_close_at)}</span>}
-                  </div>
-                  <div className="mt-0.5 text-xs text-muted">Opened {fmtDateTime(p.opened_at)}</div>
-                  <div className="mt-2 flex gap-2">
-                    <button
-                      onClick={() => setEditSltp(p)}
-                      className="flex-1 rounded-md border border-border px-2 py-1.5 text-xs hover:bg-background"
-                    >
-                      {p.stop_loss != null || p.take_profit != null
-                        ? `SL ${p.stop_loss != null ? formatRate(Number(p.stop_loss)) : "—"} / TP ${p.take_profit != null ? formatRate(Number(p.take_profit)) : "—"}`
-                        : "Set SL / TP"}
-                    </button>
-                    <button
-                      onClick={() => closePosition(p.id)}
-                      disabled={closing === p.id}
-                      className="flex-1 rounded-md border border-border px-2 py-1.5 text-xs hover:bg-background disabled:opacity-50"
-                    >
-                      {closing === p.id ? "Closing…" : "Close"}
-                    </button>
-                  </div>
-                  {(p.stop_loss != null || p.take_profit != null) && (
-                    <div className="mt-1 text-right">
-                      <SlTpPnl p={p} />
+
+                  {isExpanded && (
+                    <div className="border-t border-border p-3 pt-2">
+                      <div className="text-xs text-muted">
+                        {Number(p.units).toLocaleString("en-US")} units · {formatRate(Number(p.open_rate))} →{" "}
+                        {rate ? formatRate(rate) : "…"}
+                        {pp != null && (
+                          <span className={`ml-1 ${changeColor(pp)}`}>
+                            ({pp >= 0 ? "+" : ""}
+                            {pp.toFixed(1)} pips)
+                          </span>
+                        )}
+                        <span className="ml-1">· {leverage}× lev</span>
+                        {p.auto_close_at && <span className="ml-1">· ⏱ {autoCloseLabel(p.auto_close_at)}</span>}
+                      </div>
+                      <div className="mt-0.5 text-xs text-muted">Opened {fmtDateTime(p.opened_at)}</div>
+                      <div className="mt-2 flex gap-2">
+                        <button
+                          onClick={() => setEditSltp(p)}
+                          className="flex-1 rounded-md border border-border px-2 py-1.5 text-xs hover:bg-background"
+                        >
+                          {p.stop_loss != null || p.take_profit != null
+                            ? `SL ${p.stop_loss != null ? formatRate(Number(p.stop_loss)) : "—"} / TP ${p.take_profit != null ? formatRate(Number(p.take_profit)) : "—"}`
+                            : "Set SL / TP"}
+                        </button>
+                        <button
+                          onClick={() => closePosition(p.id)}
+                          disabled={closing === p.id}
+                          className="flex-1 rounded-md border border-border px-2 py-1.5 text-xs hover:bg-background disabled:opacity-50"
+                        >
+                          {closing === p.id ? "Closing…" : "Close"}
+                        </button>
+                      </div>
+                      {(p.stop_loss != null || p.take_profit != null) && (
+                        <div className="mt-1 text-right">
+                          <SlTpPnl p={p} />
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
