@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getQuotes } from "@/lib/marketdata";
-import { autoCloseReason, marginFor, clampTradeLeverage } from "@/lib/forex";
+import { getQuotes, getOhlc } from "@/lib/marketdata";
+import { bracketHit, floatingPnl, marginFor, clampTradeLeverage } from "@/lib/forex";
 import { sendEmail, alertEmailHtml } from "@/lib/email";
 import { sendPushToUser } from "@/lib/push";
 
@@ -154,6 +154,24 @@ export async function GET(request: Request) {
     }
   }
 
+  // Wick-aware brackets: pull the recent candle range per open-position symbol so
+  // a TP/SL the price *touched* between runs still triggers (not just spot now).
+  const ranges: Record<string, { high: number; low: number }> = {};
+  const posSyms = Array.from(new Set((fxPositions ?? []).map((p) => p.symbol.toUpperCase())));
+  await Promise.all(
+    posSyms.map(async (sym) => {
+      try {
+        const cs = await getOhlc(sym, "5min", 6); // ~last 30 min, including the live bar
+        if (cs.length) {
+          ranges[sym] = {
+            high: Math.max(...cs.map((c) => c.high)),
+            low: Math.min(...cs.map((c) => c.low)),
+          };
+        }
+      } catch {}
+    })
+  );
+
   // Forex auto-close: timed exit, then margin stop-out / stop-loss / take-profit.
   for (const p of fxPositions ?? []) {
     const q = quotes[p.symbol.toUpperCase()];
@@ -175,11 +193,27 @@ export async function GET(request: Request) {
       }
       continue;
     }
-    const reason = autoCloseReason(p, q.price);
+    // Margin stop-out on the live price; otherwise a TP/SL the recent candle
+    // range (or the live price) touched — filled at the level (bracket behaviour).
+    const floating = floatingPnl(p.direction, Number(p.units), Number(p.open_rate), q.price, p.symbol);
+    let reason: "stopped" | "sl" | "tp" | null = null;
+    let fill = q.price;
+    if (floating <= -Number(p.margin)) {
+      reason = "stopped";
+    } else {
+      const r = ranges[p.symbol.toUpperCase()];
+      const hi = Math.max(r?.high ?? q.price, q.price);
+      const lo = Math.min(r?.low ?? q.price, q.price);
+      const b = bracketHit(p, hi, lo);
+      if (b) {
+        reason = b.reason;
+        fill = b.fill;
+      }
+    }
     if (!reason) continue;
     const { error } = await db.rpc("fx_close", {
       p_position_id: p.id,
-      p_rate: q.price,
+      p_rate: fill,
       p_reason: reason,
     });
     if (!error) {
@@ -192,7 +226,7 @@ export async function GET(request: Request) {
           reason === "tp" ? "🎯 Take-profit hit" : reason === "sl" ? "🛑 Stop-loss hit" : "⚠️ Margin stop-out";
         void sendPushToUser(ownerId, {
           title: `${label}: ${fmtPair(p.symbol)}`,
-          body: `${Number(p.units).toLocaleString()} units ${p.direction} closed @ ${fmtRate(q.price)} · P&L ${fmtUsd(pnl)}`,
+          body: `${Number(p.units).toLocaleString()} units ${p.direction} closed @ ${fmtRate(fill)} · P&L ${fmtUsd(pnl)}`,
         });
       }
     }

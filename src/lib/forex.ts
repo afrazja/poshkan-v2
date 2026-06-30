@@ -144,3 +144,23 @@ export function autoCloseReason(
   }
   return null;
 }
+
+// Wick-aware bracket check: did the recent candle range (high/low) TOUCH the
+// stop-loss or take-profit — even if price has since retraced? Returns the level
+// to fill at. If both were touched, SL is treated as hit first (conservative).
+export function bracketHit(
+  p: { direction: "LONG" | "SHORT"; stop_loss?: number | null; take_profit?: number | null },
+  high: number,
+  low: number
+): { reason: "sl" | "tp"; fill: number } | null {
+  const sl = p.stop_loss != null ? Number(p.stop_loss) : null;
+  const tp = p.take_profit != null ? Number(p.take_profit) : null;
+  if (p.direction === "LONG") {
+    if (sl != null && low <= sl) return { reason: "sl", fill: sl };
+    if (tp != null && high >= tp) return { reason: "tp", fill: tp };
+  } else {
+    if (sl != null && high >= sl) return { reason: "sl", fill: sl };
+    if (tp != null && low <= tp) return { reason: "tp", fill: tp };
+  }
+  return null;
+}
