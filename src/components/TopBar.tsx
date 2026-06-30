@@ -6,6 +6,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import Avatar from "./Avatar";
+import NotificationBell from "./NotificationBell";
 import ThemeToggle from "./ThemeToggle";
 import ChangePasswordModal from "./ChangePasswordModal";
 import ApiAccessModal from "./ApiAccessModal";
@@ -159,6 +160,7 @@ export default function TopBar({
 
         {/* Right: settings (left of avatar) + avatar */}
         <div ref={ref} className="flex items-center gap-2">
+          <NotificationBell />
           {/* Settings */}
           <div className="relative">
             <button

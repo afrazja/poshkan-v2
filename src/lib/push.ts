@@ -8,6 +8,14 @@ export async function sendPushToUser(
   userId: string,
   payload: { title: string; body: string; url?: string }
 ): Promise<number> {
+  // Store a copy in the in-app notification center, independent of push delivery
+  // (best-effort: never blocks/throws, works even if VAPID/devices aren't set up).
+  try {
+    await createAdminClient()
+      .from("notifications")
+      .insert({ user_id: userId, title: payload.title, body: payload.body, url: payload.url ?? null });
+  } catch {}
+
   const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
   const privateKey = process.env.VAPID_PRIVATE_KEY;
   if (!publicKey || !privateKey) return 0;
