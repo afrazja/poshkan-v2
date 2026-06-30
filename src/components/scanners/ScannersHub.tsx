@@ -12,6 +12,7 @@ import MeanRevScanner from "@/components/account/MeanRevScanner";
 import CandleRangeScanner from "@/components/account/CandleRangeScanner";
 import ScannerOnboard from "@/components/scanners/ScannerOnboard";
 import CronHealth from "@/components/scanners/CronHealth";
+import ScannerCompare from "@/components/scanners/ScannerCompare";
 import type { SmcSettings, SmcSignal } from "@/app/dashboard/[accountId]/smc-actions";
 import type { OteSettings, OteSignal } from "@/app/dashboard/[accountId]/ote-actions";
 import type { TrendSettings, TrendSignal } from "@/app/dashboard/[accountId]/trend-actions";
@@ -69,6 +70,8 @@ export default function ScannersHub({
           ← Your accounts
         </Link>
       </div>
+
+      <ScannerCompare accounts={accounts.map((a) => ({ id: a.id, name: a.name, type: a.type }))} />
 
       <StrategyBlock
         accounts={accounts}
