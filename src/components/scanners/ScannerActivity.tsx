@@ -28,6 +28,53 @@ const ago = (iso: string) => {
 const fmtNum = (n: number | null) =>
   n == null ? "—" : n >= 100 ? n.toFixed(2) : n >= 1 ? n.toFixed(3) : n.toFixed(5);
 
+// A compact, always-visible strip of the newest few events — meant to sit near
+// the top of the page so activity is visible without scrolling to the full
+// log at the bottom. Links down to the full log for anything older.
+export function RecentActivitySummary({ items }: { items: ActivityItem[] }) {
+  const sorted = [...items]
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .slice(0, 5);
+  if (sorted.length === 0) return null;
+
+  return (
+    <div className="rounded-2xl border border-border bg-card p-4">
+      <div className="mb-2 flex items-center justify-between">
+        <span className="text-sm font-semibold">📋 Recent activity</span>
+        <a href="#activity-log" className="text-xs text-primary hover:underline">
+          View full log ↓
+        </a>
+      </div>
+      <div className="space-y-1">
+        {sorted.map((it) => (
+          <div
+            key={it.id}
+            className="flex items-center justify-between gap-2 rounded-lg border border-border bg-background px-2 py-1.5 text-xs"
+          >
+            <span className="min-w-0 truncate">
+              {it.icon} {it.scanner} · <span className="text-muted">{it.accountName}</span> ·{" "}
+              <span className={it.direction === "LONG" ? "text-emerald-500" : "text-rose-500"}>
+                {it.direction}
+              </span>{" "}
+              {symbolLabel(it.symbol)}
+            </span>
+            <span className="flex shrink-0 items-center gap-2">
+              {it.executed ? (
+                <span className="rounded bg-emerald-500/15 px-1.5 py-0.5 text-emerald-600 dark:text-emerald-400">
+                  traded
+                </span>
+              ) : (
+                <span className="rounded bg-muted/20 px-1.5 py-0.5 text-muted">alert</span>
+              )}
+              <span className="text-muted">{ago(it.createdAt)}</span>
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // One chronological feed of every scanner signal (traded or alert) across all
 // the user's accounts — built from data already loaded on the Scanners page.
 export default function ScannerActivity({ items }: { items: ActivityItem[] }) {
@@ -38,7 +85,7 @@ export default function ScannerActivity({ items }: { items: ActivityItem[] }) {
   if (sorted.length === 0) return null;
 
   return (
-    <div className="rounded-2xl border border-border bg-card p-4">
+    <div id="activity-log" className="rounded-2xl border border-border bg-card p-4 scroll-mt-4">
       <button onClick={() => setOpen((v) => !v)} className="flex w-full items-center justify-between">
         <span className="text-sm font-semibold">📋 Recent scanner activity</span>
         <span className="text-xs text-muted">{open ? "Hide" : `${sorted.length} events`}</span>

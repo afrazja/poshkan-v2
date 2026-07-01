@@ -13,7 +13,7 @@ import CandleRangeScanner from "@/components/account/CandleRangeScanner";
 import ScannerOnboard from "@/components/scanners/ScannerOnboard";
 import CronHealth from "@/components/scanners/CronHealth";
 import ScannerCompare from "@/components/scanners/ScannerCompare";
-import ScannerActivity, { type ActivityItem } from "@/components/scanners/ScannerActivity";
+import ScannerActivity, { RecentActivitySummary, type ActivityItem } from "@/components/scanners/ScannerActivity";
 import ScannerFilterBar, {
   type ScannerStatusFilter,
   type ScannerAssetFilter,
@@ -212,6 +212,8 @@ export default function ScannersHub({
           ← Your accounts
         </Link>
       </div>
+
+      <RecentActivitySummary items={activity} />
 
       <ScannerCompare accounts={accounts.map((a) => ({ id: a.id, name: a.name, type: a.type }))} />
 

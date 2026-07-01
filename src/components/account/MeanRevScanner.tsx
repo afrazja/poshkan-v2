@@ -239,6 +239,16 @@ export default function MeanRevScanner({
             enabled={!!settings?.enabled}
             mode={settings?.mode}
             lastRunAt={settings?.last_run_at ?? null}
+            lastSignal={
+              signals[0]
+                ? {
+                    symbol: signals[0].symbol,
+                    direction: signals[0].direction,
+                    executed: signals[0].executed,
+                    createdAt: signals[0].created_at,
+                  }
+                : null
+            }
           />
           {accountSelector}
         </>
