@@ -4,6 +4,7 @@ import { useEffect, useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import ScannerCard from "./ScannerCard";
 import ScannerInfo from "./ScannerInfo";
+import ScannerStatusBadges from "./ScannerStatusBadges";
 import SymbolSearch from "@/components/SymbolSearch";
 import { marketUniverse, symbolLabel, assetTypeError } from "@/lib/assets";
 import { FX_PAIRS } from "@/lib/forex";
@@ -161,7 +162,21 @@ export default function OteScanner({
   const liveStale = lastRunMs > 20 * 60 * 1000;
 
   return (
-    <ScannerCard icon="🎯" name="OTE Scanner" defaultOpen={defaultOpen} headerExtra={accountSelector}>
+    <ScannerCard
+      icon="🎯"
+      name="OTE Scanner"
+      defaultOpen={defaultOpen}
+      headerExtra={
+        <>
+          <ScannerStatusBadges
+            enabled={!!settings?.enabled}
+            mode={settings?.mode}
+            lastRunAt={settings?.last_run_at ?? null}
+          />
+          {accountSelector}
+        </>
+      }
+    >
       <p className="text-xs text-muted">
         Optimal Trade Entry — 15-min trend (BOS) + a Fibonacci 62–79% zone of the last external leg, then a
         5-min liquidity sweep + confirmation close. Last run: {ago(settings?.last_run_at ?? null)}.

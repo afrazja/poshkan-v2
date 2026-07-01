@@ -9,6 +9,7 @@ import {
 } from "@/app/dashboard/[accountId]/actions";
 import ScannerCard from "./ScannerCard";
 import ScannerInfo from "./ScannerInfo";
+import ScannerStatusBadges from "./ScannerStatusBadges";
 import SymbolSearch from "@/components/SymbolSearch";
 import { marketUniverse, symbolLabel, assetTypeError } from "@/lib/assets";
 import { FX_PAIRS } from "@/lib/forex";
@@ -54,7 +55,19 @@ export default function AiScanner({
   accountSelector?: ReactNode;
 }) {
   return (
-    <ScannerCard icon="🤖" name="AI Scanner" defaultOpen={defaultOpen} headerExtra={accountSelector}>
+    <ScannerCard
+      icon="🤖"
+      name="AI Scanner"
+      defaultOpen={defaultOpen}
+      headerExtra={
+        <>
+          {/* Always scanning (no independent on/off) — the toggle below only
+              decides whether it's allowed to auto-trade, so that's the "mode". */}
+          <ScannerStatusBadges enabled mode={autoSettings.enabled ? "auto" : "alert"} />
+          {accountSelector}
+        </>
+      }
+    >
       <ScannerInfo
         whatItIs="A discretionary scanner powered by Claude — instead of a fixed formula, it reads the market and your plain-English instructions to decide trades. The flexible one."
         bestWhen="When you want judgement and nuance, or to encode your own rules in plain words rather than rigid parameters."

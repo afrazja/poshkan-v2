@@ -4,6 +4,7 @@ import { useEffect, useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import ScannerCard from "./ScannerCard";
 import ScannerInfo from "./ScannerInfo";
+import ScannerStatusBadges from "./ScannerStatusBadges";
 import SymbolSearch from "@/components/SymbolSearch";
 import { marketUniverse, symbolLabel, assetTypeError } from "@/lib/assets";
 import { FX_PAIRS } from "@/lib/forex";
@@ -165,7 +166,21 @@ export default function SmcScanner({
   const liveStale = lastRunMs > 20 * 60 * 1000;
 
   return (
-    <ScannerCard icon="📈" name="SMC Scanner" defaultOpen={defaultOpen} headerExtra={accountSelector}>
+    <ScannerCard
+      icon="📈"
+      name="SMC Scanner"
+      defaultOpen={defaultOpen}
+      headerExtra={
+        <>
+          <ScannerStatusBadges
+            enabled={!!settings?.enabled}
+            mode={settings?.mode}
+            lastRunAt={settings?.last_run_at ?? null}
+          />
+          {accountSelector}
+        </>
+      }
+    >
       <p className="text-xs text-muted">
         Deterministic H1-trend (BOS) + M5 FVG retest + confirmation engine. Last run:{" "}
         {ago(settings?.last_run_at ?? null)}.

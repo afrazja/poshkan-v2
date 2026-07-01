@@ -21,7 +21,7 @@ export default function ScannerCard({
   const [open, setOpen] = useState(defaultOpen);
   return (
     <div className="rounded-2xl border border-border bg-card">
-      <div className="flex w-full items-center justify-between gap-3 p-4 transition hover:bg-muted/5">
+      <div className="flex w-full flex-wrap items-center justify-between gap-2 p-4 transition hover:bg-muted/5">
         <button
           onClick={() => setOpen((o) => !o)}
           className="flex min-w-0 flex-1 items-center gap-2 text-left"
@@ -30,7 +30,7 @@ export default function ScannerCard({
             {icon} {name}
           </span>
         </button>
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex flex-wrap items-center justify-end gap-2">
           {headerExtra}
           <button
             onClick={() => setOpen((o) => !o)}
