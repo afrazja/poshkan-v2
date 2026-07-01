@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import ScannerCard from "./ScannerCard";
 import ScannerInfo from "./ScannerInfo";
@@ -36,12 +36,14 @@ export default function TrendScanner({
   initialSettings,
   initialSignals,
   defaultOpen = false,
+  accountSelector,
 }: {
   accountId: string;
   accountType: string;
   initialSettings: TrendSettings | null;
   initialSignals: TrendSignal[];
   defaultOpen?: boolean;
+  accountSelector?: ReactNode;
 }) {
   const router = useRouter();
   const universe = marketUniverse(accountType);
@@ -172,7 +174,7 @@ export default function TrendScanner({
   const liveStale = lastRunMs > 20 * 60 * 1000;
 
   return (
-    <ScannerCard icon="🚀" name="Trend Breakout" defaultOpen={defaultOpen}>
+    <ScannerCard icon="🚀" name="Trend Breakout" defaultOpen={defaultOpen} headerExtra={accountSelector}>
       <p className="text-xs text-muted">
         Donchian/Turtle breakout on 1-hour bars — enters on a fresh break of the N-bar high/low in the
         direction of the trend MA, with an ATR stop. Rides trends (the complement to SMC/OTE). Last run:{" "}

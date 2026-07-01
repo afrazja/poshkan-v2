@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import {
   setAiInstructionAction,
@@ -43,6 +43,7 @@ export default function AiScanner({
   aiInstruction = null,
   aiSymbols = null,
   defaultOpen = false,
+  accountSelector,
 }: {
   accountId: string;
   accountType: string;
@@ -50,9 +51,10 @@ export default function AiScanner({
   aiInstruction?: string | null;
   aiSymbols?: string[] | null;
   defaultOpen?: boolean;
+  accountSelector?: ReactNode;
 }) {
   return (
-    <ScannerCard icon="🤖" name="AI Scanner" defaultOpen={defaultOpen}>
+    <ScannerCard icon="🤖" name="AI Scanner" defaultOpen={defaultOpen} headerExtra={accountSelector}>
       <ScannerInfo
         whatItIs="A discretionary scanner powered by Claude — instead of a fixed formula, it reads the market and your plain-English instructions to decide trades. The flexible one."
         bestWhen="When you want judgement and nuance, or to encode your own rules in plain words rather than rigid parameters."

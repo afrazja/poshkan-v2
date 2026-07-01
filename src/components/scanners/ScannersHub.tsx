@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { deactivateScanner } from "@/app/dashboard/scanners/actions";
@@ -114,13 +114,14 @@ export default function ScannersHub({
         accounts={accounts}
         scannerKey="ai"
         isActive={(a) => a.autoSettings.enabled}
-        render={(a) => (
+        render={(a, accountSelector) => (
           <AiScanner
             accountId={a.id}
             accountType={a.type}
             autoSettings={a.autoSettings}
             aiInstruction={a.aiInstruction}
             aiSymbols={a.aiSymbols}
+            accountSelector={accountSelector}
           />
         )}
       />
@@ -129,12 +130,13 @@ export default function ScannersHub({
         accounts={accounts}
         scannerKey="smc"
         isActive={(a) => !!a.smcSettings?.enabled}
-        render={(a) => (
+        render={(a, accountSelector) => (
           <SmcScanner
             accountId={a.id}
             accountType={a.type}
             initialSettings={a.smcSettings}
             initialSignals={a.smcSignals}
+            accountSelector={accountSelector}
           />
         )}
       />
@@ -143,12 +145,13 @@ export default function ScannersHub({
         accounts={accounts}
         scannerKey="ote"
         isActive={(a) => !!a.oteSettings?.enabled}
-        render={(a) => (
+        render={(a, accountSelector) => (
           <OteScanner
             accountId={a.id}
             accountType={a.type}
             initialSettings={a.oteSettings}
             initialSignals={a.oteSignals}
+            accountSelector={accountSelector}
           />
         )}
       />
@@ -157,12 +160,13 @@ export default function ScannersHub({
         accounts={accounts}
         scannerKey="trend"
         isActive={(a) => !!a.trendSettings?.enabled}
-        render={(a) => (
+        render={(a, accountSelector) => (
           <TrendScanner
             accountId={a.id}
             accountType={a.type}
             initialSettings={a.trendSettings}
             initialSignals={a.trendSignals}
+            accountSelector={accountSelector}
           />
         )}
       />
@@ -171,12 +175,13 @@ export default function ScannersHub({
         accounts={accounts}
         scannerKey="meanrev"
         isActive={(a) => !!a.meanrevSettings?.enabled}
-        render={(a) => (
+        render={(a, accountSelector) => (
           <MeanRevScanner
             accountId={a.id}
             accountType={a.type}
             initialSettings={a.meanrevSettings}
             initialSignals={a.meanrevSignals}
+            accountSelector={accountSelector}
           />
         )}
       />
@@ -185,12 +190,13 @@ export default function ScannersHub({
         accounts={accounts}
         scannerKey="candlerange"
         isActive={(a) => !!a.candlerangeSettings?.enabled}
-        render={(a) => (
+        render={(a, accountSelector) => (
           <CandleRangeScanner
             accountId={a.id}
             accountType={a.type}
             initialSettings={a.candlerangeSettings}
             initialSignals={a.candlerangeSignals}
+            accountSelector={accountSelector}
           />
         )}
       />
@@ -200,6 +206,10 @@ export default function ScannersHub({
   );
 }
 
+// localStorage key for the last account chosen per scanner (so the picker
+// remembers your choice across reloads instead of resetting to account #1).
+const scannerAccountKey = (scannerKey: string) => `poshkan-scanner-account:${scannerKey}`;
+
 function StrategyBlock({
   accounts,
   render,
@@ -207,14 +217,32 @@ function StrategyBlock({
   isActive,
 }: {
   accounts: ScanAcct[];
-  render: (account: ScanAcct) => React.ReactNode;
+  render: (account: ScanAcct, accountSelector: ReactNode) => ReactNode;
   scannerKey: string;
   isActive: (a: ScanAcct) => boolean;
 }) {
   const router = useRouter();
-  const [selectedId, setSelectedId] = useState(accounts[0]?.id ?? "");
-  const [busy, setBusy] = useState<string | null>(null);
   const active = accounts.filter(isActive);
+  // SSR-safe default: the account this scanner is already active on, else the
+  // first account. A remembered per-scanner choice overrides it after mount.
+  const [selectedId, setSelectedId] = useState(active[0]?.id ?? accounts[0]?.id ?? "");
+  const [busy, setBusy] = useState<string | null>(null);
+
+  useEffect(() => {
+    try {
+      const stored = window.localStorage.getItem(scannerAccountKey(scannerKey));
+      if (stored && accounts.some((a) => a.id === stored)) setSelectedId(stored);
+    } catch {}
+    // Only read the remembered choice once, on mount.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scannerKey]);
+
+  function selectAccount(id: string) {
+    setSelectedId(id);
+    try {
+      window.localStorage.setItem(scannerAccountKey(scannerKey), id);
+    } catch {}
+  }
 
   async function deactivate(id: string) {
     setBusy(id);
@@ -238,6 +266,25 @@ function StrategyBlock({
   }
 
   const selected = accounts.find((a) => a.id === selectedId) ?? accounts[0];
+
+  // Rendered inside each scanner card's header (right-aligned next to the
+  // title) — not floated above the card — so it's unambiguous which scanner
+  // it controls.
+  const accountSelector: ReactNode =
+    accounts.length > 1 ? (
+      <select
+        value={selected.id}
+        onChange={(e) => selectAccount(e.target.value)}
+        aria-label="Account"
+        className="rounded-lg border border-border bg-input px-2 py-1 text-xs outline-none focus:border-primary"
+      >
+        {accounts.map((a) => (
+          <option key={a.id} value={a.id}>
+            {a.name} ({a.type})
+          </option>
+        ))}
+      </select>
+    ) : null;
 
   return (
     <div className="space-y-2">
@@ -263,24 +310,8 @@ function StrategyBlock({
           ))}
         </div>
       )}
-      {accounts.length > 1 && (
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-muted">Account</span>
-          <select
-            value={selected.id}
-            onChange={(e) => setSelectedId(e.target.value)}
-            className="rounded-lg border border-border bg-input px-2 py-1.5 text-sm outline-none focus:border-primary"
-          >
-            {accounts.map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.name} ({a.type})
-              </option>
-            ))}
-          </select>
-        </div>
-      )}
       {/* key forces a clean remount (state + polling) when switching accounts */}
-      <div key={selected.id}>{render(selected)}</div>
+      <div key={selected.id}>{render(selected, accountSelector)}</div>
     </div>
   );
 }

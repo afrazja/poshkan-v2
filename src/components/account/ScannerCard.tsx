@@ -9,27 +9,38 @@ export default function ScannerCard({
   icon,
   name,
   defaultOpen = false,
+  headerExtra,
   children,
 }: {
   icon: string;
   name: string;
   defaultOpen?: boolean;
+  headerExtra?: ReactNode; // e.g. a per-card account selector, right-aligned next to the title
   children: ReactNode;
 }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
     <div className="rounded-2xl border border-border bg-card">
-      <button
-        onClick={() => setOpen((o) => !o)}
-        className="flex w-full items-center justify-between gap-3 p-4 text-left transition hover:bg-muted/5"
-      >
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-sm font-semibold">
+      <div className="flex w-full items-center justify-between gap-3 p-4 transition hover:bg-muted/5">
+        <button
+          onClick={() => setOpen((o) => !o)}
+          className="flex min-w-0 flex-1 items-center gap-2 text-left"
+        >
+          <span className="truncate text-sm font-semibold">
             {icon} {name}
           </span>
+        </button>
+        <div className="flex shrink-0 items-center gap-2">
+          {headerExtra}
+          <button
+            onClick={() => setOpen((o) => !o)}
+            aria-label={open ? "Collapse" : "Expand"}
+            className={`text-lg text-muted transition-transform ${open ? "rotate-90" : ""}`}
+          >
+            ›
+          </button>
         </div>
-        <span className={`text-lg text-muted transition-transform ${open ? "rotate-90" : ""}`}>›</span>
-      </button>
+      </div>
       {open && <div className="border-t border-border p-4">{children}</div>}
     </div>
   );

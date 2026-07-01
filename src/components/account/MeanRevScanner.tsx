@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import ScannerCard from "./ScannerCard";
 import ScannerInfo from "./ScannerInfo";
@@ -36,12 +36,14 @@ export default function MeanRevScanner({
   initialSettings,
   initialSignals,
   defaultOpen = false,
+  accountSelector,
 }: {
   accountId: string;
   accountType: string;
   initialSettings: MeanRevSettings | null;
   initialSignals: MeanRevSignal[];
   defaultOpen?: boolean;
+  accountSelector?: ReactNode;
 }) {
   const router = useRouter();
   const universe = marketUniverse(accountType);
@@ -169,7 +171,7 @@ export default function MeanRevScanner({
   const liveStale = lastRunMs > 20 * 60 * 1000;
 
   return (
-    <ScannerCard icon="↩️" name="Mean Reversion" defaultOpen={defaultOpen}>
+    <ScannerCard icon="↩️" name="Mean Reversion" defaultOpen={defaultOpen} headerExtra={accountSelector}>
       <p className="text-xs text-muted">
         Bollinger-Band bounce on 1-hour bars — fades a fresh close beyond the band back toward the mean
         (the middle band is the target), with an ATR stop, optionally only with the longer trend. Profits

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import ScannerCard from "./ScannerCard";
 import ScannerInfo from "./ScannerInfo";
@@ -36,12 +36,14 @@ export default function SmcScanner({
   initialSettings,
   initialSignals,
   defaultOpen = false,
+  accountSelector,
 }: {
   accountId: string;
   accountType: string;
   initialSettings: SmcSettings | null;
   initialSignals: SmcSignal[];
   defaultOpen?: boolean;
+  accountSelector?: ReactNode;
 }) {
   const router = useRouter();
   const universe = marketUniverse(accountType);
@@ -163,7 +165,7 @@ export default function SmcScanner({
   const liveStale = lastRunMs > 20 * 60 * 1000;
 
   return (
-    <ScannerCard icon="📈" name="SMC Scanner" defaultOpen={defaultOpen}>
+    <ScannerCard icon="📈" name="SMC Scanner" defaultOpen={defaultOpen} headerExtra={accountSelector}>
       <p className="text-xs text-muted">
         Deterministic H1-trend (BOS) + M5 FVG retest + confirmation engine. Last run:{" "}
         {ago(settings?.last_run_at ?? null)}.
