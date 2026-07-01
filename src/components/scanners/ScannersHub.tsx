@@ -14,6 +14,11 @@ import ScannerOnboard from "@/components/scanners/ScannerOnboard";
 import CronHealth from "@/components/scanners/CronHealth";
 import ScannerCompare from "@/components/scanners/ScannerCompare";
 import ScannerActivity, { type ActivityItem } from "@/components/scanners/ScannerActivity";
+import ScannerFilterBar, {
+  type ScannerStatusFilter,
+  type ScannerAssetFilter,
+  type ScannerSort,
+} from "@/components/scanners/ScannerFilterBar";
 import type { SmcSettings, SmcSignal } from "@/app/dashboard/[accountId]/smc-actions";
 import type { OteSettings, OteSignal } from "@/app/dashboard/[accountId]/ote-actions";
 import type { TrendSettings, TrendSignal } from "@/app/dashboard/[accountId]/trend-actions";
@@ -37,6 +42,76 @@ export interface ScanAcct {
   meanrevSignals: MeanRevSignal[];
   candlerangeSettings: CandleRangeSettings | null;
   candlerangeSignals: CandleRangeSignal[];
+}
+
+// One entry per scanner CARD (not per account) — drives the filter bar, search,
+// and sort. Each def can answer "is this on for account X?" and "when did it
+// last run, across all the user's accounts?" from data already loaded above.
+interface ScannerDef {
+  key: string;
+  name: string;
+  isEnabledFor: (a: ScanAcct) => boolean;
+  lastRunAt: (accounts: ScanAcct[]) => string | null;
+}
+
+function freshest(accounts: ScanAcct[], pick: (a: ScanAcct) => string | null | undefined): string | null {
+  const times = accounts.map(pick).filter(Boolean) as string[];
+  return times.length ? times.sort().slice(-1)[0] : null;
+}
+
+const SCANNER_DEFS: ScannerDef[] = [
+  { key: "ai", name: "AI Scanner", isEnabledFor: (a) => a.autoSettings.enabled, lastRunAt: () => null },
+  {
+    key: "smc",
+    name: "SMC Scanner",
+    isEnabledFor: (a) => !!a.smcSettings?.enabled,
+    lastRunAt: (accounts) => freshest(accounts, (a) => a.smcSettings?.last_run_at),
+  },
+  {
+    key: "ote",
+    name: "OTE Scanner",
+    isEnabledFor: (a) => !!a.oteSettings?.enabled,
+    lastRunAt: (accounts) => freshest(accounts, (a) => a.oteSettings?.last_run_at),
+  },
+  {
+    key: "trend",
+    name: "Trend Breakout",
+    isEnabledFor: (a) => !!a.trendSettings?.enabled,
+    lastRunAt: (accounts) => freshest(accounts, (a) => a.trendSettings?.last_run_at),
+  },
+  {
+    key: "meanrev",
+    name: "Mean Reversion",
+    isEnabledFor: (a) => !!a.meanrevSettings?.enabled,
+    lastRunAt: (accounts) => freshest(accounts, (a) => a.meanrevSettings?.last_run_at),
+  },
+  {
+    key: "candlerange",
+    name: "Candle Range",
+    isEnabledFor: (a) => !!a.candlerangeSettings?.enabled,
+    lastRunAt: (accounts) => freshest(accounts, (a) => a.candlerangeSettings?.last_run_at),
+  },
+];
+
+// A scanner passes the filter if its name matches the search AND at least one
+// of the user's accounts satisfies BOTH the asset-class and status filters
+// together (not independently) — e.g. "Enabled + Crypto" means enabled on the
+// SAME crypto account, not "enabled somewhere" plus "has a crypto account".
+function matchesFilters(
+  def: ScannerDef,
+  accounts: ScanAcct[],
+  search: string,
+  status: ScannerStatusFilter,
+  assetClass: ScannerAssetFilter
+): boolean {
+  if (search.trim() && !def.name.toLowerCase().includes(search.trim().toLowerCase())) return false;
+  if (status === "all" && assetClass === "all") return true;
+  return accounts.some((a) => {
+    if (assetClass !== "all" && a.type !== assetClass) return false;
+    if (status === "enabled" && !def.isEnabledFor(a)) return false;
+    if (status === "off" && def.isEnabledFor(a)) return false;
+    return true;
+  });
 }
 
 export default function ScannersHub({
@@ -86,6 +161,36 @@ export default function ScannersHub({
     );
   });
 
+  // Search / filter / sort over the scanner CARDS (not the accounts) — updates
+  // live as the user types/clicks, no submit step.
+  const [search, setSearch] = useState("");
+  const [status, setStatus] = useState<ScannerStatusFilter>("all");
+  const [assetClass, setAssetClass] = useState<ScannerAssetFilter>("all");
+  const [sort, setSort] = useState<ScannerSort>("default");
+
+  const visible: Record<string, boolean> = {};
+  for (const def of SCANNER_DEFS) visible[def.key] = matchesFilters(def, accounts, search, status, assetClass);
+
+  const ranked = SCANNER_DEFS.map((def, i) => ({
+    key: def.key,
+    i,
+    enabledAny: accounts.some((a) => def.isEnabledFor(a)),
+    lastRun: def.lastRunAt(accounts),
+  }));
+  if (sort === "enabled") {
+    ranked.sort((a, b) => Number(b.enabledAny) - Number(a.enabledAny) || a.i - b.i);
+  } else if (sort === "recent") {
+    ranked.sort((a, b) => {
+      const at = a.lastRun ? new Date(a.lastRun).getTime() : -Infinity;
+      const bt = b.lastRun ? new Date(b.lastRun).getTime() : -Infinity;
+      return bt - at || a.i - b.i;
+    });
+  }
+  const order: Record<string, number> = {};
+  ranked.forEach((r, pos) => (order[r.key] = pos));
+
+  const anyVisible = Object.values(visible).some(Boolean);
+
   return (
     <div className="space-y-6">
       {onboard && <ScannerOnboard />}
@@ -110,96 +215,139 @@ export default function ScannersHub({
 
       <ScannerCompare accounts={accounts.map((a) => ({ id: a.id, name: a.name, type: a.type }))} />
 
-      <StrategyBlock
-        accounts={accounts}
-        scannerKey="ai"
-        isActive={(a) => a.autoSettings.enabled}
-        render={(a, accountSelector) => (
-          <AiScanner
-            accountId={a.id}
-            accountType={a.type}
-            autoSettings={a.autoSettings}
-            aiInstruction={a.aiInstruction}
-            aiSymbols={a.aiSymbols}
-            accountSelector={accountSelector}
-          />
-        )}
+      <ScannerFilterBar
+        search={search}
+        onSearchChange={setSearch}
+        status={status}
+        onStatusChange={setStatus}
+        assetClass={assetClass}
+        onAssetClassChange={setAssetClass}
+        sort={sort}
+        onSortChange={setSort}
       />
 
-      <StrategyBlock
-        accounts={accounts}
-        scannerKey="smc"
-        isActive={(a) => !!a.smcSettings?.enabled}
-        render={(a, accountSelector) => (
-          <SmcScanner
-            accountId={a.id}
-            accountType={a.type}
-            initialSettings={a.smcSettings}
-            initialSignals={a.smcSignals}
-            accountSelector={accountSelector}
-          />
+      <div className="flex flex-col gap-6">
+        {visible.ai && (
+          <div style={{ order: order.ai }}>
+            <StrategyBlock
+              accounts={accounts}
+              scannerKey="ai"
+              isActive={(a) => a.autoSettings.enabled}
+              render={(a, accountSelector) => (
+                <AiScanner
+                  accountId={a.id}
+                  accountType={a.type}
+                  autoSettings={a.autoSettings}
+                  aiInstruction={a.aiInstruction}
+                  aiSymbols={a.aiSymbols}
+                  accountSelector={accountSelector}
+                />
+              )}
+            />
+          </div>
         )}
-      />
 
-      <StrategyBlock
-        accounts={accounts}
-        scannerKey="ote"
-        isActive={(a) => !!a.oteSettings?.enabled}
-        render={(a, accountSelector) => (
-          <OteScanner
-            accountId={a.id}
-            accountType={a.type}
-            initialSettings={a.oteSettings}
-            initialSignals={a.oteSignals}
-            accountSelector={accountSelector}
-          />
+        {visible.smc && (
+          <div style={{ order: order.smc }}>
+            <StrategyBlock
+              accounts={accounts}
+              scannerKey="smc"
+              isActive={(a) => !!a.smcSettings?.enabled}
+              render={(a, accountSelector) => (
+                <SmcScanner
+                  accountId={a.id}
+                  accountType={a.type}
+                  initialSettings={a.smcSettings}
+                  initialSignals={a.smcSignals}
+                  accountSelector={accountSelector}
+                />
+              )}
+            />
+          </div>
         )}
-      />
 
-      <StrategyBlock
-        accounts={accounts}
-        scannerKey="trend"
-        isActive={(a) => !!a.trendSettings?.enabled}
-        render={(a, accountSelector) => (
-          <TrendScanner
-            accountId={a.id}
-            accountType={a.type}
-            initialSettings={a.trendSettings}
-            initialSignals={a.trendSignals}
-            accountSelector={accountSelector}
-          />
+        {visible.ote && (
+          <div style={{ order: order.ote }}>
+            <StrategyBlock
+              accounts={accounts}
+              scannerKey="ote"
+              isActive={(a) => !!a.oteSettings?.enabled}
+              render={(a, accountSelector) => (
+                <OteScanner
+                  accountId={a.id}
+                  accountType={a.type}
+                  initialSettings={a.oteSettings}
+                  initialSignals={a.oteSignals}
+                  accountSelector={accountSelector}
+                />
+              )}
+            />
+          </div>
         )}
-      />
 
-      <StrategyBlock
-        accounts={accounts}
-        scannerKey="meanrev"
-        isActive={(a) => !!a.meanrevSettings?.enabled}
-        render={(a, accountSelector) => (
-          <MeanRevScanner
-            accountId={a.id}
-            accountType={a.type}
-            initialSettings={a.meanrevSettings}
-            initialSignals={a.meanrevSignals}
-            accountSelector={accountSelector}
-          />
+        {visible.trend && (
+          <div style={{ order: order.trend }}>
+            <StrategyBlock
+              accounts={accounts}
+              scannerKey="trend"
+              isActive={(a) => !!a.trendSettings?.enabled}
+              render={(a, accountSelector) => (
+                <TrendScanner
+                  accountId={a.id}
+                  accountType={a.type}
+                  initialSettings={a.trendSettings}
+                  initialSignals={a.trendSignals}
+                  accountSelector={accountSelector}
+                />
+              )}
+            />
+          </div>
         )}
-      />
 
-      <StrategyBlock
-        accounts={accounts}
-        scannerKey="candlerange"
-        isActive={(a) => !!a.candlerangeSettings?.enabled}
-        render={(a, accountSelector) => (
-          <CandleRangeScanner
-            accountId={a.id}
-            accountType={a.type}
-            initialSettings={a.candlerangeSettings}
-            initialSignals={a.candlerangeSignals}
-            accountSelector={accountSelector}
-          />
+        {visible.meanrev && (
+          <div style={{ order: order.meanrev }}>
+            <StrategyBlock
+              accounts={accounts}
+              scannerKey="meanrev"
+              isActive={(a) => !!a.meanrevSettings?.enabled}
+              render={(a, accountSelector) => (
+                <MeanRevScanner
+                  accountId={a.id}
+                  accountType={a.type}
+                  initialSettings={a.meanrevSettings}
+                  initialSignals={a.meanrevSignals}
+                  accountSelector={accountSelector}
+                />
+              )}
+            />
+          </div>
         )}
-      />
+
+        {visible.candlerange && (
+          <div style={{ order: order.candlerange }}>
+            <StrategyBlock
+              accounts={accounts}
+              scannerKey="candlerange"
+              isActive={(a) => !!a.candlerangeSettings?.enabled}
+              render={(a, accountSelector) => (
+                <CandleRangeScanner
+                  accountId={a.id}
+                  accountType={a.type}
+                  initialSettings={a.candlerangeSettings}
+                  initialSignals={a.candlerangeSignals}
+                  accountSelector={accountSelector}
+                />
+              )}
+            />
+          </div>
+        )}
+
+        {!anyVisible && (
+          <div className="rounded-2xl border border-dashed border-border bg-card/50 p-6 text-center text-sm text-muted">
+            No scanners match your filters.
+          </div>
+        )}
+      </div>
 
       <ScannerActivity items={activity} />
     </div>
