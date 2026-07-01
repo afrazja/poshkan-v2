@@ -200,7 +200,7 @@ export async function GET(request: Request) {
                 p_take_profit: tp,
               });
               if (!error) {
-                await db.from("fx_positions").update({ source: "ote" }).eq("account_id", acc.id).eq("symbol", symbol).eq("status", "open");
+                if (newId) await db.from("fx_positions").update({ source: "ote" }).eq("id", newId);
                 if (Number(s.auto_close_hours) > 0 && newId) {
                   await db.rpc("fx_set_auto_close", { p_position_id: newId, p_minutes: Math.round(Number(s.auto_close_hours) * 60) });
                 }

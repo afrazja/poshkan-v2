@@ -245,7 +245,7 @@ export async function GET(request: Request) {
           const reward = Math.abs(setup.takeProfit - setup.entry);
           const sl = isLong ? liveRate - risk : liveRate + risk;
           const tp = isLong ? liveRate + reward : liveRate - reward;
-          const { error: openErr } = await db.rpc("fx_open", {
+          const { data: newId, error: openErr } = await db.rpc("fx_open", {
             p_account_id: acc.id,
             p_symbol: symbol,
             p_direction: setup.direction,
@@ -256,7 +256,7 @@ export async function GET(request: Request) {
             p_take_profit: tp,
           });
           if (!openErr) {
-            await db.from("fx_positions").update({ source: "ai" }).eq("account_id", acc.id).eq("symbol", symbol).eq("status", "open");
+            if (newId) await db.from("fx_positions").update({ source: "ai" }).eq("id", newId);
             await db
               .from("fx_scan_alerts")
               .insert({ account_id: acc.id, symbol, direction: setup.direction, executed: true });
