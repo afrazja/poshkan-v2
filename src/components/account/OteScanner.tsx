@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import ScannerCard from "./ScannerCard";
 import ScannerInfo from "./ScannerInfo";
 import ScannerStatusBadges from "./ScannerStatusBadges";
+import { SettingsSection, Field, PercentSlider } from "./ScannerSettingsUI";
 import SymbolSearch from "@/components/SymbolSearch";
 import { marketUniverse, symbolLabel, assetTypeError } from "@/lib/assets";
 import { FX_PAIRS } from "@/lib/forex";
@@ -154,6 +155,19 @@ export default function OteScanner({
         alert(res.error);
       }
     });
+
+  // Resets the tunable knobs below (not enable/mode/symbols) back to Poshkan's
+  // recommended starting values.
+  function resetDefaults() {
+    setRiskPct("2");
+    setMaxPositionPct("25");
+    setMinRr("2.5");
+    setMaxOpen("2");
+    setMaxPerDay("5");
+    setDailyLoss("4");
+    setAutoCloseHours("0");
+    setLeverage(1);
+  }
 
   const status = settings?.last_status ?? [];
   const lastRunMs = settings?.last_run_at
@@ -305,14 +319,21 @@ export default function OteScanner({
           )}
         </div>
 
-        <div className="grid grid-cols-2 gap-2">
-          <Field label="Risk per trade (%)" value={riskPct} onChange={setRiskPct} />
-          <Field label="Max position size (%)" value={maxPositionPct} onChange={setMaxPositionPct} />
-          <Field label="Min reward : risk" value={minRr} onChange={setMinRr} />
-          <Field label="Max open" value={maxOpen} onChange={setMaxOpen} />
-          <Field label="Max trades / day" value={maxPerDay} onChange={setMaxPerDay} />
-          <Field label="Daily loss limit (%)" value={dailyLoss} onChange={setDailyLoss} />
-          <Field label="Auto-close after (hours, 0 = off)" value={autoCloseHours} onChange={setAutoCloseHours} />
+        <SettingsSection title="Entry rules">
+          <Field label="Min reward : risk" value={minRr} onChange={setMinRr} min={2} max={6} step={0.1} />
+        </SettingsSection>
+
+        <SettingsSection title="Risk management">
+          <PercentSlider label="Risk per trade" value={riskPct} onChange={setRiskPct} min={0.5} max={3} step={0.1} />
+          <PercentSlider
+            label="Max position size"
+            value={maxPositionPct}
+            onChange={setMaxPositionPct}
+            min={5}
+            max={100}
+            step={1}
+          />
+          <PercentSlider label="Daily loss limit" value={dailyLoss} onChange={setDailyLoss} min={1} max={20} step={0.5} />
           <div>
             <label className="mb-1 block text-xs font-medium text-muted">Leverage</label>
             <select
@@ -325,15 +346,36 @@ export default function OteScanner({
               ))}
             </select>
           </div>
-        </div>
+        </SettingsSection>
 
-        <button
-          onClick={save}
-          disabled={saving}
-          className="w-full rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground disabled:opacity-60"
-        >
-          {saving ? "Saving…" : saved ? "Saved ✓" : "Save settings"}
-        </button>
+        <SettingsSection title="Execution limits">
+          <Field label="Max open" value={maxOpen} onChange={setMaxOpen} min={1} max={5} step={1} />
+          <Field label="Max trades / day" value={maxPerDay} onChange={setMaxPerDay} min={1} max={20} step={1} />
+          <Field
+            label="Auto-close after (hours, 0 = off)"
+            value={autoCloseHours}
+            onChange={setAutoCloseHours}
+            min={0}
+            step={1}
+          />
+        </SettingsSection>
+
+        <div className="flex gap-2">
+          <button
+            onClick={resetDefaults}
+            disabled={saving}
+            className="rounded-lg border border-border px-3 py-2 text-sm font-medium hover:bg-card disabled:opacity-60"
+          >
+            Reset to defaults
+          </button>
+          <button
+            onClick={save}
+            disabled={saving}
+            className="flex-1 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground disabled:opacity-60"
+          >
+            {saving ? "Saving…" : saved ? "Saved ✓" : "Save settings"}
+          </button>
+        </div>
       </div>
 
       {/* Backtest */}
@@ -478,20 +520,6 @@ function BtStat({ label, value, cls }: { label: string; value: string; cls?: str
     <div className="rounded-lg border border-border bg-card p-2">
       <div className="text-[10px] uppercase tracking-wide text-muted">{label}</div>
       <div className={`mt-0.5 text-sm font-semibold ${cls ?? ""}`}>{value}</div>
-    </div>
-  );
-}
-
-function Field({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
-  return (
-    <div>
-      <span className="mb-1 block text-xs font-medium text-muted">{label}</span>
-      <input
-        type="number"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="w-full rounded-lg border border-border bg-input px-2 py-2 text-sm"
-      />
     </div>
   );
 }

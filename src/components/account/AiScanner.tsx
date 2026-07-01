@@ -10,6 +10,7 @@ import {
 import ScannerCard from "./ScannerCard";
 import ScannerInfo from "./ScannerInfo";
 import ScannerStatusBadges from "./ScannerStatusBadges";
+import { SettingsSection, Field, PercentSlider } from "./ScannerSettingsUI";
 import SymbolSearch from "@/components/SymbolSearch";
 import { marketUniverse, symbolLabel, assetTypeError } from "@/lib/assets";
 import { FX_PAIRS } from "@/lib/forex";
@@ -238,6 +239,9 @@ function AutoSettingsCard({ accountId, initial }: { accountId: string; initial: 
   }
 
   const set = (patch: Partial<AutoSettings>) => setS((p) => ({ ...p, ...patch }));
+  // Resets the tunable knobs below (not the on/off toggle) back to Poshkan's
+  // recommended starting values.
+  const resetDefaults = () => setS((p) => ({ ...DEFAULT_AUTO_SETTINGS, enabled: p.enabled }));
 
   return (
     <div>
@@ -256,29 +260,78 @@ function AutoSettingsCard({ accountId, initial }: { accountId: string; initial: 
         When on, the hourly AI scanner opens trades on this account automatically — within the limits
         below. These hard limits always apply, whatever your strategy text says.
       </p>
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-        <NumField label="Risk per trade %" value={s.riskPct} step="0.1" onChange={(v) => set({ riskPct: v })} />
-        <NumField label="Max position size %" value={s.maxPositionPct} step="1" onChange={(v) => set({ maxPositionPct: v })} />
-        <NumField label="Max open" value={s.maxOpen} step="1" onChange={(v) => set({ maxOpen: v })} />
-        <NumField label="Max trades / day" value={s.maxPerDay} step="1" onChange={(v) => set({ maxPerDay: v })} />
-        <NumField label="Daily loss limit %" value={s.dailyLossPct} step="0.5" onChange={(v) => set({ dailyLossPct: v })} />
-        <NumField label="Min minutes between trades" value={s.minMinutes} step="5" onChange={(v) => set({ minMinutes: v })} />
-        <div>
-          <label className="mb-1 block text-xs font-medium text-muted">Leverage</label>
-          <select
-            value={s.leverage}
-            onChange={(e) => set({ leverage: Number(e.target.value) })}
-            className="w-full rounded-lg border border-border bg-input px-3 py-2 text-sm outline-none focus:border-primary"
-          >
-            {[1, 2, 5, 10].map((x) => (
-              <option key={x} value={x}>
-                {x}×{x === 1 ? " (none)" : ""}
-              </option>
-            ))}
-          </select>
-        </div>
+
+      <div className="space-y-3">
+        <SettingsSection title="Risk management">
+          <PercentSlider
+            label="Risk per trade"
+            value={String(s.riskPct)}
+            onChange={(v) => set({ riskPct: Number(v) })}
+            min={0.1}
+            max={10}
+            step={0.1}
+          />
+          <PercentSlider
+            label="Max position size"
+            value={String(s.maxPositionPct)}
+            onChange={(v) => set({ maxPositionPct: Number(v) })}
+            min={5}
+            max={100}
+            step={1}
+          />
+          <PercentSlider
+            label="Daily loss limit"
+            value={String(s.dailyLossPct)}
+            onChange={(v) => set({ dailyLossPct: Number(v) })}
+            min={0.5}
+            max={50}
+            step={0.5}
+          />
+          <div>
+            <label className="mb-1 block text-xs font-medium text-muted">Leverage</label>
+            <select
+              value={s.leverage}
+              onChange={(e) => set({ leverage: Number(e.target.value) })}
+              className="w-full rounded-lg border border-border bg-input px-3 py-2 text-sm outline-none focus:border-primary"
+            >
+              {[1, 2, 5, 10].map((x) => (
+                <option key={x} value={x}>
+                  {x}×{x === 1 ? " (none)" : ""}
+                </option>
+              ))}
+            </select>
+          </div>
+        </SettingsSection>
+
+        <SettingsSection title="Execution limits">
+          <Field label="Max open" value={String(s.maxOpen)} onChange={(v) => set({ maxOpen: Number(v) })} min={1} max={20} step={1} />
+          <Field
+            label="Max trades / day"
+            value={String(s.maxPerDay)}
+            onChange={(v) => set({ maxPerDay: Number(v) })}
+            min={1}
+            max={50}
+            step={1}
+          />
+          <Field
+            label="Min minutes between trades"
+            value={String(s.minMinutes)}
+            onChange={(v) => set({ minMinutes: Number(v) })}
+            min={5}
+            max={1440}
+            step={5}
+          />
+        </SettingsSection>
       </div>
+
       <div className="mt-3 flex items-center gap-3">
+        <button
+          onClick={resetDefaults}
+          disabled={saving}
+          className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium hover:bg-background disabled:opacity-60"
+        >
+          Reset to defaults
+        </button>
         <button
           onClick={save}
           disabled={saving || !dirty}
@@ -292,32 +345,6 @@ function AutoSettingsCard({ accountId, initial }: { accountId: string; initial: 
         Frequency is set here (min minutes between trades). The external cron just needs to run at least
         that often.
       </p>
-    </div>
-  );
-}
-
-function NumField({
-  label,
-  value,
-  step,
-  onChange,
-}: {
-  label: string;
-  value: number;
-  step: string;
-  onChange: (v: number) => void;
-}) {
-  return (
-    <div>
-      <label className="mb-1 block text-[10px] uppercase tracking-wide text-muted">{label}</label>
-      <input
-        type="number"
-        step={step}
-        min="0"
-        value={value}
-        onChange={(e) => onChange(Number(e.target.value))}
-        className="w-full rounded-lg border border-border bg-input px-2 py-1.5 text-sm outline-none focus:border-primary"
-      />
     </div>
   );
 }
