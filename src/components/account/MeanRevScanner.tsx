@@ -7,6 +7,7 @@ import ScannerInfo from "./ScannerInfo";
 import ScannerStatusBadges from "./ScannerStatusBadges";
 import { SettingsSection, Field, PercentSlider } from "./ScannerSettingsUI";
 import InfoTooltip from "./InfoTooltip";
+import { useUnsavedGuard, confirmDiscardUnsaved, UnsavedBadge } from "./UnsavedChanges";
 import SymbolSearch from "@/components/SymbolSearch";
 import { marketUniverse, symbolLabel, assetTypeError } from "@/lib/assets";
 import { FX_PAIRS } from "@/lib/forex";
@@ -93,6 +94,43 @@ export default function MeanRevScanner({
   const addSymbol = (s: string) =>
     setSymbols((prev) => (prev.includes(s) || assetTypeError(accountType, s) ? prev : [...prev, s]));
   const removeSymbol = (s: string) => setSymbols((prev) => prev.filter((x) => x !== s));
+
+  // Dirty = the form differs from the last known-persisted settings (not the
+  // frozen initial prop, so a save/scan-now refresh correctly clears it).
+  const dirty =
+    JSON.stringify({
+      enabled: settings?.enabled ?? false,
+      mode: settings?.mode ?? "alert",
+      symbols: [...(settings?.symbols ?? universe)].sort(),
+      riskPct: Number((((settings?.risk_pct ?? 0.02) * 100)).toFixed(2)),
+      maxPositionPct: Number((((settings?.max_position_pct ?? 0.25) * 100)).toFixed(2)),
+      bbPeriod: Number(settings?.bb_period ?? 20),
+      bbK: Number(settings?.bb_k ?? 2),
+      trendMa: Number(settings?.trend_ma ?? 100),
+      rsiConfirm: settings?.rsi_confirm ?? false,
+      maxOpen: Number(settings?.max_open ?? 2),
+      maxPerDay: Number(settings?.max_per_day ?? 5),
+      dailyLoss: Number((((settings?.daily_loss_pct ?? 0.04) * 100)).toFixed(2)),
+      autoCloseHours: Number(settings?.auto_close_hours ?? 0),
+      leverage: Number(settings?.leverage ?? 1),
+    }) !==
+    JSON.stringify({
+      enabled,
+      mode,
+      symbols: [...symbols].sort(),
+      riskPct: Number(Number(riskPct).toFixed(2)) || 0,
+      maxPositionPct: Number(Number(maxPositionPct).toFixed(2)) || 0,
+      bbPeriod: Number(bbPeriod) || 0,
+      bbK: Number(bbK) || 0,
+      trendMa: Number(trendMa) || 0,
+      rsiConfirm,
+      maxOpen: Number(maxOpen) || 0,
+      maxPerDay: Number(maxPerDay) || 0,
+      dailyLoss: Number(Number(dailyLoss).toFixed(2)) || 0,
+      autoCloseHours: Number(autoCloseHours) || 0,
+      leverage: Number(leverage) || 0,
+    });
+  useUnsavedGuard(dirty);
 
   async function runBacktest() {
     setBtLoading(true);
@@ -194,6 +232,7 @@ export default function MeanRevScanner({
       icon="↩️"
       name="Mean Reversion"
       defaultOpen={defaultOpen}
+      confirmClose={() => !dirty || confirmDiscardUnsaved()}
       headerExtra={
         <>
           <ScannerStatusBadges
@@ -449,7 +488,7 @@ export default function MeanRevScanner({
           />
         </SettingsSection>
 
-        <div className="flex gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={resetDefaults}
             disabled={saving}
@@ -459,11 +498,12 @@ export default function MeanRevScanner({
           </button>
           <button
             onClick={save}
-            disabled={saving}
+            disabled={saving || !dirty}
             className="flex-1 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground disabled:opacity-60"
           >
             {saving ? "Saving…" : saved ? "Saved ✓" : "Save settings"}
           </button>
+          {dirty && !saving && <UnsavedBadge />}
         </div>
       </div>
 

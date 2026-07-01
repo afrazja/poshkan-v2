@@ -10,20 +10,26 @@ export default function ScannerCard({
   name,
   defaultOpen = false,
   headerExtra,
+  confirmClose,
   children,
 }: {
   icon: string;
   name: string;
   defaultOpen?: boolean;
   headerExtra?: ReactNode; // e.g. a per-card account selector, right-aligned next to the title
+  confirmClose?: () => boolean; // called before collapsing while open; return false to cancel
   children: ReactNode;
 }) {
   const [open, setOpen] = useState(defaultOpen);
+  function toggle() {
+    if (open && confirmClose && !confirmClose()) return; // e.g. unsaved edits — stay open
+    setOpen((o) => !o);
+  }
   return (
     <div className="rounded-2xl border border-border bg-card shadow-sm">
       <div className="group flex w-full flex-wrap items-center justify-between gap-2 p-4 transition-colors hover:bg-muted/10">
         <button
-          onClick={() => setOpen((o) => !o)}
+          onClick={toggle}
           className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 text-left"
         >
           <span className="truncate text-sm font-semibold transition-colors group-hover:text-primary">
@@ -33,7 +39,7 @@ export default function ScannerCard({
         <div className="flex flex-wrap items-center justify-end gap-2">
           {headerExtra}
           <button
-            onClick={() => setOpen((o) => !o)}
+            onClick={toggle}
             aria-label={open ? "Collapse" : "Expand"}
             className={`flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-full border text-sm font-bold transition-all ${
               open

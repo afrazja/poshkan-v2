@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import {
   setAiInstructionAction,
@@ -12,6 +12,7 @@ import ScannerInfo from "./ScannerInfo";
 import ScannerStatusBadges from "./ScannerStatusBadges";
 import { SettingsSection, Field, PercentSlider } from "./ScannerSettingsUI";
 import InfoTooltip from "./InfoTooltip";
+import { useUnsavedGuard, confirmDiscardUnsaved, UnsavedBadge } from "./UnsavedChanges";
 import SymbolSearch from "@/components/SymbolSearch";
 import { marketUniverse, symbolLabel, assetTypeError } from "@/lib/assets";
 import { FX_PAIRS } from "@/lib/forex";
@@ -56,11 +57,21 @@ export default function AiScanner({
   defaultOpen?: boolean;
   accountSelector?: ReactNode;
 }) {
+  // Aggregated across the 3 independent sub-forms below, so the card as a
+  // whole knows whether ANY of them has unsaved edits (for the beforeunload
+  // warning and the collapse-confirm).
+  const [autoDirty, setAutoDirty] = useState(false);
+  const [symbolsDirty, setSymbolsDirty] = useState(false);
+  const [instructionDirty, setInstructionDirty] = useState(false);
+  const anyDirty = autoDirty || symbolsDirty || instructionDirty;
+  useUnsavedGuard(anyDirty);
+
   return (
     <ScannerCard
       icon="🤖"
       name="AI Scanner"
       defaultOpen={defaultOpen}
+      confirmClose={() => !anyDirty || confirmDiscardUnsaved()}
       headerExtra={
         <>
           {/* Always scanning (no independent on/off) — the toggle below only
@@ -83,11 +94,20 @@ export default function AiScanner({
         judge="Unlike the others it isn't backtestable (the model isn't deterministic) — judge it by its live signals and your own review."
       />
       <div className="my-4 border-t border-border" />
-      <AutoSettingsCard accountId={accountId} initial={autoSettings} />
+      <AutoSettingsCard accountId={accountId} initial={autoSettings} onDirtyChange={setAutoDirty} />
       <div className="my-4 border-t border-border" />
-      <AiSymbolsCard accountId={accountId} accountType={accountType} initial={aiSymbols ?? []} />
+      <AiSymbolsCard
+        accountId={accountId}
+        accountType={accountType}
+        initial={aiSymbols ?? []}
+        onDirtyChange={setSymbolsDirty}
+      />
       <div className="my-4 border-t border-border" />
-      <AiInstructionCard accountId={accountId} initial={aiInstruction ?? ""} />
+      <AiInstructionCard
+        accountId={accountId}
+        initial={aiInstruction ?? ""}
+        onDirtyChange={setInstructionDirty}
+      />
     </ScannerCard>
   );
 }
@@ -98,16 +118,19 @@ function AiSymbolsCard({
   accountId,
   accountType,
   initial,
+  onDirtyChange,
 }: {
   accountId: string;
   accountType: string;
   initial: string[];
+  onDirtyChange?: (dirty: boolean) => void;
 }) {
   const router = useRouter();
   const [symbols, setSymbols] = useState<string[]>(initial);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const dirty = JSON.stringify(symbols) !== JSON.stringify(initial);
+  useEffect(() => onDirtyChange?.(dirty), [dirty, onDirtyChange]);
   const presets = marketUniverse(accountType);
 
   const add = (s: string) =>
@@ -136,15 +159,18 @@ function AiSymbolsCard({
 
   return (
     <div>
-      <div className="mb-1 flex items-center justify-between gap-2">
+      <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
         <h3 className="text-sm font-semibold">Symbols to scan ({accountType})</h3>
-        <button
-          onClick={save}
-          disabled={saving || !dirty}
-          className="rounded-lg bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50"
-        >
-          {saving ? "Saving…" : "Save"}
-        </button>
+        <div className="flex items-center gap-2">
+          {dirty && !saving && <UnsavedBadge />}
+          <button
+            onClick={save}
+            disabled={saving || !dirty}
+            className="rounded-lg bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50"
+          >
+            {saving ? "Saving…" : "Save"}
+          </button>
+        </div>
       </div>
       <p className="mb-2 text-xs text-muted">
         Pick which {accountType} symbols the AI analyzes. Leave empty to use the market default.
@@ -214,12 +240,21 @@ function AiSymbolsCard({
 
 // ---------------------------------------------------------------------------
 // Per-account autonomous-trading controls (on/off, risk, caps, frequency).
-function AutoSettingsCard({ accountId, initial }: { accountId: string; initial: AutoSettings }) {
+function AutoSettingsCard({
+  accountId,
+  initial,
+  onDirtyChange,
+}: {
+  accountId: string;
+  initial: AutoSettings;
+  onDirtyChange?: (dirty: boolean) => void;
+}) {
   const router = useRouter();
   const [s, setS] = useState<AutoSettings>(initial);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const dirty = JSON.stringify(s) !== JSON.stringify(initial);
+  useEffect(() => onDirtyChange?.(dirty), [dirty, onDirtyChange]);
 
   async function save() {
     setSaving(true);
@@ -356,6 +391,7 @@ function AutoSettingsCard({ accountId, initial }: { accountId: string; initial: 
         >
           {saving ? "Saving…" : "Save settings"}
         </button>
+        {dirty && !saving && <UnsavedBadge />}
         {msg && <span className="text-xs text-muted">{msg}</span>}
       </div>
       <p className="mt-2 text-[11px] text-muted">
@@ -373,12 +409,21 @@ Trade with the daily trend — enter on a pullback to the 20-period SMA on the 1
 Put the stop just beyond the recent swing; target at least 2:1 reward-to-risk.
 Skip trades when RSI is already overbought/oversold, and avoid the Asian session.`;
 
-function AiInstructionCard({ accountId, initial }: { accountId: string; initial: string }) {
+function AiInstructionCard({
+  accountId,
+  initial,
+  onDirtyChange,
+}: {
+  accountId: string;
+  initial: string;
+  onDirtyChange?: (dirty: boolean) => void;
+}) {
   const router = useRouter();
   const [value, setValue] = useState(initial);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const dirty = value !== initial;
+  useEffect(() => onDirtyChange?.(dirty), [dirty, onDirtyChange]);
 
   async function save() {
     setSaving(true);
@@ -400,15 +445,18 @@ function AiInstructionCard({ accountId, initial }: { accountId: string; initial:
 
   return (
     <div>
-      <div className="mb-1 flex items-center justify-between gap-2">
+      <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
         <h3 className="text-sm font-semibold">Strategy (plain English)</h3>
-        <button
-          onClick={save}
-          disabled={saving || !dirty}
-          className="rounded-lg bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50"
-        >
-          {saving ? "Saving…" : "Save"}
-        </button>
+        <div className="flex items-center gap-2">
+          {dirty && !saving && <UnsavedBadge />}
+          <button
+            onClick={save}
+            disabled={saving || !dirty}
+            className="rounded-lg bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50"
+          >
+            {saving ? "Saving…" : "Save"}
+          </button>
+        </div>
       </div>
       <p className="mb-2 text-xs text-muted">
         Tell the hourly AI scanner how to trade this account, in plain English. Leave blank to use
