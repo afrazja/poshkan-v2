@@ -19,9 +19,13 @@
 .dark {
   --background: #0b0e14;
   --foreground: #e6e8eb;
-  --card: #141925;
-  --input: #05070b;
-  --border: #232a3a;
+  /* Cards/borders/inputs were nearly the same shade as the page background
+     (~1.1:1), so every panel blended together. Lifted card + border so blocks
+     read as distinct surfaces; input sits between background and card (a
+     "recessed" field look) rather than being darker than the page itself. */
+  --card: #1e2536;
+  --input: #12161f;
+  --border: #525c73;
   --muted: #8b94a7;
   --primary: #3b82f6;
   --primary-foreground: #ffffff;

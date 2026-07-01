@@ -20,13 +20,13 @@ export default function ScannerCard({
 }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <div className="rounded-2xl border border-border bg-card">
-      <div className="flex w-full flex-wrap items-center justify-between gap-2 p-4 transition hover:bg-muted/5">
+    <div className="rounded-2xl border border-border bg-card shadow-sm">
+      <div className="group flex w-full flex-wrap items-center justify-between gap-2 p-4 transition-colors hover:bg-muted/10">
         <button
           onClick={() => setOpen((o) => !o)}
-          className="flex min-w-0 flex-1 items-center gap-2 text-left"
+          className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 text-left"
         >
-          <span className="truncate text-sm font-semibold">
+          <span className="truncate text-sm font-semibold transition-colors group-hover:text-primary">
             {icon} {name}
           </span>
         </button>
@@ -35,7 +35,11 @@ export default function ScannerCard({
           <button
             onClick={() => setOpen((o) => !o)}
             aria-label={open ? "Collapse" : "Expand"}
-            className={`text-lg text-muted transition-transform ${open ? "rotate-90" : ""}`}
+            className={`flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-full border text-sm font-bold transition-all ${
+              open
+                ? "rotate-90 border-primary bg-primary/10 text-primary"
+                : "border-border text-muted group-hover:border-primary group-hover:bg-primary/10 group-hover:text-primary"
+            }`}
           >
             ›
           </button>
