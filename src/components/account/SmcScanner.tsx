@@ -6,6 +6,7 @@ import ScannerCard from "./ScannerCard";
 import ScannerInfo from "./ScannerInfo";
 import ScannerStatusBadges from "./ScannerStatusBadges";
 import { SettingsSection, Field, PercentSlider } from "./ScannerSettingsUI";
+import InfoTooltip from "./InfoTooltip";
 import SymbolSearch from "@/components/SymbolSearch";
 import { marketUniverse, symbolLabel, assetTypeError } from "@/lib/assets";
 import { FX_PAIRS } from "@/lib/forex";
@@ -332,7 +333,10 @@ export default function SmcScanner({
 
         <SettingsSection title="Entry rules">
           <div>
-            <span className="mb-1 block text-xs font-medium text-muted">Take-profit</span>
+            <span className="mb-1 flex items-center text-xs font-medium text-muted">
+              Take-profit
+              <InfoTooltip text="How many multiples of your risk (R) the target sits at — 1:2 means the target is twice as far away as the stop." />
+            </span>
             <select
               value={tpRR}
               onChange={(e) => setTpRR(e.target.value)}
@@ -344,7 +348,10 @@ export default function SmcScanner({
             </select>
           </div>
           <div>
-            <span className="mb-1 block text-xs font-medium text-muted">Stop-loss</span>
+            <span className="mb-1 flex items-center text-xs font-medium text-muted">
+              Stop-loss
+              <InfoTooltip text="Where the stop sits: just beyond the last swing high/low, or just beyond the FVG — the price gap this strategy trades." />
+            </span>
             <select
               value={slMode}
               onChange={(e) => setSlMode(e.target.value as "swing" | "fvg")}
@@ -357,7 +364,15 @@ export default function SmcScanner({
         </SettingsSection>
 
         <SettingsSection title="Risk management">
-          <PercentSlider label="Risk per trade" value={riskPct} onChange={setRiskPct} min={0.5} max={3} step={0.1} />
+          <PercentSlider
+            label="Risk per trade"
+            value={riskPct}
+            onChange={setRiskPct}
+            min={0.5}
+            max={3}
+            step={0.1}
+            tip="The % of your account you're willing to lose if this trade hits its stop-loss."
+          />
           <PercentSlider
             label="Max position size"
             value={maxPositionPct}
@@ -365,10 +380,22 @@ export default function SmcScanner({
             min={5}
             max={100}
             step={1}
+            tip="The largest slice of your account a single trade's margin can use, regardless of the risk sizing above."
           />
-          <PercentSlider label="Daily loss limit" value={dailyLoss} onChange={setDailyLoss} min={1} max={20} step={0.5} />
+          <PercentSlider
+            label="Daily loss limit"
+            value={dailyLoss}
+            onChange={setDailyLoss}
+            min={1}
+            max={20}
+            step={0.5}
+            tip="If today's realized losses reach this % of your account, the scanner stops trading for the rest of the day."
+          />
           <div>
-            <label className="mb-1 block text-xs font-medium text-muted">Leverage</label>
+            <label className="mb-1 flex items-center text-xs font-medium text-muted">
+              Leverage
+              <InfoTooltip text="Multiplies your position size (and both gains and losses) per trade. 1× = no leverage." />
+            </label>
             <select
               value={leverage}
               onChange={(e) => setLeverage(Number(e.target.value))}
@@ -382,14 +409,31 @@ export default function SmcScanner({
         </SettingsSection>
 
         <SettingsSection title="Execution limits">
-          <Field label="Max open" value={maxOpen} onChange={setMaxOpen} min={1} max={5} step={1} />
-          <Field label="Max trades / day" value={maxPerDay} onChange={setMaxPerDay} min={1} max={20} step={1} />
+          <Field
+            label="Max open"
+            value={maxOpen}
+            onChange={setMaxOpen}
+            min={1}
+            max={5}
+            step={1}
+            tip="The most positions this scanner can hold open at the same time."
+          />
+          <Field
+            label="Max trades / day"
+            value={maxPerDay}
+            onChange={setMaxPerDay}
+            min={1}
+            max={20}
+            step={1}
+            tip="The most NEW trades this scanner can open in a single day."
+          />
           <Field
             label="Auto-close after (hours, 0 = off)"
             value={autoCloseHours}
             onChange={setAutoCloseHours}
             min={0}
             step={1}
+            tip="Force-closes the position at the market price after this many hours, even if SL/TP hasn't been hit. 0 disables it."
           />
         </SettingsSection>
 

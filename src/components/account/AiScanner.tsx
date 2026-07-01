@@ -11,6 +11,7 @@ import ScannerCard from "./ScannerCard";
 import ScannerInfo from "./ScannerInfo";
 import ScannerStatusBadges from "./ScannerStatusBadges";
 import { SettingsSection, Field, PercentSlider } from "./ScannerSettingsUI";
+import InfoTooltip from "./InfoTooltip";
 import SymbolSearch from "@/components/SymbolSearch";
 import { marketUniverse, symbolLabel, assetTypeError } from "@/lib/assets";
 import { FX_PAIRS } from "@/lib/forex";
@@ -270,6 +271,7 @@ function AutoSettingsCard({ accountId, initial }: { accountId: string; initial: 
             min={0.1}
             max={10}
             step={0.1}
+            tip="The % of your account you're willing to lose if this trade hits its stop-loss."
           />
           <PercentSlider
             label="Max position size"
@@ -278,6 +280,7 @@ function AutoSettingsCard({ accountId, initial }: { accountId: string; initial: 
             min={5}
             max={100}
             step={1}
+            tip="The largest slice of your account a single trade's margin can use, regardless of the risk sizing above."
           />
           <PercentSlider
             label="Daily loss limit"
@@ -286,9 +289,13 @@ function AutoSettingsCard({ accountId, initial }: { accountId: string; initial: 
             min={0.5}
             max={50}
             step={0.5}
+            tip="If today's realized losses reach this % of your account, the scanner stops trading for the rest of the day."
           />
           <div>
-            <label className="mb-1 block text-xs font-medium text-muted">Leverage</label>
+            <label className="mb-1 flex items-center text-xs font-medium text-muted">
+              Leverage
+              <InfoTooltip text="Multiplies your position size (and both gains and losses) per trade. 1× = no leverage." />
+            </label>
             <select
               value={s.leverage}
               onChange={(e) => set({ leverage: Number(e.target.value) })}
@@ -304,7 +311,15 @@ function AutoSettingsCard({ accountId, initial }: { accountId: string; initial: 
         </SettingsSection>
 
         <SettingsSection title="Execution limits">
-          <Field label="Max open" value={String(s.maxOpen)} onChange={(v) => set({ maxOpen: Number(v) })} min={1} max={20} step={1} />
+          <Field
+            label="Max open"
+            value={String(s.maxOpen)}
+            onChange={(v) => set({ maxOpen: Number(v) })}
+            min={1}
+            max={20}
+            step={1}
+            tip="The most positions this scanner can hold open at the same time."
+          />
           <Field
             label="Max trades / day"
             value={String(s.maxPerDay)}
@@ -312,6 +327,7 @@ function AutoSettingsCard({ accountId, initial }: { accountId: string; initial: 
             min={1}
             max={50}
             step={1}
+            tip="The most NEW trades this scanner can open in a single day."
           />
           <Field
             label="Min minutes between trades"
@@ -320,6 +336,7 @@ function AutoSettingsCard({ accountId, initial }: { accountId: string; initial: 
             min={5}
             max={1440}
             step={5}
+            tip="The minimum time the scanner must wait after opening one trade before it's allowed to open another."
           />
         </SettingsSection>
       </div>

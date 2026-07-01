@@ -6,6 +6,7 @@ import ScannerCard from "./ScannerCard";
 import ScannerInfo from "./ScannerInfo";
 import ScannerStatusBadges from "./ScannerStatusBadges";
 import { SettingsSection, Field, PercentSlider } from "./ScannerSettingsUI";
+import InfoTooltip from "./InfoTooltip";
 import SymbolSearch from "@/components/SymbolSearch";
 import { marketUniverse, symbolLabel, assetTypeError } from "@/lib/assets";
 import { FX_PAIRS } from "@/lib/forex";
@@ -330,9 +331,33 @@ export default function MeanRevScanner({
         </div>
 
         <SettingsSection title="Entry rules">
-          <Field label="Band length (bars)" value={bbPeriod} onChange={setBbPeriod} min={5} max={100} step={1} />
-          <Field label="Band width (×σ)" value={bbK} onChange={setBbK} min={1} max={4} step={0.1} />
-          <Field label="Trend MA (0 = off)" value={trendMa} onChange={setTrendMa} min={0} max={400} step={1} />
+          <Field
+            label="Band length (bars)"
+            value={bbPeriod}
+            onChange={setBbPeriod}
+            min={5}
+            max={100}
+            step={1}
+            tip="How many recent candles are used to calculate the Bollinger Bands — the average price and its normal trading range."
+          />
+          <Field
+            label="Band width (×σ)"
+            value={bbK}
+            onChange={setBbK}
+            min={1}
+            max={4}
+            step={0.1}
+            tip="How many standard deviations (σ) — a measure of how far price typically strays from average — the bands sit from the middle line. Wider bands need a bigger stretch before the scanner reacts."
+          />
+          <Field
+            label="Trend MA (0 = off)"
+            value={trendMa}
+            onChange={setTrendMa}
+            min={0}
+            max={400}
+            step={1}
+            tip="Only fades a stretch when it's in the same direction as this longer moving average (MA) — e.g. only buy dips above it. 0 disables this filter."
+          />
           <label className="col-span-2 flex items-start gap-2 text-sm">
             <input
               type="checkbox"
@@ -351,7 +376,15 @@ export default function MeanRevScanner({
         </SettingsSection>
 
         <SettingsSection title="Risk management">
-          <PercentSlider label="Risk per trade" value={riskPct} onChange={setRiskPct} min={0.5} max={3} step={0.1} />
+          <PercentSlider
+            label="Risk per trade"
+            value={riskPct}
+            onChange={setRiskPct}
+            min={0.5}
+            max={3}
+            step={0.1}
+            tip="The % of your account you're willing to lose if this trade hits its stop-loss."
+          />
           <PercentSlider
             label="Max position size"
             value={maxPositionPct}
@@ -359,10 +392,22 @@ export default function MeanRevScanner({
             min={5}
             max={100}
             step={1}
+            tip="The largest slice of your account a single trade's margin can use, regardless of the risk sizing above."
           />
-          <PercentSlider label="Daily loss limit" value={dailyLoss} onChange={setDailyLoss} min={1} max={20} step={0.5} />
+          <PercentSlider
+            label="Daily loss limit"
+            value={dailyLoss}
+            onChange={setDailyLoss}
+            min={1}
+            max={20}
+            step={0.5}
+            tip="If today's realized losses reach this % of your account, the scanner stops trading for the rest of the day."
+          />
           <div>
-            <label className="mb-1 block text-xs font-medium text-muted">Leverage</label>
+            <label className="mb-1 flex items-center text-xs font-medium text-muted">
+              Leverage
+              <InfoTooltip text="Multiplies your position size (and both gains and losses) per trade. 1× = no leverage." />
+            </label>
             <select
               value={leverage}
               onChange={(e) => setLeverage(Number(e.target.value))}
@@ -376,14 +421,31 @@ export default function MeanRevScanner({
         </SettingsSection>
 
         <SettingsSection title="Execution limits">
-          <Field label="Max open" value={maxOpen} onChange={setMaxOpen} min={1} max={5} step={1} />
-          <Field label="Max trades / day" value={maxPerDay} onChange={setMaxPerDay} min={1} max={20} step={1} />
+          <Field
+            label="Max open"
+            value={maxOpen}
+            onChange={setMaxOpen}
+            min={1}
+            max={5}
+            step={1}
+            tip="The most positions this scanner can hold open at the same time."
+          />
+          <Field
+            label="Max trades / day"
+            value={maxPerDay}
+            onChange={setMaxPerDay}
+            min={1}
+            max={20}
+            step={1}
+            tip="The most NEW trades this scanner can open in a single day."
+          />
           <Field
             label="Auto-close after (hours, 0 = off)"
             value={autoCloseHours}
             onChange={setAutoCloseHours}
             min={0}
             step={1}
+            tip="Force-closes the position at the market price after this many hours, even if SL/TP hasn't been hit. 0 disables it."
           />
         </SettingsSection>
 

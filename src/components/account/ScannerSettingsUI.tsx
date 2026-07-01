@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import InfoTooltip from "./InfoTooltip";
 
 // A labeled group within a scanner's settings panel (e.g. "Entry rules",
 // "Risk management", "Execution limits") — so ~10 flat fields read as a form
@@ -22,6 +23,7 @@ export function Field({
   min,
   max,
   step = "any",
+  tip,
 }: {
   label: string;
   value: string;
@@ -29,10 +31,14 @@ export function Field({
   min?: number;
   max?: number;
   step?: string | number;
+  tip?: string; // one-line plain-language explanation, shown via an info icon
 }) {
   return (
     <div>
-      <span className="mb-1 block text-xs font-medium text-muted">{label}</span>
+      <span className="mb-1 flex items-center text-xs font-medium text-muted">
+        {label}
+        {tip && <InfoTooltip text={tip} />}
+      </span>
       <input
         type="number"
         value={value}
@@ -56,6 +62,7 @@ export function PercentSlider({
   min,
   max,
   step = 0.1,
+  tip,
 }: {
   label: string;
   value: string;
@@ -63,12 +70,16 @@ export function PercentSlider({
   min: number;
   max: number;
   step?: number;
+  tip?: string; // one-line plain-language explanation, shown via an info icon
 }) {
   const num = Number(value) || 0;
   return (
     <div className="col-span-2">
       <div className="mb-1 flex items-center justify-between">
-        <span className="text-xs font-medium text-muted">{label}</span>
+        <span className="flex items-center text-xs font-medium text-muted">
+          {label}
+          {tip && <InfoTooltip text={tip} />}
+        </span>
         <span className="text-xs font-semibold">{num}%</span>
       </div>
       <input

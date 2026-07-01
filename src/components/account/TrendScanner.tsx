@@ -6,6 +6,7 @@ import ScannerCard from "./ScannerCard";
 import ScannerInfo from "./ScannerInfo";
 import ScannerStatusBadges from "./ScannerStatusBadges";
 import { SettingsSection, Field, PercentSlider } from "./ScannerSettingsUI";
+import InfoTooltip from "./InfoTooltip";
 import SymbolSearch from "@/components/SymbolSearch";
 import { marketUniverse, symbolLabel, assetTypeError } from "@/lib/assets";
 import { FX_PAIRS } from "@/lib/forex";
@@ -335,10 +336,42 @@ export default function TrendScanner({
         </div>
 
         <SettingsSection title="Entry rules">
-          <Field label="Breakout length (bars)" value={donchianN} onChange={setDonchianN} min={5} max={100} step={1} />
-          <Field label="Target (R)" value={tpRR} onChange={setTpRR} min={1} max={8} step={0.5} />
-          <Field label="Min ADX (0 = off)" value={adxMin} onChange={setAdxMin} min={0} max={60} step={1} />
-          <Field label="Max chase (×ATR, 0 = off)" value={maxChase} onChange={setMaxChase} min={0} max={10} step={0.5} />
+          <Field
+            label="Breakout length (bars)"
+            value={donchianN}
+            onChange={setDonchianN}
+            min={5}
+            max={100}
+            step={1}
+            tip="How many prior candles define the high/low channel price must break out of (the Donchian channel)."
+          />
+          <Field
+            label="Target (R)"
+            value={tpRR}
+            onChange={setTpRR}
+            min={1}
+            max={8}
+            step={0.5}
+            tip="The take-profit distance, as a multiple of the risk (R) — e.g. 3 means the target is 3× the distance to the stop."
+          />
+          <Field
+            label="Min ADX (0 = off)"
+            value={adxMin}
+            onChange={setAdxMin}
+            min={0}
+            max={60}
+            step={1}
+            tip="ADX measures trend strength (0–100). Requires the trend to be at least this strong before entering — filters out choppy, directionless markets. 0 disables it."
+          />
+          <Field
+            label="Max chase (×ATR, 0 = off)"
+            value={maxChase}
+            onChange={setMaxChase}
+            min={0}
+            max={10}
+            step={0.5}
+            tip="Skips the trade if price has already moved more than this many ATRs (a volatility measure) past the breakout level — avoids chasing a move that's already run too far. 0 disables it."
+          />
           <label className="col-span-2 flex items-start gap-2 text-sm">
             <input
               type="checkbox"
@@ -357,7 +390,15 @@ export default function TrendScanner({
         </SettingsSection>
 
         <SettingsSection title="Risk management">
-          <PercentSlider label="Risk per trade" value={riskPct} onChange={setRiskPct} min={0.5} max={3} step={0.1} />
+          <PercentSlider
+            label="Risk per trade"
+            value={riskPct}
+            onChange={setRiskPct}
+            min={0.5}
+            max={3}
+            step={0.1}
+            tip="The % of your account you're willing to lose if this trade hits its stop-loss."
+          />
           <PercentSlider
             label="Max position size"
             value={maxPositionPct}
@@ -365,10 +406,22 @@ export default function TrendScanner({
             min={5}
             max={100}
             step={1}
+            tip="The largest slice of your account a single trade's margin can use, regardless of the risk sizing above."
           />
-          <PercentSlider label="Daily loss limit" value={dailyLoss} onChange={setDailyLoss} min={1} max={20} step={0.5} />
+          <PercentSlider
+            label="Daily loss limit"
+            value={dailyLoss}
+            onChange={setDailyLoss}
+            min={1}
+            max={20}
+            step={0.5}
+            tip="If today's realized losses reach this % of your account, the scanner stops trading for the rest of the day."
+          />
           <div>
-            <label className="mb-1 block text-xs font-medium text-muted">Leverage</label>
+            <label className="mb-1 flex items-center text-xs font-medium text-muted">
+              Leverage
+              <InfoTooltip text="Multiplies your position size (and both gains and losses) per trade. 1× = no leverage." />
+            </label>
             <select
               value={leverage}
               onChange={(e) => setLeverage(Number(e.target.value))}
@@ -382,14 +435,31 @@ export default function TrendScanner({
         </SettingsSection>
 
         <SettingsSection title="Execution limits">
-          <Field label="Max open" value={maxOpen} onChange={setMaxOpen} min={1} max={5} step={1} />
-          <Field label="Max trades / day" value={maxPerDay} onChange={setMaxPerDay} min={1} max={20} step={1} />
+          <Field
+            label="Max open"
+            value={maxOpen}
+            onChange={setMaxOpen}
+            min={1}
+            max={5}
+            step={1}
+            tip="The most positions this scanner can hold open at the same time."
+          />
+          <Field
+            label="Max trades / day"
+            value={maxPerDay}
+            onChange={setMaxPerDay}
+            min={1}
+            max={20}
+            step={1}
+            tip="The most NEW trades this scanner can open in a single day."
+          />
           <Field
             label="Auto-close after (hours, 0 = off)"
             value={autoCloseHours}
             onChange={setAutoCloseHours}
             min={0}
             step={1}
+            tip="Force-closes the position at the market price after this many hours, even if SL/TP hasn't been hit. 0 disables it."
           />
         </SettingsSection>
 
