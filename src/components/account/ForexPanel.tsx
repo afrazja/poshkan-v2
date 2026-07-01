@@ -355,6 +355,7 @@ export default function ForexPanel({
                       <span className="text-xs font-normal text-muted">
                         {p.direction === "LONG" ? "Long" : "Short"} {Number(p.units).toLocaleString("en-US")}
                       </span>
+                      <SourceBadge source={p.source} />
                     </span>
                     <span className={`font-medium ${changeColor(Number(p.pnl ?? 0))}`}>
                       {formatSignedCurrency(Number(p.pnl ?? 0))}
@@ -413,7 +414,10 @@ export default function ForexPanel({
                           {pairName(p.symbol)}
                         </button>
                       </td>
-                      <td className="px-4 py-3 text-muted">{p.direction === "LONG" ? "Long" : "Short"}</td>
+                      <td className="px-4 py-3 text-muted">
+                        {p.direction === "LONG" ? "Long" : "Short"}
+                        <SourceBadge source={p.source} />
+                      </td>
                       <td className="px-4 py-3 text-right">{Number(p.units).toLocaleString("en-US")}</td>
                       <td className="px-4 py-3 text-right text-muted">
                         {formatRate(Number(p.open_rate))} → {p.close_rate ? formatRate(Number(p.close_rate)) : "—"}
