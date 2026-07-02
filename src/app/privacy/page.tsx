@@ -16,7 +16,7 @@ export default function PrivacyPage() {
           <h2 className="mb-1 font-semibold">What we collect</h2>
           <p>
             Your email address and username (for your account), and your activity inside the
-            simulator: virtual accounts, trades, orders, watchlists, journal notes, alerts, and —
+            simulator: virtual accounts, trades, orders, watchlists, alerts, and —
             if you enable them — push-notification subscriptions and API tokens (stored only as
             hashes).
           </p>
@@ -27,8 +27,8 @@ export default function PrivacyPage() {
           <p>
             Only to run Poshkan: signing you in, executing your simulated trades, sending the
             emails and notifications you asked for (alerts, password resets), showing the
-            leaderboard (username + virtual returns only), and — if you use it — generating AI
-            reviews of your trade journal. We don&apos;t sell your data or run ads.
+            leaderboard (username + virtual returns only), and — if you use it — running the AI
+            scanner on your watchlist. We don&apos;t sell your data or run ads.
           </p>
         </section>
 
@@ -37,8 +37,8 @@ export default function PrivacyPage() {
           <p>
             Poshkan runs on Vercel (hosting), Supabase (database &amp; authentication), Resend
             (email delivery), Yahoo Finance (market data — your personal data is never sent
-            there), and Anthropic (AI journal reviews — your journal notes and trade data are sent
-            to the Claude API only when you click the review button). Each processes data under
+            there), and Anthropic (the AI scanner — your watchlist symbols and market data are
+            sent to the Claude API only when the scanner runs for you). Each processes data under
             its own privacy policy.
           </p>
         </section>

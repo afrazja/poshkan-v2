@@ -59,8 +59,8 @@ export default function AnthropicKeyModal({ onClose }: { onClose: () => void }) 
     <Modal title="Your Claude API key" onClose={onClose}>
       <div className="space-y-4 text-sm">
         <p className="text-muted">
-          Add your own Anthropic API key so the AI features (opportunity scanner, trade explanations,
-          journal coach) run on <strong>your</strong> Anthropic account. Get one at{" "}
+          Add your own Anthropic API key so the AI features (opportunity scanner, trade
+          explanations) run on <strong>your</strong> Anthropic account. Get one at{" "}
           <a
             href="https://console.anthropic.com/settings/keys"
             target="_blank"

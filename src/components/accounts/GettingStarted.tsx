@@ -6,9 +6,7 @@ import Link from "next/link";
 export interface StartChecks {
   hasAccount: boolean;
   hasTrade: boolean;
-  hasJournal: boolean;
   hasAlert: boolean;
-  hasAiReview: boolean;
 }
 
 const DISMISS_KEY = "poshkan-getting-started-dismissed";
@@ -34,19 +32,9 @@ export default function GettingStarted({ checks }: { checks: StartChecks }) {
       hint: <>Open your account, search a stock (try <strong>AAPL</strong>), and hit <strong>Buy</strong>.</>,
     },
     {
-      done: checks.hasJournal,
-      title: "Journal a trade reason",
-      hint: <>On the order review screen, fill the <strong>📓 Why this trade?</strong> box — one honest line.</>,
-    },
-    {
       done: checks.hasAlert,
       title: "Set a price alert",
       hint: <>Open any stock and tap <strong>🔔 Set alert</strong> — we&apos;ll email and push you when it hits.</>,
-    },
-    {
-      done: checks.hasAiReview,
-      title: "Get your AI coaching review",
-      hint: <>Once you&apos;ve journaled a few trades, visit <Link href="/dashboard/journal" className="font-semibold text-primary hover:underline">📓 Journal</Link> and hit <strong>AI review</strong>.</>,
     },
   ];
 

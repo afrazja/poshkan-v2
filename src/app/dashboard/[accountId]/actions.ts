@@ -4,8 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { sendPushToUser } from "@/lib/push";
 import { encryptSecret, decryptSecret } from "@/lib/crypto";
-import { getUserAnthropicKey } from "@/lib/anthropic-key";
-import { getQuote, getQuotes } from "@/lib/marketdata";
+import { getQuote } from "@/lib/marketdata";
 import { assetTypeError } from "@/lib/assets";
 import { marginFor, sltpError, autoCloseReason, clampTradeLeverage } from "@/lib/forex";
 
@@ -631,36 +630,6 @@ export async function removePushSubscriptionAction(endpoint: string): Promise<{ 
   return {};
 }
 
-// Trade journal: record the WHY behind a trade.
-export async function createJournalEntryAction(input: {
-  accountId: string;
-  symbol: string;
-  side: "BUY" | "SELL";
-  quantity: number;
-  price: number;
-  note: string;
-}): Promise<{ error?: string }> {
-  const note = input.note.trim();
-  if (!note) return {};
-  if (note.length > 2000) return { error: "Note is too long" };
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { error: "Not authenticated" };
-  const { error } = await supabase.from("journal_entries").insert({
-    user_id: user.id,
-    account_id: input.accountId,
-    symbol: input.symbol.toUpperCase(),
-    side: input.side,
-    quantity: input.quantity,
-    price: input.price,
-    note,
-  });
-  if (error) return { error: error.message };
-  return {};
-}
-
 // Send a test push to the current user's devices — verifies push delivery.
 export async function sendTestNotificationAction(): Promise<{ sent?: number; error?: string }> {
   const supabase = await createClient();
@@ -815,108 +784,6 @@ export async function getAnthropicKeyStatusAction(): Promise<{ set: boolean; las
   if (!enc) return { set: false };
   const dec = decryptSecret(enc);
   return { set: true, last4: dec ? dec.slice(-4) : undefined };
-}
-
-// AI coach: Claude reviews the user's journaled reasoning against outcomes.
-export async function reviewJournalAction(): Promise<{ review?: string; error?: string }> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { error: "Not authenticated" };
-  const apiKey = (await getUserAnthropicKey(supabase, user.id)) || process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    return { error: "Add your Anthropic API key in Settings to use the AI coach." };
-  }
-
-  const { data: entries } = await supabase
-    .from("journal_entries")
-    .select("symbol, side, quantity, price, note, created_at")
-    .order("created_at", { ascending: false })
-    .limit(50);
-  if (!entries?.length) {
-    return { error: "No journal entries yet — add a note the next time you trade." };
-  }
-
-  // Per-user guardrail: a daily quota + skip if nothing changed since the last
-  // review. Protects the shared API budget from one user spamming the button.
-  // Best-effort: if the ai_reviews table isn't migrated yet, reviews stay open.
-  const DAILY_LIMIT = 5;
-  const newestEntryAt = entries[0].created_at;
-  try {
-    const startOfDay = new Date();
-    startOfDay.setUTCHours(0, 0, 0, 0);
-    const { count } = await supabase
-      .from("ai_reviews")
-      .select("id", { count: "exact", head: true })
-      .gte("created_at", startOfDay.toISOString());
-    if ((count ?? 0) >= DAILY_LIMIT) {
-      return { error: `You've used all ${DAILY_LIMIT} AI reviews for today. They reset at midnight UTC.` };
-    }
-    const { data: last } = await supabase
-      .from("ai_reviews")
-      .select("last_entry_at")
-      .order("created_at", { ascending: false })
-      .limit(1);
-    const lastEntryAt = last?.[0]?.last_entry_at;
-    if (lastEntryAt && new Date(newestEntryAt).getTime() <= new Date(lastEntryAt).getTime()) {
-      return {
-        error: "No new journaled trades since your last review. Add a note on your next trade, then review again.",
-      };
-    }
-  } catch {
-    // ai_reviews table not migrated — proceed without the quota
-  }
-
-  // Current prices so Claude can judge how each thesis is playing out.
-  const symbols = Array.from(new Set(entries.map((e) => e.symbol.toUpperCase())));
-  let quotes: Record<string, { price: number }> = {};
-  try {
-    quotes = await getQuotes(symbols);
-  } catch {
-    // proceed without live prices
-  }
-
-  const rows = entries.map((e) => ({
-    date: e.created_at.slice(0, 10),
-    side: e.side,
-    symbol: e.symbol,
-    quantity: Number(e.quantity),
-    price_at_trade: Number(e.price),
-    price_now: quotes[e.symbol.toUpperCase()]?.price ?? null,
-    reasoning: e.note,
-  }));
-
-  const { default: Anthropic } = await import("@anthropic-ai/sdk");
-  const client = new Anthropic({ apiKey });
-  try {
-    const response = await client.messages.create({
-      model: "claude-sonnet-4-6",
-      max_tokens: 2000,
-      thinking: { type: "adaptive" },
-      system:
-        "You are a trading coach reviewing a paper-trading student's journal. Each entry has the trade, the student's stated reasoning, and how the price has moved since. Evaluate the QUALITY OF REASONING, not just outcomes (good reasoning can lose; bad reasoning can win). Identify patterns across entries: which kinds of theses work for them, recurring mistakes (FOMO, no exit plan, vague theses), and one concrete habit to practice next. Be direct, specific, and encouraging. Reference their actual trades. Respond in concise markdown, under 400 words. This is paper trading practice — no real-money disclaimers needed.",
-      messages: [
-        {
-          role: "user",
-          content: `Here is my trade journal (newest first):\n\n${JSON.stringify(rows, null, 2)}\n\nReview my trading reasoning.`,
-        },
-      ],
-    });
-    const text = response.content
-      .filter((b) => b.type === "text")
-      .map((b) => (b as { text: string }).text)
-      .join("\n");
-    // Record usage (drives the daily quota + dedup). Best-effort.
-    try {
-      await supabase.from("ai_reviews").insert({ user_id: user.id, last_entry_at: newestEntryAt });
-    } catch {
-      // ignore if the table isn't migrated
-    }
-    return { review: text || "(empty review)" };
-  } catch (e) {
-    return { error: `AI review failed: ${(e as Error).message}` };
-  }
 }
 
 // Personal API tokens for the Claude/MCP integration. The plaintext token is

@@ -7,7 +7,6 @@ import { formatCurrency } from "@/lib/format";
 import {
   executeTradeAction,
   placeLimitOrderAction,
-  createJournalEntryAction,
 } from "@/app/dashboard/[accountId]/actions";
 import PriceChart from "./PriceChart";
 
@@ -38,7 +37,6 @@ export default function TradeModal({
   const [orderType, setOrderType] = useState<"MARKET" | "LIMIT">("MARKET");
   const [limitPrice, setLimitPrice] = useState("");
   const [tif, setTif] = useState<"DAY" | "GTC">("GTC");
-  const [note, setNote] = useState("");
 
   // If we opened without a fresh price, fetch one so the estimate is accurate.
   useEffect(() => {
@@ -94,17 +92,6 @@ export default function TradeModal({
       });
       setLoading(false);
       if (res.error) return setError(res.error);
-      if (note.trim()) {
-        // Journal the thesis at placement (recorded at the limit price).
-        void createJournalEntryAction({
-          accountId,
-          symbol,
-          side,
-          quantity,
-          price: limit,
-          note,
-        });
-      }
       setDone({ price: limit, limit: true });
       router.refresh();
       return;
@@ -112,17 +99,6 @@ export default function TradeModal({
     const result = await executeTradeAction({ accountId, symbol, side, quantity });
     setLoading(false);
     if (result.error) return setError(result.error);
-    if (note.trim()) {
-      // Journal the reasoning behind this trade (best-effort).
-      void createJournalEntryAction({
-        accountId,
-        symbol,
-        side,
-        quantity,
-        price: result.price ?? price,
-        note,
-      });
-    }
     setDone({ price: result.price ?? price });
     router.refresh();
   }
@@ -185,19 +161,6 @@ export default function TradeModal({
             {side === "BUY" && <ReviewRow label="Cash after" value={formatCurrency(cash - estimate)} />}
           </div>
 
-          <div>
-            <label className="mb-1 block text-xs font-medium text-muted">
-              📓 Why this trade? <span className="font-normal">(journal — optional, AI-reviewed later)</span>
-            </label>
-            <textarea
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              maxLength={2000}
-              rows={2}
-              placeholder="e.g. Earnings beat expectations and the dip looks overdone…"
-              className="w-full rounded-lg border border-border bg-input px-3 py-2 text-sm outline-none focus:border-primary"
-            />
-          </div>
           <div className="flex gap-2">
             <button
               type="button"

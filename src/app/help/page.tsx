@@ -3,7 +3,7 @@ import Link from "next/link";
 export const metadata = {
   title: "Help & Guide — Poshkan",
   description:
-    "How Poshkan works: accounts, order types, forex lots and leverage, P&L definitions, the AI coach, alerts, and the leaderboard.",
+    "How Poshkan works: accounts, order types, forex lots and leverage, P&L definitions, alerts, and the leaderboard.",
 };
 
 function H({ id, children }: { id: string; children: React.ReactNode }) {
@@ -40,7 +40,6 @@ export default function HelpPage() {
           ["orders", "Order types"],
           ["forex", "Forex"],
           ["pnl", "P&L"],
-          ["coach", "AI coach"],
           ["alerts", "Alerts"],
           ["leaderboard", "Leaderboard"],
           ["claude", "Claude connector"],
@@ -119,16 +118,6 @@ export default function HelpPage() {
           stops moving with the market.
         </Term>
         <Term name="Buying power">cash available for new purchases.</Term>
-
-        <H id="coach">The journal &amp; AI coach</H>
-        <p>
-          When you place a trade, the review screen has a{" "}
-          <strong>📓 &quot;Why this trade?&quot;</strong> box. Write one honest line about your
-          reasoning. Later, on the <strong>Journal</strong> page, the AI coach reads your notes
-          against how each trade actually played out and tells you what&apos;s working and what to
-          fix — it judges your <em>reasoning</em>, not just your results. Reviews are limited to a
-          few per day.
-        </p>
 
         <H id="alerts">Alerts &amp; notifications</H>
         <p>

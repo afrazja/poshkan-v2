@@ -168,8 +168,8 @@ export default async function LandingPage({
           <div className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <Feature
               icon="🤖"
-              title="An AI coach in your corner"
-              text="Journal why you make each trade. Claude reviews your reasoning against the outcomes and tells you which habits to fix."
+              title="An AI scanner on watch"
+              text="Claude reads price action on your watchlist around the clock and flags setups — alert-only, or auto-trading within the risk limits you set."
             />
             <Feature
               icon="🏆"
@@ -222,14 +222,14 @@ export default async function LandingPage({
               catchLine="Usually stocks-only, dated interfaces, delayed data, shallow order types — and no coaching of any kind."
             />
             <Alternative
-              title="AI trading journals"
-              point="AI insights on your trading psychology."
-              catchLine="Cost $200–400 per year, assume you already trade real money — and don't include anywhere to practice."
+              title="Signal services"
+              point="Trade calls delivered to your inbox or Discord."
+              catchLine="Cost $50–100 a month, explain nothing, and give you no safe place to test whether the calls are any good."
             />
           </div>
 
           <p className="mx-auto mt-8 max-w-2xl text-center text-base font-medium">
-            Poshkan puts all three in one place — the practice venue, the AI coach, and the
+            Poshkan puts all three in one place — the practice venue, the scanners, and the
             competition — <span className="text-primary">free</span>.
           </p>
         </div>
