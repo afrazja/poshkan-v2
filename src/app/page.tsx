@@ -206,46 +206,30 @@ export default async function LandingPage({
           </p>
 
           <div className="relative mt-10">
-            {/* App window */}
+            {/* App window: a real 15-second tour of the live product */}
             <div className="overflow-hidden rounded-2xl border border-white/10 bg-[#0b0e14] text-[#e6e8eb] shadow-2xl">
               {/* Window chrome */}
               <div className="flex items-center gap-1.5 border-b border-white/10 px-4 py-3">
                 <span className="h-2.5 w-2.5 rounded-full bg-rose-500/80" />
                 <span className="h-2.5 w-2.5 rounded-full bg-amber-500/80" />
                 <span className="h-2.5 w-2.5 rounded-full bg-emerald-500/80" />
-                <span className="ml-3 text-xs text-white/40">poshkan.com/dashboard/scanners</span>
+                <span className="ml-3 text-xs text-white/40">poshkan.com/dashboard</span>
               </div>
-
-              <div className="space-y-3 p-4 sm:p-5">
-                <div className="flex items-center gap-2 text-xs text-white/50">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-                  Scanners healthy · last ran 1m ago
-                </div>
-
-                {/* Recent activity */}
-                <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
-                  <div className="mb-2 flex items-center justify-between text-xs">
-                    <span className="font-semibold">📋 Recent activity</span>
-                    <span className="text-blue-400">View full log ↓</span>
-                  </div>
-                  <MockActivityRow dir="LONG" sym="EUR/USD" scanner="🎯 OTE" tag="traded" ago="2m ago" />
-                  <MockActivityRow dir="SHORT" sym="BTC" scanner="📈 SMC" tag="alert" ago="18m ago" />
-                  <MockActivityRow dir="LONG" sym="NVDA" scanner="🚀 Trend" tag="traded" ago="1h ago" />
-                </div>
-
-                {/* Scanner cards */}
-                <MockScannerCard icon="🎯" name="OTE Scanner" mode="Auto-trade" last="LONG SOL (traded) 2h ago" />
-                <MockScannerCard icon="🚀" name="Trend Breakout" mode="Alert" last="LONG BTC (alert) 4h ago" />
-              </div>
-            </div>
-
-            {/* Floating account stat card */}
-            <div className="absolute -bottom-6 right-3 hidden rounded-xl border border-white/10 bg-[#12161f] px-5 py-4 text-white shadow-2xl sm:block">
-              <div className="text-[11px] uppercase tracking-wide text-white/40">Total value</div>
-              <div className="mt-0.5 text-2xl font-bold">$24,618.90</div>
-              <div className="mt-0.5 text-sm font-medium text-emerald-400">+$312.40 (+1.3%) today</div>
+              <video
+                src="/landing/poshkan-tour.mp4"
+                poster="/landing/poshkan-tour-poster.jpg"
+                autoPlay
+                muted
+                loop
+                playsInline
+                className="block w-full"
+                aria-label="A 15-second tour of Poshkan: the accounts dashboard, an account's P&L and holdings, the scanners page with live activity, and the leaderboard."
+              />
             </div>
           </div>
+          <p className="mt-4 text-center text-xs text-muted">
+            Real footage of the live app — every number is virtual money.
+          </p>
         </div>
       </section>
 
@@ -543,63 +527,6 @@ function Counter({ value, label }: { value: number | string; label: string }) {
         {typeof value === "number" ? value.toLocaleString("en-US") : value}
       </div>
       <div className="mt-1 text-sm text-muted">{label}</div>
-    </div>
-  );
-}
-
-function MockActivityRow({
-  dir,
-  sym,
-  scanner,
-  tag,
-  ago,
-}: {
-  dir: "LONG" | "SHORT";
-  sym: string;
-  scanner: string;
-  tag: "traded" | "alert";
-  ago: string;
-}) {
-  return (
-    <div className="mt-1 flex items-center justify-between gap-2 rounded-lg border border-white/10 bg-white/[0.03] px-2.5 py-1.5 text-xs first:mt-0">
-      <span className="min-w-0 truncate">
-        {scanner} ·{" "}
-        <span className={dir === "LONG" ? "text-emerald-400" : "text-rose-400"}>{dir}</span> {sym}
-      </span>
-      <span className="flex shrink-0 items-center gap-2">
-        {tag === "traded" ? (
-          <span className="rounded bg-emerald-500/15 px-1.5 py-0.5 text-emerald-400">traded</span>
-        ) : (
-          <span className="rounded bg-white/10 px-1.5 py-0.5 text-white/50">alert</span>
-        )}
-        <span className="text-white/40">{ago}</span>
-      </span>
-    </div>
-  );
-}
-
-function MockScannerCard({
-  icon,
-  name,
-  mode,
-  last,
-}: {
-  icon: string;
-  name: string;
-  mode: string;
-  last: string;
-}) {
-  return (
-    <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2.5">
-      <span className="text-sm font-semibold">
-        {icon} {name}
-      </span>
-      <span className="flex flex-wrap items-center gap-1.5 text-[11px]">
-        <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 font-medium text-emerald-400">Enabled</span>
-        <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 font-medium text-emerald-400">{mode}</span>
-        <span className="text-white/40">ran 1m ago · last: {last}</span>
-        <span className="flex h-6 w-6 items-center justify-center rounded-full border border-white/15 text-white/40">›</span>
-      </span>
     </div>
   );
 }
