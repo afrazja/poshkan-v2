@@ -106,7 +106,7 @@ export default async function LeaderboardPage({
           <p className="text-sm text-muted">
             {showAll
               ? "All accounts ranked by % return on the money put in, at live market prices."
-              : "Traders ranked by their best account's % return, at live market prices."}
+              : "Traders ranked by their best account's % return on the money put in, at live market prices."}
           </p>
         </div>
         <Link href="/dashboard" className="text-sm text-muted hover:text-foreground hover:underline">

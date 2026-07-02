@@ -81,15 +81,21 @@ export default function PerformanceCard({ accountId }: { accountId: string }) {
           </span>
         </div>
       ) : (
-        <AreaChart
-          points={portfolio}
-          benchmark={spy}
-          height={200}
-          formatValue={(v) => formatPercent(v)}
-          formatAxisValue={(v) => `${v >= 0 ? "+" : ""}${v.toFixed(1)}%`}
-          valueLabel="You"
-          benchmarkLabel="S&P 500"
-        />
+        <>
+          <AreaChart
+            points={portfolio}
+            benchmark={spy}
+            height={200}
+            formatValue={(v) => formatPercent(v)}
+            formatAxisValue={(v) => `${v >= 0 ? "+" : ""}${v.toFixed(1)}%`}
+            valueLabel="You"
+            benchmarkLabel="S&P 500"
+          />
+          <p className="mt-2 text-[11px] text-muted">
+            Time-weighted since {points[0]?.date}: deposits and added cash don&apos;t count as
+            gains — only what your positions actually did.
+          </p>
+        </>
       )}
     </div>
   );

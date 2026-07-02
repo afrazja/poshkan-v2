@@ -426,7 +426,7 @@ export default function AccountView({
                 colorClass={quotesLoading ? "text-muted" : changeColor(todayPnl)}
               />
               <Stat
-                label="Unrealized P&L"
+                label="Unrealized P&L · vs cost"
                 value={
                   quotesLoading
                     ? "…"
