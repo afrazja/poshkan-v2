@@ -29,7 +29,18 @@ export default async function LandingPage({
             <Image src="/icons/icon-192.png" alt="Poshkan" width={36} height={36} className="rounded-lg" />
             <span className="text-xl font-bold tracking-tight">Poshkan</span>
           </div>
-          <div className="flex flex-1 flex-col items-center justify-center gap-4">
+          <div id="signup" className="flex flex-1 scroll-mt-8 flex-col items-center justify-center gap-4">
+            {/* Mobile: pitch BEFORE the form — a cold visitor needs the why before the ask.
+                (On lg+ the gradient hero panel on the right carries this instead.) */}
+            <div className="mb-2 text-center lg:hidden">
+              <h1 className="text-2xl font-extrabold tracking-tight">
+                Trade fearlessly. Lose nothing.
+              </h1>
+              <p className="mx-auto mt-2 max-w-md text-sm text-muted">
+                A library of strategy scanners across stocks, crypto, and forex — long or short,
+                with backtests and a leaderboard. 100% virtual money.
+              </p>
+            </div>
             {expired && (
               <div className="w-full max-w-md rounded-lg border border-primary/30 bg-primary/10 px-4 py-3 text-sm">
                 Your session expired — please log in again.
@@ -71,15 +82,6 @@ export default async function LandingPage({
           </div>
         </div>
       </main>
-
-      {/* Mobile hero strip (the gradient panel is hidden below lg) */}
-      <section className="border-t border-border px-6 py-8 text-center lg:hidden">
-        <h1 className="text-2xl font-extrabold tracking-tight">Trade fearlessly. Lose nothing.</h1>
-        <p className="mx-auto mt-2 max-w-md text-sm text-muted">
-          A library of strategy scanners across stocks, crypto, and forex — long or short, with
-          backtests and a leaderboard. 100% virtual money.
-        </p>
-      </section>
 
       {/* Scanners — the hero feature: a library across all markets */}
       <section className="border-t border-border bg-card px-6 py-14 sm:px-12">
@@ -246,9 +248,15 @@ export default async function LandingPage({
             <Step n="2" title="Fund it with virtual cash" text="Open stock, crypto, or forex accounts and seed them with as much play money as you like." />
             <Step n="3" title="Trade — or let a scanner do it" text="Buy in seconds, or flip on a strategy scanner and let it find and trade setups while you watch and learn." />
           </div>
-          <p className="mt-10 text-center text-sm text-muted">
-            Ready? Scroll up and create your account — it takes a minute. ↑
-          </p>
+          <div className="mt-10 text-center">
+            <a
+              href="#signup"
+              className="inline-block rounded-xl bg-primary px-8 py-3 text-base font-semibold text-primary-foreground shadow-sm transition hover:opacity-90"
+            >
+              Create your free account
+            </a>
+            <p className="mt-2 text-xs text-muted">Takes a minute — no card, nothing real at stake.</p>
+          </div>
         </div>
       </section>
 
