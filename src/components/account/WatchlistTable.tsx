@@ -4,17 +4,20 @@ import { useMemo, useState } from "react";
 import type { Quote, WatchlistItem } from "@/lib/types";
 import { formatCurrency, formatPercent, changeColor } from "@/lib/format";
 import SortHeader, { nextSort, type SortState } from "./SortHeader";
+import { AlertForm } from "./SymbolPanel";
 
 export default function WatchlistTable({
   items,
   quotes,
   onSelect,
+  onBuy,
   onRemove,
   pendingSymbol,
 }: {
   items: WatchlistItem[];
   quotes: Record<string, Quote>;
   onSelect: (symbol: string) => void;
+  onBuy: (symbol: string) => void;
   onRemove: (symbol: string) => void;
   pendingSymbol?: string | null;
 }) {
@@ -65,24 +68,32 @@ export default function WatchlistTable({
       {/* Mobile: stacked cards */}
       <div className="space-y-2 sm:hidden">
         {sorted.map(({ item, q, price, dayPct }) => (
-          <div
-            key={item.id}
-            className="flex items-center justify-between rounded-xl border border-border bg-card p-3"
-          >
-            <button onClick={() => onSelect(item.symbol)} className="text-left">
-              <div className="font-semibold">{item.symbol}</div>
-              <div className="text-xs text-muted">
-                {q ? formatCurrency(price) : "…"} ·{" "}
-                <span className={changeColor(dayPct)}>{q ? formatPercent(dayPct) : "…"}</span>
-              </div>
-            </button>
-            <button
-              onClick={() => onRemove(item.symbol)}
-              disabled={pendingSymbol === item.symbol}
-              className="text-xs text-muted hover:text-negative disabled:opacity-50"
-            >
-              {pendingSymbol === item.symbol ? "…" : "Remove"}
-            </button>
+          <div key={item.id} className="rounded-xl border border-border bg-card p-3">
+            <div className="flex items-center justify-between">
+              <button onClick={() => onSelect(item.symbol)} className="text-left">
+                <div className="font-semibold">{item.symbol}</div>
+                <div className="text-xs text-muted">
+                  {q ? formatCurrency(price) : "…"} ·{" "}
+                  <span className={changeColor(dayPct)}>{q ? formatPercent(dayPct) : "…"}</span>
+                </div>
+              </button>
+              <button
+                onClick={() => onRemove(item.symbol)}
+                disabled={pendingSymbol === item.symbol}
+                className="text-xs text-muted hover:text-negative disabled:opacity-50"
+              >
+                {pendingSymbol === item.symbol ? "…" : "Remove"}
+              </button>
+            </div>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <button
+                onClick={() => onBuy(item.symbol)}
+                className="rounded-md bg-positive px-3 py-1 text-xs font-semibold text-white hover:opacity-90"
+              >
+                Buy
+              </button>
+              <AlertForm symbol={item.symbol} currentPrice={q?.price} />
+            </div>
           </div>
         ))}
       </div>
@@ -111,14 +122,23 @@ export default function WatchlistTable({
               <td className={`px-4 py-3 text-right ${changeColor(dayPct)}`}>
                 {q ? formatPercent(dayPct) : "…"}
               </td>
-              <td className="px-4 py-3 text-right">
-                <button
-                  onClick={() => onRemove(item.symbol)}
-                  disabled={pendingSymbol === item.symbol}
-                  className="text-xs text-muted hover:text-negative disabled:opacity-50"
-                >
-                  {pendingSymbol === item.symbol ? "…" : "Remove"}
-                </button>
+              <td className="px-4 py-3">
+                <div className="flex items-center justify-end gap-2.5">
+                  <button
+                    onClick={() => onBuy(item.symbol)}
+                    className="rounded-md bg-positive px-3 py-1 text-xs font-semibold text-white hover:opacity-90"
+                  >
+                    Buy
+                  </button>
+                  <AlertForm symbol={item.symbol} currentPrice={q?.price} />
+                  <button
+                    onClick={() => onRemove(item.symbol)}
+                    disabled={pendingSymbol === item.symbol}
+                    className="text-xs text-muted hover:text-negative disabled:opacity-50"
+                  >
+                    {pendingSymbol === item.symbol ? "…" : "Remove"}
+                  </button>
+                </div>
               </td>
             </tr>
           ))}

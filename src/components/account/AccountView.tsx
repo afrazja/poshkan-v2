@@ -626,6 +626,7 @@ export default function AccountView({
             items={watchlist.filter((w) => w.symbol.toLowerCase().includes(filter.toLowerCase()))}
             quotes={quotes}
             onSelect={selectSymbol}
+            onBuy={(symbol) => setTrade({ side: "BUY", symbol })}
             onRemove={(symbol) => toggleWatch(symbol)}
             pendingSymbol={watchBusy}
           />

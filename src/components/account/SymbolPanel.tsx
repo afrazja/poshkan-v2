@@ -161,8 +161,8 @@ function fmtDate(iso?: string): string {
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
-// Inline "set a price alert" form.
-function AlertForm({ symbol, currentPrice }: { symbol: string; currentPrice?: number }) {
+// Inline "set a price alert" form — also reused by the watchlist rows.
+export function AlertForm({ symbol, currentPrice }: { symbol: string; currentPrice?: number }) {
   const [open, setOpen] = useState(false);
   const [condition, setCondition] = useState<"ABOVE" | "BELOW">("ABOVE");
   const [target, setTarget] = useState("");
