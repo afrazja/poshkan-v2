@@ -3,15 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Modal from "@/components/Modal";
-import SymbolSearch from "@/components/SymbolSearch";
-import { createAccountAction, type NewHolding } from "@/app/dashboard/actions";
-
-interface HoldingRow {
-  symbol: string;
-  name: string;
-  quantity: string; // keep as string for controlled input
-  avgPrice: string;
-}
+import { createAccountAction } from "@/app/dashboard/actions";
 
 const TYPE_LABEL: Record<string, string> = { stocks: "Stocks", crypto: "Crypto", forex: "Forex" };
 
@@ -38,25 +30,11 @@ export default function CreateAccountModal({
   const [nameEdited, setNameEdited] = useState(false);
   const [type, setType] = useState("stocks");
   const [cash, setCash] = useState("10000");
-  const [rows, setRows] = useState<HoldingRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const inputClass =
     "w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20";
-
-  function addRow(symbol: string, companyName: string) {
-    if (rows.some((r) => r.symbol === symbol)) return;
-    setRows((r) => [...r, { symbol, name: companyName, quantity: "", avgPrice: "" }]);
-  }
-
-  function updateRow(i: number, patch: Partial<HoldingRow>) {
-    setRows((r) => r.map((row, idx) => (idx === i ? { ...row, ...patch } : row)));
-  }
-
-  function removeRow(i: number) {
-    setRows((r) => r.filter((_, idx) => idx !== i));
-  }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -67,24 +45,11 @@ export default function CreateAccountModal({
       return;
     }
 
-    const holdings: NewHolding[] = [];
-    for (const r of rows) {
-      const qty = Number(r.quantity);
-      if (!qty || qty <= 0) continue;
-      const price = Number(r.avgPrice);
-      if (!price || price <= 0) {
-        setError(`Enter an average price for ${r.symbol}.`);
-        return;
-      }
-      holdings.push({ symbol: r.symbol, quantity: qty, avg_price: price });
-    }
-
     setLoading(true);
     const result = await createAccountAction({
       name,
       type,
       initialCash: Number(cash) || 0,
-      holdings,
     });
     setLoading(false);
 
@@ -126,7 +91,6 @@ export default function CreateAccountModal({
               value={type}
               onChange={(e) => {
                 setType(e.target.value);
-                setRows([]); // holdings picked under the previous type no longer apply
                 // keep the suggested name in sync with the type until the user types their own
                 if (!nameEdited) setName(defaultName(e.target.value, existingNames));
               }}
@@ -150,77 +114,12 @@ export default function CreateAccountModal({
           </div>
         </div>
 
-        {/* Forex accounts start with cash only (positions are leveraged pairs). */}
-        <div className={type === "forex" ? "hidden" : undefined}>
-          <label className="mb-1 block text-sm font-medium">
-            Initial holdings <span className="font-normal text-muted">(optional)</span>
-          </label>
-          <SymbolSearch
-            assetType={type}
-            onSelect={(r) => addRow(r.symbol, r.name)}
-            placeholder="Add a stock you already 'own'…"
-          />
-
-          {rows.length > 0 && (
-            <div className="mt-3 space-y-2">
-              {rows.map((row, i) => {
-                const qtyEntered = Number(row.quantity) > 0;
-                return (
-                  <div
-                    key={row.symbol}
-                    className="rounded-lg border border-border bg-background p-3"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <span className="font-semibold">{row.symbol}</span>
-                        <span className="ml-2 text-xs text-muted">{row.name}</span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => removeRow(i)}
-                        className="text-sm text-muted hover:text-negative"
-                      >
-                        Remove
-                      </button>
-                    </div>
-                    <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                      <div>
-                        <label className="mb-1 block text-xs text-muted">Quantity</label>
-                        <input
-                          type="number"
-                          min="0"
-                          step="any"
-                          value={row.quantity}
-                          onChange={(e) => updateRow(i, { quantity: e.target.value })}
-                          className={inputClass}
-                          placeholder="Shares"
-                        />
-                      </div>
-                      {/* Average-price field appears only after a quantity is entered */}
-                      {qtyEntered && (
-                        <div>
-                          <label className="mb-1 block text-xs text-muted">
-                            Average buy price ($)
-                          </label>
-                          <input
-                            type="number"
-                            min="0"
-                            step="any"
-                            value={row.avgPrice}
-                            onChange={(e) => updateRow(i, { avgPrice: e.target.value })}
-                            className={inputClass}
-                            placeholder="Your cost basis"
-                            autoFocus
-                          />
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
+        {/* Accounts start with cash only — every position is bought at a live
+            market price, so all P&L (and leaderboard rank) is earned in-app. */}
+        <p className="text-xs text-muted">
+          Your account starts with virtual cash. Buy your first positions at live market prices —
+          that keeps every P&L number (and the leaderboard) honest.
+        </p>
 
         <div className="flex justify-end gap-2 pt-2">
           <button

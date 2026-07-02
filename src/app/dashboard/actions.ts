@@ -3,17 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 
-export interface NewHolding {
-  symbol: string;
-  quantity: number;
-  avg_price: number;
-}
-
 export async function createAccountAction(input: {
   name: string;
   type: string;
   initialCash: number;
-  holdings: NewHolding[];
   leverage?: number;
 }): Promise<{ accountId?: string; error?: string }> {
   const supabase = await createClient();
@@ -26,11 +19,14 @@ export async function createAccountAction(input: {
   if (input.name.trim().length < 3)
     return { error: "Name must be at least 3 characters — it appears in activity feeds and the leaderboard." };
 
+  // Accounts start with cash only — every position must be bought at a real
+  // market price through the trade flow, so no P&L can be claimed for free.
+  // (Existing accounts created with seeded holdings are untouched.)
   const { data, error } = await supabase.rpc("create_account", {
     p_name: input.name.trim(),
     p_type: input.type || "stocks",
     p_initial_cash: input.initialCash || 0,
-    p_holdings: input.holdings || [],
+    p_holdings: [],
   });
 
   if (error) return { error: error.message };
