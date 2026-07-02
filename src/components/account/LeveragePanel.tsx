@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { FxPosition, Quote } from "@/lib/types";
 import { formatCurrency, formatSignedCurrency, changeColor } from "@/lib/format";
+import { symbolLabel } from "@/lib/assets";
 import { marginFor, TRADE_LEVERAGE_OPTIONS } from "@/lib/forex";
 import { openFxPositionAction, closeFxPositionAction, setFxSlTpAction } from "@/app/dashboard/[accountId]/actions";
 import SymbolSearch from "@/components/SymbolSearch";
@@ -73,7 +74,7 @@ export default function LeveragePanel({
               <PositionCard
                 key={p.id}
                 position={p}
-                title={p.symbol}
+                title={symbolLabel(p.symbol)}
                 rate={rate}
                 unitLabel={unit}
                 fmtPrice={formatCurrency}
@@ -108,7 +109,7 @@ export default function LeveragePanel({
                       <span className={p.direction === "LONG" ? "font-medium text-positive" : "font-medium text-negative"}>
                         {p.direction === "LONG" ? "Long" : "Short"}
                       </span>{" "}
-                      {p.symbol}
+                      {symbolLabel(p.symbol)}
                       <SourceBadge source={p.source} />
                     </span>
                     <span className="flex items-center gap-2">
@@ -429,7 +430,7 @@ function SlTpModal({
     "w-full rounded-lg border border-border bg-input px-3 py-2 text-sm outline-none focus:border-primary";
 
   return (
-    <Modal title={`SL / TP — ${position.symbol}`} onClose={onClose}>
+    <Modal title={`SL / TP — ${symbolLabel(position.symbol)}`} onClose={onClose}>
       <div className="space-y-4">
         {error && (
           <div className="rounded-lg border border-negative/30 bg-negative/10 px-3 py-2 text-sm text-negative">{error}</div>

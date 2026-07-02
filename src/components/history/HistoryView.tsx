@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import type { Transaction, FxPosition } from "@/lib/types";
 import { formatCurrency, formatNumber, formatSignedCurrency, changeColor } from "@/lib/format";
+import { symbolLabel } from "@/lib/assets";
 import { marginFor } from "@/lib/forex";
 import SourceBadge from "@/components/account/SourceBadge";
 
@@ -205,7 +206,7 @@ export default function HistoryView({
                 <div className="flex flex-wrap items-center gap-1.5">
                   <span className={`rounded-md px-2 py-0.5 text-xs font-medium ${e.badge}`}>
                     {e.label}
-                    {e.symbol ? ` ${e.symbol}` : ""}
+                    {e.symbol ? ` ${symbolLabel(e.symbol)}` : ""}
                   </span>
                   {e.isLeverage && <SourceBadge source={e.source} />}
                 </div>
