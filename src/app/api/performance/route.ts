@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getTimeSeries } from "@/lib/marketdata";
 
-const RANGES: Record<string, number> = { "1M": 31, "3M": 93, "6M": 186, "1Y": 366 };
+const RANGES: Record<string, number> = { "1W": 8, "1M": 31, "3M": 93, "6M": 186, "1Y": 366 };
 
 // Portfolio performance from daily snapshots, with the S&P 500 (SPY) over the
 // same dates as a benchmark. The portfolio line is a TIME-WEIGHTED return:

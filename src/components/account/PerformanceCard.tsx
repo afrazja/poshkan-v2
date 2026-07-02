@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { formatPercent, changeColor } from "@/lib/format";
 import AreaChart, { type ChartPoint } from "./AreaChart";
 
-const RANGES = ["1M", "3M", "6M", "1Y"] as const;
+const RANGES = ["1W", "1M", "3M", "6M", "1Y"] as const;
 
 interface PerfPoint {
   date: string;
