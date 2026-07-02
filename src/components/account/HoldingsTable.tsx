@@ -126,7 +126,6 @@ export default function HoldingsTable({
             <SortHeader label="Avg cost" sortKey="avg" sort={sort} onSort={onSort} />
             <SortHeader label="Price" sortKey="price" sort={sort} onSort={onSort} />
             <SortHeader label="Day %" sortKey="dayPct" sort={sort} onSort={onSort} />
-            <SortHeader label="Day $" sortKey="dayUsd" sort={sort} onSort={onSort} />
             <SortHeader label="Mkt value" sortKey="mktValue" sort={sort} onSort={onSort} />
             <SortHeader label="Total P&L" sortKey="pnl" sort={sort} onSort={onSort} />
             <SortHeader label="P&L %" sortKey="pnlPct" sort={sort} onSort={onSort} />
@@ -150,11 +149,8 @@ export default function HoldingsTable({
               <td className="px-2.5 py-3 text-right">{formatNumber(qty)}</td>
               <td className="px-2.5 py-3 text-right">{formatCurrency(avg)}</td>
               <td className="px-2.5 py-3 text-right">{q ? formatCurrency(price) : "…"}</td>
-              <td className={`px-2.5 py-3 text-right ${changeColor(dayPct)}`}>
+              <td className={`px-2.5 py-3 text-right ${changeColor(dayPct)}`} title={q ? `${formatSignedCurrency(dayUsd)} today` : undefined}>
                 {q ? formatPercent(dayPct) : "…"}
-              </td>
-              <td className={`px-2.5 py-3 text-right ${changeColor(dayUsd)}`}>
-                {q ? formatSignedCurrency(dayUsd) : "…"}
               </td>
               <td className="px-2.5 py-3 text-right">{q ? formatCurrency(mktValue) : "…"}</td>
               <td className={`px-2.5 py-3 text-right font-medium ${q ? changeColor(pnl) : ""}`}>
