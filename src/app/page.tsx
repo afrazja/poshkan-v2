@@ -233,9 +233,7 @@ export default async function LandingPage({
         </div>
       </section>
 
-      {/* Activity proof: honest live numbers + the platform's real recent signals.
-          Testimonials from real users go here later (quotes pending) — render
-          nothing until we have the actual words. */}
+      {/* Activity proof: honest live numbers + the platform's real recent signals. */}
       {live && (
         <section className="border-t border-border bg-card px-6 py-12 sm:px-12">
           <div className="mx-auto max-w-5xl">
@@ -275,6 +273,27 @@ export default async function LandingPage({
           </div>
         </section>
       )}
+
+      {/* Real words from real traders on the leaderboard */}
+      <section className="border-t border-border px-6 py-14 sm:px-12">
+        <div className="mx-auto max-w-4xl">
+          <h2 className="text-center text-2xl font-bold tracking-tight sm:text-3xl">
+            What early traders say
+          </h2>
+          <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Quote
+              text="The most complete and easy-to-use platform I've found for practicing trading and honestly evaluating my skills."
+              name="Vahid"
+              role="forex trader on the leaderboard"
+            />
+            <Quote
+              text="The scanners are the best part — set one loose on your watchlist and experimenting with strategies becomes the whole game."
+              name="Masoud"
+              role="early Poshkan trader"
+            />
+          </div>
+        </div>
+      </section>
 
       {/* Scanners — the hero feature: a library across all markets */}
       <section className="border-t border-border bg-card px-6 py-14 sm:px-12">
@@ -518,6 +537,18 @@ function Step({ n, title, text }: { n: string; title: string; text: string }) {
 
 function Dot() {
   return <span className="h-2 w-2 rounded-full bg-white/80" />;
+}
+
+function Quote({ text, name, role }: { text: string; name: string; role: string }) {
+  return (
+    <figure className="rounded-2xl border border-border bg-card p-6">
+      <div aria-hidden className="text-3xl leading-none text-primary/40">“</div>
+      <blockquote className="mt-1 text-sm leading-relaxed">{text}</blockquote>
+      <figcaption className="mt-4 text-xs text-muted">
+        <span className="font-semibold text-foreground">{name}</span> · {role}
+      </figcaption>
+    </figure>
+  );
 }
 
 function Counter({ value, label }: { value: number | string; label: string }) {
