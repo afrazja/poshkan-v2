@@ -394,7 +394,11 @@ function StrategyBlock({
     } catch {}
   }
 
-  async function deactivate(id: string) {
+  const scannerName = SCANNER_DEFS.find((d) => d.key === scannerKey)?.name ?? "this scanner";
+
+  async function deactivate(id: string, accountName: string) {
+    // Deactivating stops a (possibly auto-trading) strategy — never on a stray tap.
+    if (!window.confirm(`Turn off ${scannerName} for "${accountName}"? It will stop scanning and trading on that account.`)) return;
     setBusy(id);
     await deactivateScanner(id, scannerKey);
     setBusy(null);
@@ -444,15 +448,15 @@ function StrategyBlock({
           {active.map((a) => (
             <span
               key={a.id}
-              className="flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs font-medium text-emerald-600 dark:text-emerald-400"
+              className="flex items-center gap-0.5 rounded-full bg-emerald-500/15 py-0.5 pl-2 text-xs font-medium text-emerald-600 dark:text-emerald-400"
             >
               {a.name} ({a.type})
               <button
-                onClick={() => deactivate(a.id)}
+                onClick={() => deactivate(a.id, a.name)}
                 disabled={busy === a.id}
                 aria-label={`Deactivate for ${a.name}`}
                 title="Deactivate for this account"
-                className="rounded-full leading-none hover:text-negative disabled:opacity-50"
+                className="-my-1.5 flex h-8 w-8 items-center justify-center rounded-full text-sm leading-none hover:text-negative disabled:opacity-50"
               >
                 ×
               </button>
