@@ -1,14 +1,93 @@
 import Image from "next/image";
+import { unstable_cache } from "next/cache";
 import AuthCard from "@/components/auth/AuthCard";
 import SiteFooter from "@/components/SiteFooter";
 import InstallPwa from "@/components/InstallPwa";
 import RecoveryRedirect from "@/components/auth/RecoveryRedirect";
 import LandingThemeToggle from "@/components/auth/LandingThemeToggle";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { symbolLabel } from "@/lib/assets";
 
 export const metadata = {
   title: "Poshkan — Automated strategy scanners for stocks, crypto & forex (virtual money)",
   description:
     "A library of strategy scanners that find & auto-trade setups, go long or short with 1–10× leverage, and a live leaderboard — across US stocks, crypto, and forex. 100% virtual money, risk-free.",
+};
+
+// Live "activity proof" for the landing page — honest numbers the platform
+// actually generates, not popularity claims. Cached 5 minutes; returns null
+// (section hidden) if the admin key is missing or there's nothing to show.
+interface LiveEvent {
+  icon: string;
+  scanner: string;
+  symbol: string;
+  direction: "LONG" | "SHORT";
+  executed: boolean;
+  createdAt: string;
+}
+
+const SIGNAL_TABLES = [
+  { table: "smc_signals", icon: "📈", name: "SMC" },
+  { table: "ote_signals", icon: "🎯", name: "OTE" },
+  { table: "trend_signals", icon: "🚀", name: "Trend" },
+  { table: "meanrev_signals", icon: "↩️", name: "Mean Rev" },
+  { table: "candlerange_signals", icon: "📦", name: "Range" },
+];
+
+const getLiveStats = unstable_cache(
+  async (): Promise<{ trades: number; signals: number; events: LiveEvent[] } | null> => {
+    try {
+      const admin = createAdminClient();
+      const [txRes, fxRes, recents, counts] = await Promise.all([
+        admin.from("transactions").select("id", { count: "exact", head: true }).in("side", ["BUY", "SELL"]),
+        admin.from("fx_positions").select("id", { count: "exact", head: true }),
+        Promise.all(
+          SIGNAL_TABLES.map((t) =>
+            admin
+              .from(t.table)
+              .select("symbol, direction, executed, created_at")
+              .order("created_at", { ascending: false })
+              .limit(3)
+          )
+        ),
+        Promise.all(
+          SIGNAL_TABLES.map((t) => admin.from(t.table).select("id", { count: "exact", head: true }))
+        ),
+      ]);
+      const trades = (txRes.count ?? 0) + (fxRes.count ?? 0);
+      const signals = counts.reduce((s, c) => s + (c.count ?? 0), 0);
+      const events: LiveEvent[] = recents
+        .flatMap((r, i) =>
+          ((r.data ?? []) as { symbol: string; direction: string; executed: boolean; created_at: string }[]).map(
+            (row) => ({
+              icon: SIGNAL_TABLES[i].icon,
+              scanner: SIGNAL_TABLES[i].name,
+              symbol: row.symbol,
+              direction: row.direction as "LONG" | "SHORT",
+              executed: !!row.executed,
+              createdAt: row.created_at,
+            })
+          )
+        )
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        .slice(0, 6);
+      if (!trades && !signals) return null;
+      return { trades, signals, events };
+    } catch {
+      return null;
+    }
+  },
+  ["landing-live-stats"],
+  { revalidate: 300 }
+);
+
+const ago = (iso: string) => {
+  const m = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
+  if (m < 1) return "just now";
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  return `${Math.floor(h / 24)}d ago`;
 };
 
 export default async function LandingPage({
@@ -17,6 +96,7 @@ export default async function LandingPage({
   searchParams: Promise<{ expired?: string }>;
 }) {
   const { expired } = await searchParams;
+  const live = await getLiveStats();
   return (
     <div className="relative flex min-h-screen flex-col">
       <RecoveryRedirect />
@@ -136,6 +216,49 @@ export default async function LandingPage({
           </div>
         </div>
       </section>
+
+      {/* Activity proof: honest live numbers + the platform's real recent signals.
+          Testimonials from real users go here later (quotes pending) — render
+          nothing until we have the actual words. */}
+      {live && (
+        <section className="border-t border-border bg-card px-6 py-12 sm:px-12">
+          <div className="mx-auto max-w-5xl">
+            <div className="grid grid-cols-1 gap-6 text-center sm:grid-cols-3">
+              <Counter value={live.trades} label="virtual trades executed" />
+              <Counter value={live.signals} label="scanner signals fired" />
+              <Counter value="24/7" label="watching 3 markets, 6 strategies" />
+            </div>
+
+            {live.events.length > 0 && (
+              <>
+                <div className="mt-8 flex flex-wrap justify-center gap-2">
+                  {live.events.map((e, i) => (
+                    <span
+                      key={i}
+                      className="flex items-center gap-1.5 rounded-full border border-border bg-background px-3 py-1.5 text-xs"
+                    >
+                      {e.icon} {e.scanner} ·{" "}
+                      <span className={e.direction === "LONG" ? "font-medium text-positive" : "font-medium text-negative"}>
+                        {e.direction}
+                      </span>{" "}
+                      {symbolLabel(e.symbol)}
+                      {e.executed ? (
+                        <span className="rounded bg-positive/15 px-1.5 py-0.5 text-positive">traded</span>
+                      ) : (
+                        <span className="rounded bg-muted/20 px-1.5 py-0.5 text-muted">alert</span>
+                      )}
+                      <span className="text-muted">{ago(e.createdAt)}</span>
+                    </span>
+                  ))}
+                </div>
+                <p className="mt-3 text-center text-xs text-muted">
+                  Live from the platform — real scanner activity, 100% virtual money.
+                </p>
+              </>
+            )}
+          </div>
+        </section>
+      )}
 
       {/* Scanners — the hero feature: a library across all markets */}
       <section className="border-t border-border bg-card px-6 py-14 sm:px-12">
@@ -376,6 +499,17 @@ function Step({ n, title, text }: { n: string; title: string; text: string }) {
 
 function Dot() {
   return <span className="h-2 w-2 rounded-full bg-white/80" />;
+}
+
+function Counter({ value, label }: { value: number | string; label: string }) {
+  return (
+    <div>
+      <div className="text-3xl font-extrabold tracking-tight">
+        {typeof value === "number" ? value.toLocaleString("en-US") : value}
+      </div>
+      <div className="mt-1 text-sm text-muted">{label}</div>
+    </div>
+  );
 }
 
 function MockActivityRow({
