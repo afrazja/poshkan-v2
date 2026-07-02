@@ -12,18 +12,23 @@ import {
 import { symbolLabel } from "@/lib/assets";
 import SortHeader, { nextSort, type SortState } from "./SortHeader";
 import Sparkline from "@/components/Sparkline";
+import { TextSkeleton } from "@/components/Skeleton";
+import FlashValue from "@/components/FlashValue";
 
 export default function HoldingsTable({
   positions,
   quotes,
   sparks = {},
+  accountType = "stocks",
   onSelect,
 }: {
   positions: Position[];
   quotes: Record<string, Quote>;
   sparks?: Record<string, number[]>;
+  accountType?: string;
   onSelect: (symbol: string) => void;
 }) {
+  const isCrypto = accountType === "crypto";
   const [sort, setSort] = useState<SortState | null>(null);
 
   // Derive the displayed/sortable values once per render.
@@ -98,18 +103,18 @@ export default function HoldingsTable({
                   <Sparkline values={sparks[p.symbol.toUpperCase()]} width={52} height={16} />
                 )}
               </span>
-              <span className="font-semibold">{q ? formatCurrency(mktValue) : "…"}</span>
+              <span className="font-semibold">{q ? formatCurrency(mktValue) : <TextSkeleton className="w-14" />}</span>
             </div>
             <div className="mt-1 flex items-center justify-between text-xs text-muted">
-              <span>{formatNumber(qty)} sh · avg {formatCurrency(avg)}</span>
+              <span>{formatNumber(qty)}{isCrypto ? "" : " sh"} · avg {formatCurrency(avg)}</span>
               <span className={changeColor(dayUsd)}>
-                {q ? `${formatSignedCurrency(dayUsd)} (${formatPercent(dayPct)}) today` : "…"}
+                {q ? `${formatSignedCurrency(dayUsd)} (${formatPercent(dayPct)}) today` : <TextSkeleton className="w-20" />}
               </span>
             </div>
             <div className="mt-1 flex items-center justify-between text-sm">
-              <span className="text-muted">{q ? formatCurrency(price) : "…"}</span>
+              <span className="text-muted">{q ? formatCurrency(price) : <TextSkeleton className="w-12" />}</span>
               <span className={`font-medium ${q ? changeColor(pnl) : ""}`}>
-                {q ? `${formatSignedCurrency(pnl)} (${formatPercent(pnlPct)})` : "…"}
+                {q ? `${formatSignedCurrency(pnl)} (${formatPercent(pnlPct)})` : <TextSkeleton className="w-16" />}
               </span>
             </div>
           </button>
@@ -122,7 +127,7 @@ export default function HoldingsTable({
         <thead>
           <tr className="border-b border-border text-xs uppercase tracking-wide text-muted">
             <SortHeader label="Symbol" sortKey="symbol" sort={sort} onSort={onSort} align="left" />
-            <SortHeader label="Shares" sortKey="qty" sort={sort} onSort={onSort} />
+            <SortHeader label={isCrypto ? "Amount" : "Shares"} sortKey="qty" sort={sort} onSort={onSort} />
             <SortHeader label="Avg cost" sortKey="avg" sort={sort} onSort={onSort} />
             <SortHeader label="Price" sortKey="price" sort={sort} onSort={onSort} />
             <SortHeader label="Day %" sortKey="dayPct" sort={sort} onSort={onSort} />
@@ -148,16 +153,16 @@ export default function HoldingsTable({
               </td>
               <td className="px-2.5 py-3 text-right">{formatNumber(qty)}</td>
               <td className="px-2.5 py-3 text-right">{formatCurrency(avg)}</td>
-              <td className="px-2.5 py-3 text-right">{q ? formatCurrency(price) : "…"}</td>
+              <td className="px-2.5 py-3 text-right">{q ? <FlashValue value={price}>{formatCurrency(price)}</FlashValue> : <TextSkeleton className="w-12" />}</td>
               <td className={`px-2.5 py-3 text-right ${changeColor(dayPct)}`} title={q ? `${formatSignedCurrency(dayUsd)} today` : undefined}>
-                {q ? formatPercent(dayPct) : "…"}
+                {q ? formatPercent(dayPct) : <TextSkeleton className="w-10" />}
               </td>
-              <td className="px-2.5 py-3 text-right">{q ? formatCurrency(mktValue) : "…"}</td>
+              <td className="px-2.5 py-3 text-right">{q ? formatCurrency(mktValue) : <TextSkeleton className="w-14" />}</td>
               <td className={`px-2.5 py-3 text-right font-medium ${q ? changeColor(pnl) : ""}`}>
-                {q ? formatSignedCurrency(pnl) : "…"}
+                {q ? formatSignedCurrency(pnl) : <TextSkeleton className="w-14" />}
               </td>
               <td className={`px-2.5 py-3 text-right ${q ? changeColor(pnlPct) : ""}`}>
-                {q ? formatPercent(pnlPct) : "…"}
+                {q ? formatPercent(pnlPct) : <TextSkeleton className="w-10" />}
               </td>
             </tr>
           ))}

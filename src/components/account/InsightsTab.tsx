@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import type { Position, Quote } from "@/lib/types";
 import { formatCurrency, formatPercent, changeColor } from "@/lib/format";
 import PerformanceCard from "./PerformanceCard";
+import { symbolLabel } from "@/lib/assets";
 
 const COLORS = [
   "#3b82f6", "#22c55e", "#f59e0b", "#a855f7", "#ec4899",
@@ -105,7 +106,7 @@ export default function InsightsTab({
             >
               <span className="flex items-center gap-2">
                 <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: s.color }} />
-                <span className="font-medium">{s.label}</span>
+                <span className="font-medium">{symbolLabel(s.label)}</span>
               </span>
               <span className="text-muted">
                 {formatCurrency(s.value)} · {s.pct.toFixed(1)}%
@@ -147,7 +148,7 @@ export default function InsightsTab({
                 onClick={() => onSelect(s.label)}
                 className="flex items-center justify-between rounded-md px-2 py-0.5 text-xs text-muted hover:bg-background hover:text-foreground"
               >
-                <span>{s.label}</span>
+                <span>{symbolLabel(s.label)}</span>
                 <span>
                   {formatCurrency(s.value)} · {s.pct.toFixed(1)}%
                 </span>
@@ -204,7 +205,7 @@ function Perf({
             onClick={() => onSelect(r.symbol)}
             className="flex w-full items-center justify-between rounded-md px-2 py-1 text-sm hover:bg-background"
           >
-            <span className="font-medium">{r.symbol}</span>
+            <span className="font-medium">{symbolLabel(r.symbol)}</span>
             <span className={changeColor(r.pnlPct)}>{formatPercent(r.pnlPct)}</span>
           </button>
         ))}

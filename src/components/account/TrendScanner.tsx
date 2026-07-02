@@ -9,6 +9,7 @@ import ScannerStatusBadges from "./ScannerStatusBadges";
 import { SettingsSection, Field, PercentSlider } from "./ScannerSettingsUI";
 import InfoTooltip from "./InfoTooltip";
 import { useUnsavedGuard, confirmDiscardUnsaved, UnsavedBadge } from "./UnsavedChanges";
+import { useToast } from "@/components/Toast";
 import SymbolSearch from "@/components/SymbolSearch";
 import { marketUniverse, symbolLabel, assetTypeError } from "@/lib/assets";
 import { FX_PAIRS } from "@/lib/forex";
@@ -51,6 +52,7 @@ export default function TrendScanner({
   accountSelector?: ReactNode;
 }) {
   const router = useRouter();
+  const toast = useToast();
   const universe = marketUniverse(accountType);
   const [settings, setSettings] = useState<TrendSettings | null>(initialSettings);
   const [signals, setSignals] = useState<TrendSignal[]>(initialSignals);
@@ -164,7 +166,7 @@ export default function TrendScanner({
     try {
       const res = await refreshTrendRead(accountId);
       if (res.error) {
-        alert(res.error);
+        toast(res.error, "error");
         return;
       }
       const data = await getTrendData(accountId);
@@ -173,7 +175,7 @@ export default function TrendScanner({
         setSignals(data.signals);
       }
     } catch (e) {
-      alert(`Scan failed: ${(e as Error).message}`);
+      toast(`Scan failed: ${(e as Error).message}`, "error");
     } finally {
       setScanning(false);
     }
@@ -209,7 +211,7 @@ export default function TrendScanner({
         }
         router.refresh();
       } else {
-        alert(res.error);
+        toast(res.error ?? "Could not save settings", "error");
       }
     });
 

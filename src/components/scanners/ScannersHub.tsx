@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
+import Modal from "@/components/Modal";
 import { useRouter } from "next/navigation";
 import { deactivateScanner } from "@/app/dashboard/scanners/actions";
 import AiScanner, { type AutoSettings } from "@/components/account/AiScanner";
@@ -400,9 +401,12 @@ function StrategyBlock({
 
   const scannerName = SCANNER_DEFS.find((d) => d.key === scannerKey)?.name ?? "this scanner";
 
-  async function deactivate(id: string, accountName: string) {
-    // Deactivating stops a (possibly auto-trading) strategy — never on a stray tap.
-    if (!window.confirm(`Turn off ${scannerName} for "${accountName}"? It will stop scanning and trading on that account.`)) return;
+  // Deactivating stops a (possibly auto-trading) strategy — never on a stray
+  // tap, so the × opens a styled confirm dialog first.
+  const [confirmFor, setConfirmFor] = useState<{ id: string; name: string } | null>(null);
+
+  async function deactivate(id: string) {
+    setConfirmFor(null);
     setBusy(id);
     await deactivateScanner(id, scannerKey);
     setBusy(null);
@@ -456,7 +460,7 @@ function StrategyBlock({
             >
               {a.name} ({a.type})
               <button
-                onClick={() => deactivate(a.id, a.name)}
+                onClick={() => setConfirmFor({ id: a.id, name: a.name })}
                 disabled={busy === a.id}
                 aria-label={`Deactivate for ${a.name}`}
                 title="Deactivate for this account"
@@ -470,6 +474,30 @@ function StrategyBlock({
       )}
       {/* key forces a clean remount (state + polling) when switching accounts */}
       <div key={selected.id}>{render(selected, accountSelector)}</div>
+
+      {confirmFor && (
+        <Modal title={`Turn off ${scannerName}?`} onClose={() => setConfirmFor(null)}>
+          <p className="text-sm text-muted">
+            {scannerName} will stop scanning and trading on{" "}
+            <span className="font-medium text-foreground">{confirmFor.name}</span>. Open positions
+            stay open — only new signals stop. You can re-enable it anytime.
+          </p>
+          <div className="mt-5 flex gap-2">
+            <button
+              onClick={() => setConfirmFor(null)}
+              className="flex-1 rounded-lg border border-border py-2.5 text-sm font-medium hover:bg-background"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => deactivate(confirmFor.id)}
+              className="flex-1 rounded-lg bg-negative py-2.5 text-sm font-semibold text-white hover:opacity-90"
+            >
+              Turn off
+            </button>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }

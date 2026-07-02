@@ -9,6 +9,7 @@ import ForexPanel from "./ForexPanel";
 import ForexPerformance from "./ForexPerformance";
 import ScannerIcon from "@/components/ScannerIcon";
 import EquitySpark from "./EquitySpark";
+import { TextSkeleton } from "@/components/Skeleton";
 import LeveragePanel from "./LeveragePanel";
 import AiScanner, { type AutoSettings } from "./AiScanner";
 import SmcScanner from "./SmcScanner";
@@ -369,11 +370,11 @@ export default function AccountView({
           </div>
           {isForex ? (
             <div className={`text-sm font-medium ${fxQuotesLoading ? "text-muted" : changeColor(fxFloating)}`}>
-              {fxQuotesLoading ? "…" : formatSignedCurrency(fxFloating)} floating P&L
+              {fxQuotesLoading ? <TextSkeleton className="w-16" /> : formatSignedCurrency(fxFloating)} floating P&L
             </div>
           ) : (
             <div className={`text-sm font-medium ${quotesLoading ? "text-muted" : changeColor(todayPnl)}`}>
-              {quotesLoading ? "…" : `${formatSignedCurrency(todayPnl)} (${formatPercent(todayPnlPct)})`} today
+              {quotesLoading ? <TextSkeleton className="w-28" /> : `${formatSignedCurrency(todayPnl)} (${formatPercent(todayPnlPct)})`} today
             </div>
           )}
         </div>
@@ -384,7 +385,7 @@ export default function AccountView({
               <Stat label="Margin in use" value={formatCurrency(fxMargin)} />
               <Stat
                 label="Floating P&L"
-                value={fxQuotesLoading ? "…" : formatSignedCurrency(fxFloating)}
+                value={fxQuotesLoading ? <TextSkeleton className="w-16" /> : formatSignedCurrency(fxFloating)}
                 colorClass={fxQuotesLoading ? "text-muted" : changeColor(fxFloating)}
               />
               <Stat
@@ -398,14 +399,14 @@ export default function AccountView({
               <Stat label="Buying power" value={formatCurrency(cash)} onAdd={() => setCashModal("DEPOSIT")} />
               <Stat
                 label="Holdings value"
-                value={quotesLoading ? "…" : formatCurrency(holdingsValue)}
+                value={quotesLoading ? <TextSkeleton className="w-20" /> : formatCurrency(holdingsValue)}
                 onChart={positions.length ? () => setMetricChart("holdings") : undefined}
               />
               <Stat
                 label="Today's P&L"
                 value={
                   quotesLoading
-                    ? "…"
+                    ? <TextSkeleton className="w-24" />
                     : `${formatSignedCurrency(todayPnl)} (${formatPercent(todayPnlPct)})`
                 }
                 colorClass={quotesLoading ? "text-muted" : changeColor(todayPnl)}
@@ -414,7 +415,7 @@ export default function AccountView({
                 label="Unrealized P&L · vs cost"
                 value={
                   quotesLoading
-                    ? "…"
+                    ? <TextSkeleton className="w-24" />
                     : costBasis > 0
                       ? `${formatSignedCurrency(totalPnl + fxFloating)} (${formatPercent(totalPnlPct)})`
                       : formatSignedCurrency(totalPnl + fxFloating)
@@ -608,6 +609,7 @@ export default function AccountView({
             positions={positions.filter((p) => p.symbol.toLowerCase().includes(filter.toLowerCase()))}
             quotes={quotes}
             sparks={rowSparks}
+            accountType={account.type}
             onSelect={selectSymbol}
           />
         )}
@@ -749,7 +751,7 @@ function Stat({
   onAdd,
 }: {
   label: string;
-  value: string;
+  value: React.ReactNode;
   colorClass?: string;
   onChart?: () => void;
   onAdd?: () => void;

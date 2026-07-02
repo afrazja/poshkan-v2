@@ -9,6 +9,7 @@ import ScannerStatusBadges from "./ScannerStatusBadges";
 import { SettingsSection, Field, PercentSlider } from "./ScannerSettingsUI";
 import InfoTooltip from "./InfoTooltip";
 import { useUnsavedGuard, confirmDiscardUnsaved, UnsavedBadge } from "./UnsavedChanges";
+import { useToast } from "@/components/Toast";
 import SymbolSearch from "@/components/SymbolSearch";
 import { marketUniverse, symbolLabel, assetTypeError } from "@/lib/assets";
 import { FX_PAIRS } from "@/lib/forex";
@@ -51,6 +52,7 @@ export default function OteScanner({
   accountSelector?: ReactNode;
 }) {
   const router = useRouter();
+  const toast = useToast();
   const universe = marketUniverse(accountType);
   const [settings, setSettings] = useState<OteSettings | null>(initialSettings);
   const [signals, setSignals] = useState<OteSignal[]>(initialSignals);
@@ -145,7 +147,7 @@ export default function OteScanner({
     try {
       const res = await refreshOteRead(accountId);
       if (res.error) {
-        alert(res.error);
+        toast(res.error, "error");
         return;
       }
       const data = await getOteData(accountId);
@@ -154,7 +156,7 @@ export default function OteScanner({
         setSignals(data.signals);
       }
     } catch (e) {
-      alert(`Scan failed: ${(e as Error).message}`);
+      toast(`Scan failed: ${(e as Error).message}`, "error");
     } finally {
       setScanning(false);
     }
@@ -186,7 +188,7 @@ export default function OteScanner({
         }
         router.refresh();
       } else {
-        alert(res.error);
+        toast(res.error ?? "Could not save settings", "error");
       }
     });
 

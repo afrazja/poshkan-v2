@@ -7,6 +7,8 @@ import { symbolLabel } from "@/lib/assets";
 import SortHeader, { nextSort, type SortState } from "./SortHeader";
 import { AlertForm } from "./SymbolPanel";
 import Sparkline from "@/components/Sparkline";
+import { TextSkeleton } from "@/components/Skeleton";
+import FlashValue from "@/components/FlashValue";
 
 export default function WatchlistTable({
   items,
@@ -82,8 +84,8 @@ export default function WatchlistTable({
                   )}
                 </div>
                 <div className="text-xs text-muted">
-                  {q ? formatCurrency(price) : "…"} ·{" "}
-                  <span className={changeColor(dayPct)}>{q ? formatPercent(dayPct) : "…"}</span>
+                  {q ? formatCurrency(price) : <TextSkeleton className="w-12" />} ·{" "}
+                  <span className={changeColor(dayPct)}>{q ? formatPercent(dayPct) : <TextSkeleton className="w-10" />}</span>
                 </div>
               </button>
               <button
@@ -132,9 +134,9 @@ export default function WatchlistTable({
                   )}
                 </span>
               </td>
-              <td className="px-4 py-3 text-right">{q ? formatCurrency(price) : "…"}</td>
+              <td className="px-4 py-3 text-right">{q ? <FlashValue value={price}>{formatCurrency(price)}</FlashValue> : <TextSkeleton className="w-12" />}</td>
               <td className={`px-4 py-3 text-right ${changeColor(dayPct)}`}>
-                {q ? formatPercent(dayPct) : "…"}
+                {q ? formatPercent(dayPct) : <TextSkeleton className="w-10" />}
               </td>
               <td className="px-4 py-3">
                 <div className="flex items-center justify-end gap-2.5">

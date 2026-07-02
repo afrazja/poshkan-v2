@@ -9,6 +9,7 @@ import ScannerStatusBadges from "./ScannerStatusBadges";
 import { SettingsSection, Field, PercentSlider } from "./ScannerSettingsUI";
 import InfoTooltip from "./InfoTooltip";
 import { useUnsavedGuard, confirmDiscardUnsaved, UnsavedBadge } from "./UnsavedChanges";
+import { useToast } from "@/components/Toast";
 import SymbolSearch from "@/components/SymbolSearch";
 import { marketUniverse, symbolLabel, assetTypeError } from "@/lib/assets";
 import { FX_PAIRS } from "@/lib/forex";
@@ -51,6 +52,7 @@ export default function SmcScanner({
   accountSelector?: ReactNode;
 }) {
   const router = useRouter();
+  const toast = useToast();
   const universe = marketUniverse(accountType);
   const [settings, setSettings] = useState<SmcSettings | null>(initialSettings);
   const [signals, setSignals] = useState<SmcSignal[]>(initialSignals);
@@ -82,7 +84,7 @@ export default function SmcScanner({
     try {
       const res = await refreshSmcRead(accountId);
       if (res.error) {
-        alert(res.error);
+        toast(res.error, "error");
         return;
       }
       const data = await getSmcData(accountId);
@@ -91,7 +93,7 @@ export default function SmcScanner({
         setSignals(data.signals);
       }
     } catch (e) {
-      alert(`Scan failed: ${(e as Error).message}`);
+      toast(`Scan failed: ${(e as Error).message}`, "error");
     } finally {
       setScanning(false);
     }
@@ -191,7 +193,7 @@ export default function SmcScanner({
         }
         router.refresh(); // refresh the account's active-scanner indicator
       } else {
-        alert(res.error);
+        toast(res.error ?? "Could not save settings", "error");
       }
     });
 
