@@ -125,6 +125,18 @@ export default async function DashboardPage() {
     ensure(id).realized += realizedPnl(list);
   }
 
+  // 14-day equity sparkline per account, from the nightly snapshots.
+  const sparkCutoff = new Date(Date.now() - 14 * 86_400_000).toISOString().slice(0, 10);
+  const { data: sparkSnaps } = await supabase
+    .from("account_snapshots")
+    .select("account_id, snapshot_date, total_value")
+    .gte("snapshot_date", sparkCutoff)
+    .order("snapshot_date", { ascending: true });
+  const sparks: Record<string, number[]> = {};
+  for (const s of (sparkSnaps ?? []) as { account_id: string; total_value: number }[]) {
+    (sparks[s.account_id] ??= []).push(Number(s.total_value));
+  }
+
   return (
     <div>
       <div className="mb-6">
@@ -135,7 +147,7 @@ export default async function DashboardPage() {
       </div>
       {checks.hasAccount ? <GettingStarted checks={checks} /> : <WelcomeHero />}
       <AlertsCard alerts={(alerts ?? []) as Alert[]} />
-      <AccountsGrid accounts={(accounts ?? []) as Account[]} summary={summary} />
+      <AccountsGrid accounts={(accounts ?? []) as Account[]} summary={summary} sparks={sparks} />
     </div>
   );
 }

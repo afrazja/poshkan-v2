@@ -8,6 +8,7 @@ import { FX_PAIRS, floatingPnl } from "@/lib/forex";
 import ForexPanel from "./ForexPanel";
 import ForexPerformance from "./ForexPerformance";
 import ScannerIcon from "@/components/ScannerIcon";
+import EquitySpark from "./EquitySpark";
 import LeveragePanel from "./LeveragePanel";
 import AiScanner, { type AutoSettings } from "./AiScanner";
 import SmcScanner from "./SmcScanner";
@@ -348,13 +349,16 @@ export default function AccountView({
       {/* Portfolio summary (always visible) */}
       <div className="rounded-2xl border border-border bg-card p-5">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <div>
-            <div className="text-3xl font-bold">
-              {formatCurrency(isForex ? fxEquity : totalValue + fxMargin + fxFloating)}
+          <div className="flex items-center gap-5">
+            <div>
+              <div className="text-3xl font-bold">
+                {formatCurrency(isForex ? fxEquity : totalValue + fxMargin + fxFloating)}
+              </div>
+              <div className="text-xs capitalize text-muted">
+                {account.type} account · {isForex ? "equity" : "total value"}
+              </div>
             </div>
-            <div className="text-xs capitalize text-muted">
-              {account.type} account · {isForex ? "equity" : "total value"}
-            </div>
+            <EquitySpark accountId={account.id} />
           </div>
           {isForex ? (
             <div className={`text-sm font-medium ${fxQuotesLoading ? "text-muted" : changeColor(fxFloating)}`}>

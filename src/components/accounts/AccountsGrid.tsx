@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import type { Account } from "@/lib/types";
 import { formatCurrency, formatSignedCurrency, formatPercent, changeColor } from "@/lib/format";
 import CreateAccountModal from "./CreateAccountModal";
+import Sparkline from "@/components/Sparkline";
 import CashModal from "@/components/account/CashModal";
 import Modal from "@/components/Modal";
 import { renameAccountAction, deleteAccountAction, setAccountNotifyAction } from "@/app/dashboard/[accountId]/actions";
@@ -13,8 +14,10 @@ import { renameAccountAction, deleteAccountAction, setAccountNotifyAction } from
 export default function AccountsGrid({
   accounts,
   summary,
+  sparks = {},
 }: {
   accounts: Account[];
+  sparks?: Record<string, number[]>;
   summary: Record<
     string,
     {
@@ -134,7 +137,12 @@ export default function AccountsGrid({
                     {acc.type}
                   </span>
                 </div>
-                <div className="text-2xl font-bold">{formatCurrency(total)}</div>
+                <div className="flex items-end justify-between gap-3">
+                  <div className="text-2xl font-bold">{formatCurrency(total)}</div>
+                  {(sparks[acc.id]?.length ?? 0) >= 2 && (
+                    <Sparkline values={sparks[acc.id]} width={92} height={30} className="mb-0.5" />
+                  )}
+                </div>
                 <div className="mt-1 flex items-center gap-2 text-xs">
                   <span className="text-muted">account value</span>
                   {isForex ? (
