@@ -89,7 +89,7 @@ export default function HoldingsTable({
           >
             <div className="flex items-center justify-between">
               <span className="font-semibold">{p.symbol}</span>
-              <span className="font-semibold">{formatCurrency(mktValue)}</span>
+              <span className="font-semibold">{q ? formatCurrency(mktValue) : "…"}</span>
             </div>
             <div className="mt-1 flex items-center justify-between text-xs text-muted">
               <span>{formatNumber(qty)} sh · avg {formatCurrency(avg)}</span>
@@ -99,8 +99,8 @@ export default function HoldingsTable({
             </div>
             <div className="mt-1 flex items-center justify-between text-sm">
               <span className="text-muted">{q ? formatCurrency(price) : "…"}</span>
-              <span className={`font-medium ${changeColor(pnl)}`}>
-                {formatSignedCurrency(pnl)} ({formatPercent(pnlPct)})
+              <span className={`font-medium ${q ? changeColor(pnl) : ""}`}>
+                {q ? `${formatSignedCurrency(pnl)} (${formatPercent(pnlPct)})` : "…"}
               </span>
             </div>
           </button>
@@ -140,12 +140,12 @@ export default function HoldingsTable({
               <td className={`px-4 py-3 text-right ${changeColor(dayUsd)}`}>
                 {q ? formatSignedCurrency(dayUsd) : "…"}
               </td>
-              <td className="px-4 py-3 text-right">{formatCurrency(mktValue)}</td>
-              <td className={`px-4 py-3 text-right font-medium ${changeColor(pnl)}`}>
-                {formatSignedCurrency(pnl)}
+              <td className="px-4 py-3 text-right">{q ? formatCurrency(mktValue) : "…"}</td>
+              <td className={`px-4 py-3 text-right font-medium ${q ? changeColor(pnl) : ""}`}>
+                {q ? formatSignedCurrency(pnl) : "…"}
               </td>
-              <td className={`px-4 py-3 text-right ${changeColor(pnlPct)}`}>
-                {formatPercent(pnlPct)}
+              <td className={`px-4 py-3 text-right ${q ? changeColor(pnlPct) : ""}`}>
+                {q ? formatPercent(pnlPct) : "…"}
               </td>
             </tr>
           ))}

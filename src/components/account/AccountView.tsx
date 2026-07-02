@@ -141,7 +141,7 @@ export default function AccountView({
     return Array.from(s);
   }, [positions, watchlist, orders, selected, tab, isForex, fxPositions]);
 
-  const { data: quotes = {} } = useQuotes(symbols);
+  const { data: quotes = {}, isPending: quotesPending } = useQuotes(symbols);
 
   // Auto-fill pending limit orders when the live price crosses the limit.
   // (Runs while the account page is open; a guard prevents double-firing.)
@@ -192,6 +192,11 @@ export default function AccountView({
     .filter((p) => p.status !== "open")
     .reduce((s, p) => s + Number(p.pnl ?? 0), 0);
   const fxEquity = cash + fxMargin + fxFloating;
+
+  // While quotes are on their first load, P&L figures compute to $0.00 from the
+  // cost-basis fallbacks — show "…" instead of rendering zeros as if real.
+  const quotesLoading = quotesPending && positions.length > 0;
+  const fxQuotesLoading = quotesPending && fxOpen.length > 0;
 
   const todayPnl = positions.reduce((sum, p) => {
     const q = quotes[p.symbol.toUpperCase()];
@@ -378,12 +383,12 @@ export default function AccountView({
             </div>
           </div>
           {isForex ? (
-            <div className={`text-sm font-medium ${changeColor(fxFloating)}`}>
-              {formatSignedCurrency(fxFloating)} floating P&L
+            <div className={`text-sm font-medium ${fxQuotesLoading ? "text-muted" : changeColor(fxFloating)}`}>
+              {fxQuotesLoading ? "…" : formatSignedCurrency(fxFloating)} floating P&L
             </div>
           ) : (
-            <div className={`text-sm font-medium ${changeColor(todayPnl)}`}>
-              {formatSignedCurrency(todayPnl)} ({formatPercent(todayPnlPct)}) today
+            <div className={`text-sm font-medium ${quotesLoading ? "text-muted" : changeColor(todayPnl)}`}>
+              {quotesLoading ? "…" : `${formatSignedCurrency(todayPnl)} (${formatPercent(todayPnlPct)})`} today
             </div>
           )}
         </div>
@@ -394,8 +399,8 @@ export default function AccountView({
               <Stat label="Margin in use" value={formatCurrency(fxMargin)} />
               <Stat
                 label="Floating P&L"
-                value={formatSignedCurrency(fxFloating)}
-                colorClass={changeColor(fxFloating)}
+                value={fxQuotesLoading ? "…" : formatSignedCurrency(fxFloating)}
+                colorClass={fxQuotesLoading ? "text-muted" : changeColor(fxFloating)}
               />
               <Stat
                 label="Realized P&L"
@@ -408,22 +413,28 @@ export default function AccountView({
               <Stat label="Buying power" value={formatCurrency(cash)} onAdd={() => setCashModal("DEPOSIT")} />
               <Stat
                 label="Holdings value"
-                value={formatCurrency(holdingsValue)}
+                value={quotesLoading ? "…" : formatCurrency(holdingsValue)}
                 onChart={positions.length ? () => setMetricChart("holdings") : undefined}
               />
               <Stat
                 label="Today's P&L"
-                value={`${formatSignedCurrency(todayPnl)} (${formatPercent(todayPnlPct)})`}
-                colorClass={changeColor(todayPnl)}
+                value={
+                  quotesLoading
+                    ? "…"
+                    : `${formatSignedCurrency(todayPnl)} (${formatPercent(todayPnlPct)})`
+                }
+                colorClass={quotesLoading ? "text-muted" : changeColor(todayPnl)}
               />
               <Stat
                 label="Unrealized P&L"
                 value={
-                  costBasis > 0
-                    ? `${formatSignedCurrency(totalPnl + fxFloating)} (${formatPercent(totalPnlPct)})`
-                    : formatSignedCurrency(totalPnl + fxFloating)
+                  quotesLoading
+                    ? "…"
+                    : costBasis > 0
+                      ? `${formatSignedCurrency(totalPnl + fxFloating)} (${formatPercent(totalPnlPct)})`
+                      : formatSignedCurrency(totalPnl + fxFloating)
                 }
-                colorClass={changeColor(totalPnl + fxFloating)}
+                colorClass={quotesLoading ? "text-muted" : changeColor(totalPnl + fxFloating)}
                 onChart={positions.length ? () => setMetricChart("pnl") : undefined}
               />
               <Stat
