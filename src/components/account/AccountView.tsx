@@ -465,17 +465,6 @@ export default function AccountView({
       </div>
       )}
 
-      {/* Leveraged long/short (shorting) for stock & crypto accounts */}
-      {!isForex && (
-        <LeveragePanel
-          accountId={account.id}
-          accountType={account.type}
-          cash={cash}
-          positions={fxPositions}
-          quotes={quotes}
-        />
-      )}
-
       {/* Selected symbol detail popup */}
       {!isForex && selected && (
         <Modal title={selected.symbol} onClose={() => setSelected(null)} wide>
@@ -493,8 +482,23 @@ export default function AccountView({
         </Modal>
       )}
 
+      {/* Desktop: two columns — tables/insights in the main column, the trading
+          rail (long/short + pending orders) on the right. Mobile: stacks in the
+          familiar order (leverage → orders → tabs). */}
+      {!isForex && (
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3 lg:items-start">
+        <div className="min-w-0 space-y-6 lg:order-2 lg:col-span-1">
+      {/* Leveraged long/short (shorting) for stock & crypto accounts */}
+      <LeveragePanel
+        accountId={account.id}
+        accountType={account.type}
+        cash={cash}
+        positions={fxPositions}
+        quotes={quotes}
+      />
+
       {/* Pending limit orders */}
-      {!isForex && orders.length > 0 && (
+      {orders.length > 0 && (
         <div className="rounded-2xl border border-border bg-card p-4">
           <h2 className="mb-2 text-sm font-semibold">Pending limit orders</h2>
           <div className="space-y-2">
@@ -531,9 +535,10 @@ export default function AccountView({
           </p>
         </div>
       )}
+        </div>
 
+        <div className="min-w-0 lg:order-1 lg:col-span-2">
       {/* Holdings / Watchlist / History tabs */}
-      {!isForex && (
       <section id="account-tabs" className="scroll-mt-20">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <div className="flex flex-wrap gap-1 rounded-lg border border-border bg-card p-1">
@@ -638,6 +643,8 @@ export default function AccountView({
           />
         )}
       </section>
+        </div>
+      </div>
       )}
 
       {trade && (
