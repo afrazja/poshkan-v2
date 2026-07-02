@@ -19,7 +19,13 @@ interface Row {
 
 const MEDALS = ["🥇", "🥈", "🥉"];
 
-export default async function LeaderboardPage() {
+export default async function LeaderboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ view?: string }>;
+}) {
+  const { view } = await searchParams;
+  const showAll = view === "all";
   const supabase = await createClient();
   const {
     data: { user },
@@ -78,17 +84,52 @@ export default async function LeaderboardPage() {
     }
   }
 
+  // Default view: one entry per trader (their best account), so the board shows
+  // real competition instead of one user's account collection filling the top.
+  const accountCount = new Map<string, number>();
+  for (const r of rows) accountCount.set(r.user_id, (accountCount.get(r.user_id) ?? 0) + 1);
+  let ranked = rows;
+  if (!showAll) {
+    const seen = new Set<string>();
+    ranked = rows.filter((r) => {
+      if (seen.has(r.user_id)) return false; // rows are sorted best-first
+      seen.add(r.user_id);
+      return true;
+    });
+  }
+
   return (
     <div>
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">🏆 Leaderboard</h1>
           <p className="text-sm text-muted">
-            All accounts ranked by % return on the money put in, at live market prices.
+            {showAll
+              ? "All accounts ranked by % return on the money put in, at live market prices."
+              : "Traders ranked by their best account's % return, at live market prices."}
           </p>
         </div>
         <Link href="/dashboard" className="text-sm text-muted hover:text-foreground hover:underline">
           ← Your accounts
+        </Link>
+      </div>
+
+      <div className="mb-4 flex items-center gap-1.5 text-xs">
+        <Link
+          href="/dashboard/leaderboard"
+          className={`rounded-full border px-3 py-1 font-medium ${
+            !showAll ? "border-primary bg-primary/10 text-primary" : "border-border text-muted hover:text-foreground"
+          }`}
+        >
+          Top per trader
+        </Link>
+        <Link
+          href="/dashboard/leaderboard?view=all"
+          className={`rounded-full border px-3 py-1 font-medium ${
+            showAll ? "border-primary bg-primary/10 text-primary" : "border-border text-muted hover:text-foreground"
+          }`}
+        >
+          All accounts
         </Link>
       </div>
 
@@ -114,8 +155,9 @@ export default async function LeaderboardPage() {
               </tr>
             </thead>
             <tbody>
-              {rows.map((r, i) => {
+              {ranked.map((r, i) => {
                 const mine = user && r.user_id === user.id;
+                const others = (accountCount.get(r.user_id) ?? 1) - 1;
                 return (
                   <tr
                     key={r.account_id}
@@ -131,6 +173,11 @@ export default async function LeaderboardPage() {
                       <span className="ml-2 rounded-md bg-background px-2 py-0.5 text-xs capitalize text-muted">
                         {r.account_type}
                       </span>
+                      {!showAll && others > 0 && (
+                        <span className="ml-2 whitespace-nowrap text-xs text-muted">
+                          best of {others + 1}
+                        </span>
+                      )}
                     </td>
                     <td className={`px-4 py-3 text-right font-semibold ${changeColor(Number(r.return_pct))}`}>
                       {formatPercent(Number(r.return_pct))}
