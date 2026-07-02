@@ -25,7 +25,7 @@ export default function SortHeader({
 }) {
   const active = sort?.key === sortKey;
   return (
-    <th className={`px-4 py-3 font-medium ${align === "right" ? "text-right" : "text-left"}`}>
+    <th className={`px-2.5 py-3 font-medium ${align === "right" ? "text-right" : "text-left"}`}>
       <button
         type="button"
         onClick={() => onSort(sortKey)}

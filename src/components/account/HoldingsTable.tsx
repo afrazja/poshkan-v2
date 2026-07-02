@@ -118,7 +118,7 @@ export default function HoldingsTable({
 
       {/* Desktop: full sortable table */}
       <div className="hidden overflow-x-auto rounded-2xl border border-border bg-card sm:block">
-      <table className="w-full min-w-[860px] text-sm">
+      <table className="w-full min-w-[680px] text-sm">
         <thead>
           <tr className="border-b border-border text-xs uppercase tracking-wide text-muted">
             <SortHeader label="Symbol" sortKey="symbol" sort={sort} onSort={onSort} align="left" />
@@ -139,28 +139,28 @@ export default function HoldingsTable({
               onClick={() => onSelect(p.symbol)}
               className="cursor-pointer border-b border-border last:border-0 hover:bg-background"
             >
-              <td className="px-4 py-3 font-semibold">
+              <td className="px-2.5 py-3 font-semibold">
                 <span className="flex items-center gap-2.5">
                   {symbolLabel(p.symbol)}
                   {sparks[p.symbol.toUpperCase()] && (
-                    <Sparkline values={sparks[p.symbol.toUpperCase()]} width={56} height={18} className="opacity-90" />
+                    <Sparkline values={sparks[p.symbol.toUpperCase()]} width={44} height={16} className="opacity-90" />
                   )}
                 </span>
               </td>
-              <td className="px-4 py-3 text-right">{formatNumber(qty)}</td>
-              <td className="px-4 py-3 text-right">{formatCurrency(avg)}</td>
-              <td className="px-4 py-3 text-right">{q ? formatCurrency(price) : "…"}</td>
-              <td className={`px-4 py-3 text-right ${changeColor(dayPct)}`}>
+              <td className="px-2.5 py-3 text-right">{formatNumber(qty)}</td>
+              <td className="px-2.5 py-3 text-right">{formatCurrency(avg)}</td>
+              <td className="px-2.5 py-3 text-right">{q ? formatCurrency(price) : "…"}</td>
+              <td className={`px-2.5 py-3 text-right ${changeColor(dayPct)}`}>
                 {q ? formatPercent(dayPct) : "…"}
               </td>
-              <td className={`px-4 py-3 text-right ${changeColor(dayUsd)}`}>
+              <td className={`px-2.5 py-3 text-right ${changeColor(dayUsd)}`}>
                 {q ? formatSignedCurrency(dayUsd) : "…"}
               </td>
-              <td className="px-4 py-3 text-right">{q ? formatCurrency(mktValue) : "…"}</td>
-              <td className={`px-4 py-3 text-right font-medium ${q ? changeColor(pnl) : ""}`}>
+              <td className="px-2.5 py-3 text-right">{q ? formatCurrency(mktValue) : "…"}</td>
+              <td className={`px-2.5 py-3 text-right font-medium ${q ? changeColor(pnl) : ""}`}>
                 {q ? formatSignedCurrency(pnl) : "…"}
               </td>
-              <td className={`px-4 py-3 text-right ${q ? changeColor(pnlPct) : ""}`}>
+              <td className={`px-2.5 py-3 text-right ${q ? changeColor(pnlPct) : ""}`}>
                 {q ? formatPercent(pnlPct) : "…"}
               </td>
             </tr>
