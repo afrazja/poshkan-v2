@@ -314,15 +314,18 @@ export default async function LandingPage({
             <MarketChip label="Forex" />
           </div>
 
-          {/* The library */}
+          {/* The library — each tile links to its public strategy explainer */}
           <div className="mt-8 grid grid-cols-1 gap-4 text-left sm:grid-cols-2 lg:grid-cols-3">
-            <ScannerTile icon="🤖" title="AI Scanner" text="Claude reads the market and your plain-English rules to decide trades." />
-            <ScannerTile icon="📈" title="Smart Money Concepts" text="Order-block and fair-value-gap retests, confirmed before entry." />
-            <ScannerTile icon="🎯" title="Optimal Trade Entry" text="Fibonacci pullbacks into the OTE zone of an established trend." />
-            <ScannerTile icon="🚀" title="Trend Breakout" text="Confirmed breakouts with ADX strength and room left to run." />
-            <ScannerTile icon="↩️" title="Mean Reversion" text="Fades stretched moves back toward the middle of the band." />
-            <ScannerTile icon="📦" title="Candle Range" text="Buys support and sells resistance inside a price box." />
+            <ScannerTile href="/strategies/ai-scanner" icon="🤖" title="AI Scanner" text="Claude reads the market and your plain-English rules to decide trades." />
+            <ScannerTile href="/strategies/smart-money-concepts" icon="📈" title="Smart Money Concepts" text="Order-block and fair-value-gap retests, confirmed before entry." />
+            <ScannerTile href="/strategies/optimal-trade-entry" icon="🎯" title="Optimal Trade Entry" text="Fibonacci pullbacks into the OTE zone of an established trend." />
+            <ScannerTile href="/strategies/trend-breakout" icon="🚀" title="Trend Breakout" text="Confirmed breakouts with ADX strength and room left to run." />
+            <ScannerTile href="/strategies/mean-reversion" icon="↩️" title="Mean Reversion" text="Fades stretched moves back toward the middle of the band." />
+            <ScannerTile href="/strategies/candle-range" icon="📦" title="Candle Range" text="Buys support and sells resistance inside a price box." />
           </div>
+          <p className="mt-4 text-xs text-muted">
+            Tap any strategy to read how it works in plain English.
+          </p>
 
           {/* Backtest → alert → auto-trade */}
           <div className="mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-muted">
@@ -489,13 +492,13 @@ function Alternative({ title, point, catchLine }: { title: string; point: string
   );
 }
 
-function ScannerTile({ icon, title, text }: { icon: string; title: string; text: string }) {
+function ScannerTile({ href, icon, title, text }: { href: string; icon: string; title: string; text: string }) {
   return (
-    <div className="rounded-2xl border border-border bg-background p-5">
+    <a href={href} className="rounded-2xl border border-border bg-background p-5 transition hover:border-primary/50">
       <div className="text-2xl">{icon}</div>
       <h3 className="mt-2 font-semibold">{title}</h3>
       <p className="mt-1 text-sm leading-relaxed text-muted">{text}</p>
-    </div>
+    </a>
   );
 }
 
