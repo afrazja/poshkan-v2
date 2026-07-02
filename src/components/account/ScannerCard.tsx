@@ -13,7 +13,7 @@ export default function ScannerCard({
   confirmClose,
   children,
 }: {
-  icon: string;
+  icon: ReactNode;
   name: string;
   defaultOpen?: boolean;
   headerExtra?: ReactNode; // e.g. a per-card account selector, right-aligned next to the title
@@ -32,7 +32,7 @@ export default function ScannerCard({
           onClick={toggle}
           className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 text-left"
         >
-          <span className="truncate text-sm font-semibold transition-colors group-hover:text-primary">
+          <span className="flex min-w-0 items-center gap-2 truncate text-sm font-semibold transition-colors group-hover:text-primary">
             {icon} {name}
           </span>
         </button>

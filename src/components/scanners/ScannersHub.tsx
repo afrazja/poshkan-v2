@@ -14,6 +14,8 @@ import ScannerOnboard from "@/components/scanners/ScannerOnboard";
 import CronHealth from "@/components/scanners/CronHealth";
 import ScannerCompare from "@/components/scanners/ScannerCompare";
 import ScannerActivity, { RecentActivitySummary, type ActivityItem } from "@/components/scanners/ScannerActivity";
+import { type ScannerKind } from "@/components/ScannerIcon";
+import { Radar } from "lucide-react";
 import ScannerFilterBar, {
   type ScannerStatusFilter,
   type ScannerAssetFilter,
@@ -137,19 +139,19 @@ export default function ScannersHub({
     created_at: string;
   };
   const activity: ActivityItem[] = accounts.flatMap((a) => {
-    const groups: { arr: Sig[]; icon: string; name: string }[] = [
-      { arr: a.smcSignals as unknown as Sig[], icon: "📈", name: "SMC" },
-      { arr: a.oteSignals as unknown as Sig[], icon: "🎯", name: "OTE" },
-      { arr: a.trendSignals as unknown as Sig[], icon: "🚀", name: "Trend" },
-      { arr: a.meanrevSignals as unknown as Sig[], icon: "↩️", name: "Mean Rev" },
-      { arr: a.candlerangeSignals as unknown as Sig[], icon: "📦", name: "Range" },
+    const groups: { arr: Sig[]; kind: ScannerKind; name: string }[] = [
+      { arr: a.smcSignals as unknown as Sig[], kind: "smc", name: "SMC" },
+      { arr: a.oteSignals as unknown as Sig[], kind: "ote", name: "OTE" },
+      { arr: a.trendSignals as unknown as Sig[], kind: "trend", name: "Trend" },
+      { arr: a.meanrevSignals as unknown as Sig[], kind: "meanrev", name: "Mean Rev" },
+      { arr: a.candlerangeSignals as unknown as Sig[], kind: "candlerange", name: "Range" },
     ];
     return groups.flatMap((g) =>
       (g.arr ?? []).map((sig) => ({
         id: `${g.name}-${sig.id}`,
         createdAt: sig.created_at,
         accountName: a.name,
-        icon: g.icon,
+        kind: g.kind,
         scanner: g.name,
         symbol: sig.symbol,
         direction: sig.direction,
@@ -197,7 +199,9 @@ export default function ScannersHub({
       <CronHealth lastRunAt={lastRunAt} anyEnabled={anyEnabled} />
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-xl font-semibold">📡 Scanners</h1>
+          <h1 className="flex items-center gap-2 text-xl font-semibold">
+            <Radar size={20} className="text-primary" aria-hidden /> Scanners
+          </h1>
           <p className="mt-1 text-sm text-muted">
             Automated strategy scanners that watch the market for you 24/7 — they alert you, or trade on
             their own within the risk limits you set. Each uses a different <em>edge</em> (trend-following,

@@ -3,6 +3,7 @@
 import { useEffect, useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import ScannerCard from "./ScannerCard";
+import ScannerIcon from "@/components/ScannerIcon";
 import ScannerInfo from "./ScannerInfo";
 import ScannerStatusBadges from "./ScannerStatusBadges";
 import { SettingsSection, Field, PercentSlider } from "./ScannerSettingsUI";
@@ -235,7 +236,7 @@ export default function TrendScanner({
 
   return (
     <ScannerCard
-      icon="🚀"
+      icon={<ScannerIcon kind="trend" size={18} />}
       name="Trend Breakout"
       defaultOpen={defaultOpen}
       confirmClose={() => !dirty || confirmDiscardUnsaved()}

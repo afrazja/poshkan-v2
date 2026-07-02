@@ -2,12 +2,14 @@
 
 import { useState } from "react";
 import { symbolLabel } from "@/lib/assets";
+import ScannerIcon, { type ScannerKind } from "@/components/ScannerIcon";
+import { ClipboardList } from "lucide-react";
 
 export interface ActivityItem {
   id: string;
   createdAt: string;
   accountName: string;
-  icon: string;
+  kind: ScannerKind;
   scanner: string;
   symbol: string;
   direction: "LONG" | "SHORT";
@@ -40,7 +42,9 @@ export function RecentActivitySummary({ items }: { items: ActivityItem[] }) {
   return (
     <div className="rounded-2xl border border-border bg-card p-4">
       <div className="mb-2 flex items-center justify-between">
-        <span className="text-sm font-semibold">📋 Recent activity</span>
+        <span className="flex items-center gap-1.5 text-sm font-semibold">
+          <ClipboardList size={15} className="text-muted" aria-hidden /> Recent activity
+        </span>
         <a href="#activity-log" className="text-xs text-primary hover:underline">
           View full log ↓
         </a>
@@ -51,8 +55,9 @@ export function RecentActivitySummary({ items }: { items: ActivityItem[] }) {
             key={it.id}
             className="flex items-center justify-between gap-2 rounded-lg border border-border bg-background px-2 py-1.5 text-xs"
           >
-            <span className="min-w-0 truncate">
-              {it.icon} {it.scanner} · <span className="text-muted">{it.accountName}</span> ·{" "}
+            <span className="flex min-w-0 items-center gap-1.5 truncate">
+              <ScannerIcon kind={it.kind} size={13} /> {it.scanner} ·{" "}
+              <span className="text-muted">{it.accountName}</span> ·{" "}
               <span className={it.direction === "LONG" ? "text-emerald-500" : "text-rose-500"}>
                 {it.direction}
               </span>{" "}
@@ -87,7 +92,9 @@ export default function ScannerActivity({ items }: { items: ActivityItem[] }) {
   return (
     <div id="activity-log" className="rounded-2xl border border-border bg-card p-4 scroll-mt-4">
       <button onClick={() => setOpen((v) => !v)} className="flex w-full items-center justify-between">
-        <span className="text-sm font-semibold">📋 Recent scanner activity</span>
+        <span className="flex items-center gap-1.5 text-sm font-semibold">
+          <ClipboardList size={15} className="text-muted" aria-hidden /> Recent scanner activity
+        </span>
         <span className="text-xs text-muted">{open ? "Hide" : `${sorted.length} events`}</span>
       </button>
 
@@ -98,8 +105,9 @@ export default function ScannerActivity({ items }: { items: ActivityItem[] }) {
               key={it.id}
               className="flex items-center justify-between gap-2 rounded-lg border border-border bg-background px-2 py-1.5 text-xs"
             >
-              <span className="min-w-0 truncate">
-                <span className="text-muted">{it.accountName}</span> · {it.icon} {it.scanner} ·{" "}
+              <span className="flex min-w-0 items-center gap-1.5 truncate">
+                <span className="text-muted">{it.accountName}</span> ·{" "}
+                <ScannerIcon kind={it.kind} size={13} /> {it.scanner} ·{" "}
                 <span className={it.direction === "LONG" ? "text-emerald-500" : "text-rose-500"}>
                   {it.direction}
                 </span>{" "}

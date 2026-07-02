@@ -3,6 +3,7 @@
 import { useEffect, useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import ScannerCard from "./ScannerCard";
+import ScannerIcon from "@/components/ScannerIcon";
 import ScannerInfo from "./ScannerInfo";
 import ScannerStatusBadges from "./ScannerStatusBadges";
 import { SettingsSection, Field, PercentSlider } from "./ScannerSettingsUI";
@@ -229,7 +230,7 @@ export default function MeanRevScanner({
 
   return (
     <ScannerCard
-      icon="↩️"
+      icon={<ScannerIcon kind="meanrev" size={18} />}
       name="Mean Reversion"
       defaultOpen={defaultOpen}
       confirmClose={() => !dirty || confirmDiscardUnsaved()}

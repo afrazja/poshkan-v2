@@ -7,6 +7,7 @@ import type { Account, Position, WatchlistItem, Transaction, Order, FxPosition, 
 import { FX_PAIRS, floatingPnl } from "@/lib/forex";
 import ForexPanel from "./ForexPanel";
 import ForexPerformance from "./ForexPerformance";
+import ScannerIcon from "@/components/ScannerIcon";
 import LeveragePanel from "./LeveragePanel";
 import AiScanner, { type AutoSettings } from "./AiScanner";
 import SmcScanner from "./SmcScanner";
@@ -320,53 +321,26 @@ export default function AccountView({
       {(aiActive || smcActive || oteActive || trendActive || meanrevActive || candlerangeActive) && (
         <div className="flex flex-wrap items-center gap-2 text-xs">
           <span className="text-muted">Active scanners</span>
-          {aiActive && (
-            <button
-              onClick={() => setScannerModal("ai")}
-              className="rounded-full bg-emerald-500/15 px-2 py-0.5 font-medium text-emerald-600 hover:bg-emerald-500/25 dark:text-emerald-400"
-            >
-              🤖 AI Scanner
-            </button>
-          )}
-          {smcActive && (
-            <button
-              onClick={() => setScannerModal("smc")}
-              className="rounded-full bg-emerald-500/15 px-2 py-0.5 font-medium text-emerald-600 hover:bg-emerald-500/25 dark:text-emerald-400"
-            >
-              📈 SMC Scanner
-            </button>
-          )}
-          {oteActive && (
-            <button
-              onClick={() => setScannerModal("ote")}
-              className="rounded-full bg-emerald-500/15 px-2 py-0.5 font-medium text-emerald-600 hover:bg-emerald-500/25 dark:text-emerald-400"
-            >
-              🎯 OTE Scanner
-            </button>
-          )}
-          {trendActive && (
-            <button
-              onClick={() => setScannerModal("trend")}
-              className="rounded-full bg-emerald-500/15 px-2 py-0.5 font-medium text-emerald-600 hover:bg-emerald-500/25 dark:text-emerald-400"
-            >
-              🚀 Trend Breakout
-            </button>
-          )}
-          {meanrevActive && (
-            <button
-              onClick={() => setScannerModal("meanrev")}
-              className="rounded-full bg-emerald-500/15 px-2 py-0.5 font-medium text-emerald-600 hover:bg-emerald-500/25 dark:text-emerald-400"
-            >
-              ↩️ Mean Reversion
-            </button>
-          )}
-          {candlerangeActive && (
-            <button
-              onClick={() => setScannerModal("candlerange")}
-              className="rounded-full bg-emerald-500/15 px-2 py-0.5 font-medium text-emerald-600 hover:bg-emerald-500/25 dark:text-emerald-400"
-            >
-              📦 Candle Range
-            </button>
+          {(
+            [
+              [aiActive, "ai", "AI Scanner"],
+              [smcActive, "smc", "SMC Scanner"],
+              [oteActive, "ote", "OTE Scanner"],
+              [trendActive, "trend", "Trend Breakout"],
+              [meanrevActive, "meanrev", "Mean Reversion"],
+              [candlerangeActive, "candlerange", "Candle Range"],
+            ] as [boolean, "ai" | "smc" | "ote" | "trend" | "meanrev" | "candlerange", string][]
+          ).map(
+            ([active, kind, label]) =>
+              active && (
+                <button
+                  key={kind}
+                  onClick={() => setScannerModal(kind)}
+                  className="flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 font-medium text-emerald-600 hover:bg-emerald-500/25 dark:text-emerald-400"
+                >
+                  <ScannerIcon kind={kind} size={12} /> {label}
+                </button>
+              )
           )}
         </div>
       )}

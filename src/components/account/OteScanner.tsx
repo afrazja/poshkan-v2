@@ -3,6 +3,7 @@
 import { useEffect, useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import ScannerCard from "./ScannerCard";
+import ScannerIcon from "@/components/ScannerIcon";
 import ScannerInfo from "./ScannerInfo";
 import ScannerStatusBadges from "./ScannerStatusBadges";
 import { SettingsSection, Field, PercentSlider } from "./ScannerSettingsUI";
@@ -210,7 +211,7 @@ export default function OteScanner({
 
   return (
     <ScannerCard
-      icon="🎯"
+      icon={<ScannerIcon kind="ote" size={18} />}
       name="OTE Scanner"
       defaultOpen={defaultOpen}
       confirmClose={() => !dirty || confirmDiscardUnsaved()}

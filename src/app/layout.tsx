@@ -29,11 +29,11 @@ export const metadata: Metadata = {
 };
 
 // Inline script applies the persisted theme before paint to avoid a flash.
+// Dark-first: dark is the default identity — light only when explicitly chosen.
 const themeScript = `
 (function () {
   try {
-    var t = localStorage.getItem('poshkan-theme');
-    if (t === 'dark' || (!t && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+    if (localStorage.getItem('poshkan-theme') !== 'light') {
       document.documentElement.classList.add('dark');
     }
   } catch (e) {}

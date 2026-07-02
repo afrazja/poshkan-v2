@@ -8,6 +8,7 @@ import { createClient } from "@/lib/supabase/client";
 import Avatar from "./Avatar";
 import NotificationBell from "./NotificationBell";
 import ThemeToggle from "./ThemeToggle";
+import { Trophy, Radar, History } from "lucide-react";
 import ChangePasswordModal from "./ChangePasswordModal";
 import ApiAccessModal from "./ApiAccessModal";
 import AnthropicKeyModal from "./AnthropicKeyModal";
@@ -146,21 +147,21 @@ export default function TopBar({
           {/* Redundant on mobile — the bottom nav covers these. Show on sm+. */}
           <Link
             href="/dashboard/leaderboard"
-            className="hidden rounded-lg px-2 py-1 text-sm font-medium text-muted transition hover:bg-background hover:text-foreground sm:inline-block"
+            className="hidden items-center gap-1.5 rounded-lg px-2 py-1 text-sm font-medium text-muted transition hover:bg-background hover:text-foreground sm:inline-flex"
           >
-            🏆 Leaderboard
+            <Trophy size={15} aria-hidden /> Leaderboard
           </Link>
           <Link
             href="/dashboard/scanners"
-            className="hidden rounded-lg px-2 py-1 text-sm font-medium text-muted transition hover:bg-background hover:text-foreground sm:inline-block"
+            className="hidden items-center gap-1.5 rounded-lg px-2 py-1 text-sm font-medium text-muted transition hover:bg-background hover:text-foreground sm:inline-flex"
           >
-            📡 Scanners
+            <Radar size={15} aria-hidden /> Scanners
           </Link>
           <Link
             href="/dashboard/history"
-            className="hidden rounded-lg px-2 py-1 text-sm font-medium text-muted transition hover:bg-background hover:text-foreground sm:inline-block"
+            className="hidden items-center gap-1.5 rounded-lg px-2 py-1 text-sm font-medium text-muted transition hover:bg-background hover:text-foreground sm:inline-flex"
           >
-            🧾 History
+            <History size={15} aria-hidden /> History
           </Link>
         </div>
 

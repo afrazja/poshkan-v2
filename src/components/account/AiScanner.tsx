@@ -8,6 +8,7 @@ import {
   setAiSymbolsAction,
 } from "@/app/dashboard/[accountId]/actions";
 import ScannerCard from "./ScannerCard";
+import ScannerIcon from "@/components/ScannerIcon";
 import ScannerInfo from "./ScannerInfo";
 import ScannerStatusBadges from "./ScannerStatusBadges";
 import { SettingsSection, Field, PercentSlider } from "./ScannerSettingsUI";
@@ -68,7 +69,7 @@ export default function AiScanner({
 
   return (
     <ScannerCard
-      icon="🤖"
+      icon={<ScannerIcon kind="ai" size={18} />}
       name="AI Scanner"
       defaultOpen={defaultOpen}
       confirmClose={() => !anyDirty || confirmDiscardUnsaved()}

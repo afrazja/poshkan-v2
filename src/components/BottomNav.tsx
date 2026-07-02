@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { Wallet, Radar, History, Trophy } from "lucide-react";
 
 const items = [
   {
     href: "/dashboard",
     label: "Accounts",
-    icon: "🏠",
+    Icon: Wallet,
     match: (p: string) =>
       p === "/dashboard" ||
       (p.startsWith("/dashboard/") &&
@@ -18,19 +19,19 @@ const items = [
   {
     href: "/dashboard/scanners",
     label: "Scanners",
-    icon: "📡",
+    Icon: Radar,
     match: (p: string) => p.startsWith("/dashboard/scanners"),
   },
   {
     href: "/dashboard/history",
     label: "History",
-    icon: "🧾",
+    Icon: History,
     match: (p: string) => p.startsWith("/dashboard/history"),
   },
   {
     href: "/dashboard/leaderboard",
     label: "Ranks",
-    icon: "🏆",
+    Icon: Trophy,
     match: (p: string) => p.startsWith("/dashboard/leaderboard"),
   },
 ];
@@ -53,7 +54,7 @@ export default function BottomNav() {
               active ? "text-primary" : "text-muted hover:text-foreground"
             }`}
           >
-            <span className="text-lg leading-none">{it.icon}</span>
+            <it.Icon size={19} aria-hidden />
             {it.label}
           </Link>
         );
