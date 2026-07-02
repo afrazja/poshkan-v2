@@ -77,12 +77,19 @@ export default async function DashboardPage() {
     }
   }
 
-  type Sum = { marketValue: number; holdings: number; unrealized: number; realized: number };
+  type Sum = {
+    marketValue: number;
+    holdings: number;
+    unrealized: number;
+    realized: number;
+    todayPnl: number;
+    prevValue: number; // spot holdings valued at yesterday's close, for today's %
+  };
   const summary: Record<string, Sum> = {};
   const ensure = (id: string): Sum =>
-    (summary[id] ??= { marketValue: 0, holdings: 0, unrealized: 0, realized: 0 });
+    (summary[id] ??= { marketValue: 0, holdings: 0, unrealized: 0, realized: 0, todayPnl: 0, prevValue: 0 });
 
-  // Spot holdings: market value + unrealized P&L vs average cost.
+  // Spot holdings: market value + unrealized P&L vs average cost + today's move.
   for (const p of posRows) {
     const s = ensure(p.account_id);
     const q = quotes[p.symbol.toUpperCase()];
@@ -90,6 +97,10 @@ export default async function DashboardPage() {
     s.marketValue += Number(p.quantity) * price;
     s.unrealized += Number(p.quantity) * (price - Number(p.avg_cost));
     s.holdings += 1;
+    if (q?.price && q.previousClose) {
+      s.todayPnl += Number(p.quantity) * (q.price - q.previousClose);
+      s.prevValue += Number(p.quantity) * q.previousClose;
+    }
   }
 
   // Leveraged/forex: open → margin (value) + floating P&L; closed → realized P&L.

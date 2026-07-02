@@ -4,7 +4,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { Account } from "@/lib/types";
-import { formatCurrency, formatSignedCurrency, changeColor } from "@/lib/format";
+import { formatCurrency, formatSignedCurrency, formatPercent, changeColor } from "@/lib/format";
 import CreateAccountModal from "./CreateAccountModal";
 import CashModal from "@/components/account/CashModal";
 import Modal from "@/components/Modal";
@@ -15,7 +15,17 @@ export default function AccountsGrid({
   summary,
 }: {
   accounts: Account[];
-  summary: Record<string, { marketValue: number; holdings: number; unrealized: number; realized: number }>;
+  summary: Record<
+    string,
+    {
+      marketValue: number;
+      holdings: number;
+      unrealized: number;
+      realized: number;
+      todayPnl: number;
+      prevValue: number;
+    }
+  >;
 }) {
   const router = useRouter();
   const [showCreate, setShowCreate] = useState(false);
@@ -88,8 +98,13 @@ export default function AccountsGrid({
     <>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {orderedAccounts.map((acc) => {
-          const s = summary[acc.id] ?? { marketValue: 0, holdings: 0, unrealized: 0, realized: 0 };
+          const s =
+            summary[acc.id] ??
+            { marketValue: 0, holdings: 0, unrealized: 0, realized: 0, todayPnl: 0, prevValue: 0 };
           const total = Number(acc.cash_balance) + s.marketValue;
+          const todayPct = s.prevValue > 0 ? (s.todayPnl / s.prevValue) * 100 : 0;
+          // Forex accounts have no spot holdings — their live number is floating P&L.
+          const isForex = acc.type === "forex";
           return (
             <div
               key={acc.id}
@@ -120,7 +135,22 @@ export default function AccountsGrid({
                   </span>
                 </div>
                 <div className="text-2xl font-bold">{formatCurrency(total)}</div>
-                <div className="mt-1 text-xs text-muted">account value</div>
+                <div className="mt-1 flex items-center gap-2 text-xs">
+                  <span className="text-muted">account value</span>
+                  {isForex ? (
+                    s.unrealized !== 0 && (
+                      <span className={`font-medium ${changeColor(s.unrealized)}`}>
+                        {formatSignedCurrency(s.unrealized)} floating
+                      </span>
+                    )
+                  ) : (
+                    s.prevValue > 0 && (
+                      <span className={`font-medium ${changeColor(s.todayPnl)}`}>
+                        {formatSignedCurrency(s.todayPnl)} ({formatPercent(todayPct)}) today
+                      </span>
+                    )
+                  )}
+                </div>
                 <div className="mt-4 flex justify-between border-t border-border pt-3 text-sm">
                   <span className="text-muted">
                     Cash <span className="text-foreground">{formatCurrency(Number(acc.cash_balance))}</span>
