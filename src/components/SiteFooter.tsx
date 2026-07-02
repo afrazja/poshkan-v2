@@ -15,6 +15,10 @@ export default function SiteFooter() {
           Strategies
         </Link>{" "}
         ·{" "}
+        <Link href="/learn" className="underline hover:text-foreground">
+          Learn
+        </Link>{" "}
+        ·{" "}
         <Link href="/help" className="underline hover:text-foreground">
           Help
         </Link>{" "}

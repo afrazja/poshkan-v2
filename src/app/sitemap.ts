@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 import { STRATEGIES } from "./strategies/strategies-data";
+import { TERMS } from "./learn/terms-data";
 
 const BASE = "https://www.poshkan.com";
 
@@ -12,6 +13,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
       url: `${BASE}/strategies/${s.slug}`,
       changeFrequency: "monthly" as const,
       priority: 0.7,
+    })),
+    { url: `${BASE}/learn`, changeFrequency: "monthly", priority: 0.8 },
+    ...TERMS.map((t) => ({
+      url: `${BASE}/learn/${t.slug}`,
+      changeFrequency: "monthly" as const,
+      priority: 0.6,
     })),
     { url: `${BASE}/help`, changeFrequency: "monthly", priority: 0.6 },
     { url: `${BASE}/privacy`, changeFrequency: "yearly", priority: 0.2 },
