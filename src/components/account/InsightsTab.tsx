@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import type { Position, Quote } from "@/lib/types";
 import { formatCurrency, formatPercent, changeColor } from "@/lib/format";
 import PerformanceCard from "./PerformanceCard";
@@ -9,6 +9,7 @@ const COLORS = [
   "#3b82f6", "#22c55e", "#f59e0b", "#a855f7", "#ec4899",
   "#14b8a6", "#ef4444", "#6366f1", "#84cc16", "#06b6d4",
 ];
+const OTHER_COLOR = "#94a3b8";
 
 export default function InsightsTab({
   accountId,
@@ -25,6 +26,7 @@ export default function InsightsTab({
   todayPnlPct: number;
   onSelect: (symbol: string) => void;
 }) {
+  const [showOther, setShowOther] = useState(false);
   const rows = useMemo(() => {
     return positions.map((p) => {
       const q = quotes[p.symbol.toUpperCase()];
@@ -47,13 +49,25 @@ export default function InsightsTab({
     );
   }
 
-  const alloc = [...rows].sort((a, b) => b.value - a.value);
-  const segments = alloc.map((r, i) => ({
-    label: r.symbol,
-    value: r.value,
-    pct: totalValue > 0 ? (r.value / totalValue) * 100 : 0,
-    color: COLORS[i % COLORS.length],
-  }));
+  const alloc = [...rows]
+    .sort((a, b) => b.value - a.value)
+    .map((r) => ({
+      label: r.symbol,
+      value: r.value,
+      pct: totalValue > 0 ? (r.value / totalValue) * 100 : 0,
+    }));
+  // Group the sub-1% tail into a single "Other" row so the list answers
+  // "where is my money concentrated?" without 25 rows of pocket change.
+  // Grouping a tail of one would be sillier than just showing it.
+  let majors = alloc.filter((s) => s.pct >= 1);
+  let tail = alloc.filter((s) => s.pct < 1);
+  if (majors.length === 0 || tail.length === 1) {
+    majors = alloc;
+    tail = [];
+  }
+  const segments = majors.map((s, i) => ({ ...s, color: COLORS[i % COLORS.length] }));
+  const otherValue = tail.reduce((s, r) => s + r.value, 0);
+  const otherPct = tail.reduce((s, r) => s + r.pct, 0);
   const cashPct = totalValue > 0 ? (cash / totalValue) * 100 : 0;
 
   const byPerf = [...rows].sort((a, b) => b.pnlPct - a.pnlPct);
@@ -74,6 +88,12 @@ export default function InsightsTab({
           {segments.map((s) => (
             <div key={s.label} style={{ width: `${s.pct}%`, backgroundColor: s.color }} title={`${s.label} ${s.pct.toFixed(1)}%`} />
           ))}
+          {otherPct > 0 && (
+            <div
+              style={{ width: `${otherPct}%`, backgroundColor: OTHER_COLOR }}
+              title={`Other (${tail.length} positions) ${otherPct.toFixed(1)}%`}
+            />
+          )}
           {cashPct > 0 && <div style={{ width: `${cashPct}%`, backgroundColor: "var(--muted)" }} title={`Cash ${cashPct.toFixed(1)}%`} />}
         </div>
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -92,6 +112,23 @@ export default function InsightsTab({
               </span>
             </button>
           ))}
+          {tail.length > 0 && (
+            <button
+              onClick={() => setShowOther((v) => !v)}
+              className="flex items-center justify-between rounded-md px-2 py-1 text-sm hover:bg-background"
+            >
+              <span className="flex items-center gap-2">
+                <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: OTHER_COLOR }} />
+                <span className="font-medium">
+                  Other · {tail.length} positions{" "}
+                  <span className={`inline-block text-muted transition-transform ${showOther ? "rotate-90" : ""}`}>›</span>
+                </span>
+              </span>
+              <span className="text-muted">
+                {formatCurrency(otherValue)} · {otherPct.toFixed(1)}%
+              </span>
+            </button>
+          )}
           <div className="flex items-center justify-between rounded-md px-2 py-1 text-sm">
             <span className="flex items-center gap-2">
               <span className="h-2.5 w-2.5 rounded-full bg-muted" />
@@ -102,6 +139,22 @@ export default function InsightsTab({
             </span>
           </div>
         </div>
+        {showOther && tail.length > 0 && (
+          <div className="mt-2 grid grid-cols-1 gap-1 border-t border-border pt-2 sm:grid-cols-2">
+            {tail.map((s) => (
+              <button
+                key={s.label}
+                onClick={() => onSelect(s.label)}
+                className="flex items-center justify-between rounded-md px-2 py-0.5 text-xs text-muted hover:bg-background hover:text-foreground"
+              >
+                <span>{s.label}</span>
+                <span>
+                  {formatCurrency(s.value)} · {s.pct.toFixed(1)}%
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
