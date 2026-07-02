@@ -8,7 +8,7 @@ import LandingThemeToggle from "@/components/auth/LandingThemeToggle";
 export const metadata = {
   title: "Poshkan — Automated strategy scanners for stocks, crypto & forex (virtual money)",
   description:
-    "A library of strategy scanners that find & auto-trade setups, go long or short with 1–10× leverage, an AI coach, and a leaderboard — across US stocks, crypto, and forex. 100% virtual money, risk-free.",
+    "A library of strategy scanners that find & auto-trade setups, go long or short with 1–10× leverage, and a live leaderboard — across US stocks, crypto, and forex. 100% virtual money, risk-free.",
 };
 
 export default async function LandingPage({
@@ -51,8 +51,8 @@ export default async function LandingPage({
               Lose nothing.
             </h1>
             <p className="mt-6 text-lg text-white/80">
-              Practice stocks, crypto, and forex with live prices and 100% virtual money — then
-              let an AI coach review your trades and tell you what to fix.
+              Practice stocks, crypto, and forex with live prices and 100% virtual money — and let
+              a library of strategy scanners find and trade setups for you, around the clock.
             </p>
             <ul className="mt-8 space-y-3 text-white/90">
               <li className="flex items-center gap-3">
@@ -62,7 +62,7 @@ export default async function LandingPage({
                 <Dot /> Go long or short — stocks, crypto &amp; forex, 1–10× leverage
               </li>
               <li className="flex items-center gap-3">
-                <Dot /> An AI coach that critiques your trading
+                <Dot /> An AI scanner that trades your plain-English rules
               </li>
               <li className="flex items-center gap-3">
                 <Dot /> A leaderboard to beat your friends on
@@ -76,8 +76,8 @@ export default async function LandingPage({
       <section className="border-t border-border px-6 py-8 text-center lg:hidden">
         <h1 className="text-2xl font-extrabold tracking-tight">Trade fearlessly. Lose nothing.</h1>
         <p className="mx-auto mt-2 max-w-md text-sm text-muted">
-          A library of strategy scanners across stocks, crypto, and forex — long or short, with an AI
-          coach and a leaderboard. 100% virtual money.
+          A library of strategy scanners across stocks, crypto, and forex — long or short, with
+          backtests and a leaderboard. 100% virtual money.
         </p>
       </section>
 
