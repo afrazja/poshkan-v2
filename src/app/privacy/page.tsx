@@ -1,6 +1,9 @@
 import Link from "next/link";
 
-export const metadata = { title: "Privacy — Poshkan" };
+export const metadata = {
+  title: "Privacy — Poshkan",
+  description: "What Poshkan collects, how it's used, and how to delete your data.",
+};
 
 export default function PrivacyPage() {
   return (

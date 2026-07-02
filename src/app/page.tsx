@@ -8,10 +8,38 @@ import LandingThemeToggle from "@/components/auth/LandingThemeToggle";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { symbolLabel } from "@/lib/assets";
 
+const TITLE = "Poshkan — Automated strategy scanners for stocks, crypto & forex (virtual money)";
+const DESCRIPTION =
+  "A library of strategy scanners that find & auto-trade setups, go long or short with 1–10× leverage, and a live leaderboard — across US stocks, crypto, and forex. 100% virtual money, risk-free.";
+
 export const metadata = {
-  title: "Poshkan — Automated strategy scanners for stocks, crypto & forex (virtual money)",
-  description:
-    "A library of strategy scanners that find & auto-trade setups, go long or short with 1–10× leverage, and a live leaderboard — across US stocks, crypto, and forex. 100% virtual money, risk-free.",
+  title: TITLE,
+  description: DESCRIPTION,
+  alternates: { canonical: "https://www.poshkan.com" },
+  openGraph: {
+    title: TITLE,
+    description: DESCRIPTION,
+    url: "https://www.poshkan.com",
+    siteName: "Poshkan",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: TITLE,
+    description: DESCRIPTION,
+  },
+};
+
+// Rich-result hint for Google: a free finance web app.
+const JSON_LD = {
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  name: "Poshkan",
+  url: "https://www.poshkan.com",
+  applicationCategory: "FinanceApplication",
+  operatingSystem: "Web",
+  description: DESCRIPTION,
+  offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
 };
 
 // Live "activity proof" for the landing page — honest numbers the platform
@@ -99,6 +127,10 @@ export default async function LandingPage({
   const live = await getLiveStats();
   return (
     <div className="relative flex min-h-screen flex-col">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(JSON_LD) }}
+      />
       <RecoveryRedirect />
       <LandingThemeToggle />
       {/* Above the fold: signup + hero */}

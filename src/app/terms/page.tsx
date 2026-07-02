@@ -1,6 +1,10 @@
 import Link from "next/link";
 
-export const metadata = { title: "Terms of Use — Poshkan" };
+export const metadata = {
+  title: "Terms of Use — Poshkan",
+  description:
+    "The terms for using Poshkan's paper-trading simulator. Everything is virtual — nothing is financial advice.",
+};
 
 export default function TermsPage() {
   return (

@@ -14,8 +14,10 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://www.poshkan.com"),
   title: "Poshkan — Paper Trading",
-  description: "Risk-free US stock paper trading. Practice the market, master your moves.",
+  description:
+    "Risk-free paper trading for US stocks, crypto, and forex — with automated strategy scanners, backtests, and a live leaderboard.",
   appleWebApp: {
     capable: true,
     title: "Poshkan",
