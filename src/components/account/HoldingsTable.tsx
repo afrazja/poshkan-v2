@@ -9,15 +9,19 @@ import {
   formatSignedCurrency,
   changeColor,
 } from "@/lib/format";
+import { symbolLabel } from "@/lib/assets";
 import SortHeader, { nextSort, type SortState } from "./SortHeader";
+import Sparkline from "@/components/Sparkline";
 
 export default function HoldingsTable({
   positions,
   quotes,
+  sparks = {},
   onSelect,
 }: {
   positions: Position[];
   quotes: Record<string, Quote>;
+  sparks?: Record<string, number[]>;
   onSelect: (symbol: string) => void;
 }) {
   const [sort, setSort] = useState<SortState | null>(null);
@@ -72,7 +76,7 @@ export default function HoldingsTable({
   if (positions.length === 0) {
     return (
       <div className="rounded-2xl border border-dashed border-border p-8 text-center text-sm text-muted">
-        No holdings yet. Search for a stock above and buy your first shares.
+        No holdings yet. Search above and buy your first position.
       </div>
     );
   }
@@ -88,7 +92,12 @@ export default function HoldingsTable({
             className="w-full rounded-xl border border-border bg-card p-3 text-left"
           >
             <div className="flex items-center justify-between">
-              <span className="font-semibold">{p.symbol}</span>
+              <span className="flex items-center gap-2 font-semibold">
+                {symbolLabel(p.symbol)}
+                {sparks[p.symbol.toUpperCase()] && (
+                  <Sparkline values={sparks[p.symbol.toUpperCase()]} width={52} height={16} />
+                )}
+              </span>
               <span className="font-semibold">{q ? formatCurrency(mktValue) : "…"}</span>
             </div>
             <div className="mt-1 flex items-center justify-between text-xs text-muted">
@@ -130,7 +139,14 @@ export default function HoldingsTable({
               onClick={() => onSelect(p.symbol)}
               className="cursor-pointer border-b border-border last:border-0 hover:bg-background"
             >
-              <td className="px-4 py-3 font-semibold">{p.symbol}</td>
+              <td className="px-4 py-3 font-semibold">
+                <span className="flex items-center gap-2.5">
+                  {symbolLabel(p.symbol)}
+                  {sparks[p.symbol.toUpperCase()] && (
+                    <Sparkline values={sparks[p.symbol.toUpperCase()]} width={56} height={18} className="opacity-90" />
+                  )}
+                </span>
+              </td>
               <td className="px-4 py-3 text-right">{formatNumber(qty)}</td>
               <td className="px-4 py-3 text-right">{formatCurrency(avg)}</td>
               <td className="px-4 py-3 text-right">{q ? formatCurrency(price) : "…"}</td>

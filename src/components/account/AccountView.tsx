@@ -22,6 +22,7 @@ import type { TrendSettings, TrendSignal } from "@/app/dashboard/[accountId]/tre
 import type { MeanRevSettings, MeanRevSignal } from "@/app/dashboard/[accountId]/meanrev-actions";
 import type { CandleRangeSettings, CandleRangeSignal } from "@/app/dashboard/[accountId]/candlerange-actions";
 import { useQuotes } from "@/lib/useQuotes";
+import { useSymbolSparks } from "@/lib/useSymbolSparks";
 import { realizedPnl } from "@/lib/pnl";
 import {
   formatCurrency,
@@ -144,6 +145,12 @@ export default function AccountView({
   }, [positions, watchlist, orders, selected, tab, isForex, fxPositions]);
 
   const { data: quotes = {}, isPending: quotesPending } = useQuotes(symbols);
+  // Row sparklines for holdings + watchlist (skip on forex — pairs use the panel).
+  const sparkSymbols = useMemo(
+    () => (isForex ? [] : [...positions.map((p) => p.symbol), ...watchlist.map((w) => w.symbol)]),
+    [isForex, positions, watchlist]
+  );
+  const rowSparks = useSymbolSparks(sparkSymbols);
 
   // Auto-fill pending limit orders when the live price crosses the limit.
   // (Runs while the account page is open; a guard prevents double-firing.)
@@ -595,6 +602,7 @@ export default function AccountView({
           <HoldingsTable
             positions={positions.filter((p) => p.symbol.toLowerCase().includes(filter.toLowerCase()))}
             quotes={quotes}
+            sparks={rowSparks}
             onSelect={selectSymbol}
           />
         )}
@@ -603,6 +611,7 @@ export default function AccountView({
           <WatchlistTable
             items={watchlist.filter((w) => w.symbol.toLowerCase().includes(filter.toLowerCase()))}
             quotes={quotes}
+            sparks={rowSparks}
             onSelect={selectSymbol}
             onBuy={(symbol) => setTrade({ side: "BUY", symbol })}
             onRemove={(symbol) => toggleWatch(symbol)}

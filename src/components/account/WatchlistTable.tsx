@@ -3,12 +3,15 @@
 import { useMemo, useState } from "react";
 import type { Quote, WatchlistItem } from "@/lib/types";
 import { formatCurrency, formatPercent, changeColor } from "@/lib/format";
+import { symbolLabel } from "@/lib/assets";
 import SortHeader, { nextSort, type SortState } from "./SortHeader";
 import { AlertForm } from "./SymbolPanel";
+import Sparkline from "@/components/Sparkline";
 
 export default function WatchlistTable({
   items,
   quotes,
+  sparks = {},
   onSelect,
   onBuy,
   onRemove,
@@ -16,6 +19,7 @@ export default function WatchlistTable({
 }: {
   items: WatchlistItem[];
   quotes: Record<string, Quote>;
+  sparks?: Record<string, number[]>;
   onSelect: (symbol: string) => void;
   onBuy: (symbol: string) => void;
   onRemove: (symbol: string) => void;
@@ -71,7 +75,12 @@ export default function WatchlistTable({
           <div key={item.id} className="rounded-xl border border-border bg-card p-3">
             <div className="flex items-center justify-between">
               <button onClick={() => onSelect(item.symbol)} className="text-left">
-                <div className="font-semibold">{item.symbol}</div>
+                <div className="flex items-center gap-2 font-semibold">
+                  {symbolLabel(item.symbol)}
+                  {sparks[item.symbol.toUpperCase()] && (
+                    <Sparkline values={sparks[item.symbol.toUpperCase()]} width={52} height={16} />
+                  )}
+                </div>
                 <div className="text-xs text-muted">
                   {q ? formatCurrency(price) : "…"} ·{" "}
                   <span className={changeColor(dayPct)}>{q ? formatPercent(dayPct) : "…"}</span>
@@ -116,7 +125,12 @@ export default function WatchlistTable({
                 onClick={() => onSelect(item.symbol)}
                 className="cursor-pointer px-4 py-3 font-semibold"
               >
-                {item.symbol}
+                <span className="flex items-center gap-2.5">
+                  {symbolLabel(item.symbol)}
+                  {sparks[item.symbol.toUpperCase()] && (
+                    <Sparkline values={sparks[item.symbol.toUpperCase()]} width={56} height={18} className="opacity-90" />
+                  )}
+                </span>
               </td>
               <td className="px-4 py-3 text-right">{q ? formatCurrency(price) : "…"}</td>
               <td className={`px-4 py-3 text-right ${changeColor(dayPct)}`}>
