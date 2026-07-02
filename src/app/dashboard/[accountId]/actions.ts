@@ -853,6 +853,7 @@ export async function setAccountLeverageAction(
 export async function renameAccountAction(accountId: string, name: string): Promise<{ error?: string }> {
   const trimmed = name.trim();
   if (!trimmed) return { error: "Enter a name" };
+  if (trimmed.length < 3) return { error: "Name must be at least 3 characters — it appears in activity feeds and the leaderboard." };
   if (trimmed.length > 60) return { error: "Name is too long" };
   const supabase = await createClient();
   const { error } = await supabase.from("accounts").update({ name: trimmed }).eq("id", accountId);

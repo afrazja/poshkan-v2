@@ -23,6 +23,8 @@ export async function createAccountAction(input: {
   if (!user) return { error: "Not authenticated" };
 
   if (!input.name?.trim()) return { error: "Account name is required" };
+  if (input.name.trim().length < 3)
+    return { error: "Name must be at least 3 characters — it appears in activity feeds and the leaderboard." };
 
   const { data, error } = await supabase.rpc("create_account", {
     p_name: input.name.trim(),

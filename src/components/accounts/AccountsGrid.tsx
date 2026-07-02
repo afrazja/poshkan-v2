@@ -212,7 +212,12 @@ export default function AccountsGrid({
       {/* Click-away backdrop for the open menu */}
       {menuFor && <div className="fixed inset-0 z-10" onClick={() => setMenuFor(null)} />}
 
-      {showCreate && <CreateAccountModal onClose={() => setShowCreate(false)} />}
+      {showCreate && (
+        <CreateAccountModal
+          onClose={() => setShowCreate(false)}
+          existingNames={accounts.map((a) => a.name)}
+        />
+      )}
 
       {resetFor && <CashModal accountId={resetFor} mode="RESET" onClose={() => setResetFor(null)} />}
 
@@ -229,7 +234,7 @@ export default function AccountsGrid({
             />
             <button
               onClick={doRename}
-              disabled={busy || !renameValue.trim()}
+              disabled={busy || renameValue.trim().length < 3}
               className="w-full rounded-lg bg-primary py-2.5 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50"
             >
               {busy ? "Saving…" : "Save name"}

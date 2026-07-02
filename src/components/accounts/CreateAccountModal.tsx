@@ -13,9 +13,29 @@ interface HoldingRow {
   avgPrice: string;
 }
 
-export default function CreateAccountModal({ onClose }: { onClose: () => void }) {
+const TYPE_LABEL: Record<string, string> = { stocks: "Stocks", crypto: "Crypto", forex: "Forex" };
+
+// A meaningful pre-filled name ("My Forex", "My Forex 2", …) — account names
+// show up in activity feeds and the leaderboard, so one-letter names read badly.
+function defaultName(type: string, taken: string[]): string {
+  const base = `My ${TYPE_LABEL[type] ?? "Trading"}`;
+  const lower = taken.map((n) => n.trim().toLowerCase());
+  if (!lower.includes(base.toLowerCase())) return base;
+  let i = 2;
+  while (lower.includes(`${base.toLowerCase()} ${i}`)) i++;
+  return `${base} ${i}`;
+}
+
+export default function CreateAccountModal({
+  onClose,
+  existingNames = [],
+}: {
+  onClose: () => void;
+  existingNames?: string[];
+}) {
   const router = useRouter();
-  const [name, setName] = useState("");
+  const [name, setName] = useState(() => defaultName("stocks", existingNames));
+  const [nameEdited, setNameEdited] = useState(false);
   const [type, setType] = useState("stocks");
   const [cash, setCash] = useState("10000");
   const [rows, setRows] = useState<HoldingRow[]>([]);
@@ -41,6 +61,11 @@ export default function CreateAccountModal({ onClose }: { onClose: () => void })
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+
+    if (name.trim().length < 3) {
+      setError("Give the account a name of at least 3 characters — it appears in activity feeds and the leaderboard.");
+      return;
+    }
 
     const holdings: NewHolding[] = [];
     for (const r of rows) {
@@ -87,7 +112,10 @@ export default function CreateAccountModal({ onClose }: { onClose: () => void })
             <input
               required
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(e) => {
+                setName(e.target.value);
+                setNameEdited(true);
+              }}
               className={inputClass}
               placeholder="My first portfolio"
             />
@@ -99,6 +127,8 @@ export default function CreateAccountModal({ onClose }: { onClose: () => void })
               onChange={(e) => {
                 setType(e.target.value);
                 setRows([]); // holdings picked under the previous type no longer apply
+                // keep the suggested name in sync with the type until the user types their own
+                if (!nameEdited) setName(defaultName(e.target.value, existingNames));
               }}
               className={inputClass}
             >
