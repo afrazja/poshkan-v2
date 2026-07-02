@@ -4,6 +4,7 @@ import { getQuotes, getOhlc } from "@/lib/marketdata";
 import { bracketHit, floatingPnl, marginFor, clampTradeLeverage } from "@/lib/forex";
 import { sendEmail, alertEmailHtml } from "@/lib/email";
 import { sendPushToUser } from "@/lib/push";
+import { symbolLabel } from "@/lib/assets";
 
 export const maxDuration = 60;
 
@@ -244,8 +245,8 @@ export async function GET(request: Request) {
       const ownerId = (o as { accounts?: { user_id?: string } }).accounts?.user_id;
       if (ownerId) {
         void sendPushToUser(ownerId, {
-          title: `✅ Order filled: ${o.side} ${o.symbol}`,
-          body: `${Number(o.quantity)} ${o.symbol} @ $${q.price.toFixed(2)} (limit $${Number(o.limit_price).toFixed(2)})`,
+          title: `✅ Order filled: ${o.side} ${symbolLabel(o.symbol)}`,
+          body: `${Number(o.quantity)} ${symbolLabel(o.symbol)} @ $${q.price.toFixed(2)} (limit $${Number(o.limit_price).toFixed(2)})`,
         });
       }
     }
@@ -273,7 +274,7 @@ export async function GET(request: Request) {
       if (email) {
         await sendEmail(
           email,
-          `🔔 ${a.symbol} ${a.condition === "ABOVE" ? "rose to" : "dropped to"} $${q.price.toFixed(2)}`,
+          `🔔 ${symbolLabel(a.symbol)} ${a.condition === "ABOVE" ? "rose to" : "dropped to"} $${q.price.toFixed(2)}`,
           alertEmailHtml({
             symbol: a.symbol,
             condition: a.condition as "ABOVE" | "BELOW",
@@ -287,8 +288,8 @@ export async function GET(request: Request) {
       // email failure must never break the cron
     }
     void sendPushToUser(a.user_id, {
-      title: `🔔 ${a.symbol} alert`,
-      body: `${a.symbol} ${a.condition === "ABOVE" ? "rose to" : "dropped to"} $${q.price.toFixed(2)} (target $${Number(a.target_price).toFixed(2)})`,
+      title: `🔔 ${symbolLabel(a.symbol)} alert`,
+      body: `${symbolLabel(a.symbol)} ${a.condition === "ABOVE" ? "rose to" : "dropped to"} $${q.price.toFixed(2)} (target $${Number(a.target_price).toFixed(2)})`,
     });
   }
 

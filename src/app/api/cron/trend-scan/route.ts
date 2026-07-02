@@ -3,7 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getQuote } from "@/lib/marketdata";
 import { marginFor, clampTradeLeverage } from "@/lib/forex";
 import { evaluateTrendSymbol, TREND_DEFAULTS, type TrendEval, type TrendParams } from "@/lib/trend";
-import { marketUniverse, assetTypeError } from "@/lib/assets";
+import { marketUniverse, assetTypeError, symbolLabel } from "@/lib/assets";
 import { sendPushToUser } from "@/lib/push";
 
 export const maxDuration = 60;
@@ -214,7 +214,7 @@ export async function GET(request: Request) {
                 didTrade = true;
                 try {
                   await sendPushToUser(acc.user_id, {
-                    title: `🚀 Trend auto-trade: ${ev.direction} ${symbol}`,
+                    title: `🚀 Trend auto-trade: ${ev.direction} ${symbolLabel(symbol)}`,
                     body: `${units} @ ${fmt(liveRate)} · SL ${fmt(sl)} · TP ${fmt(tp)} (${ev.rr}R). ${ev.reason}`,
                     url: `/dashboard/${acc.id}`,
                   });
@@ -234,8 +234,8 @@ export async function GET(request: Request) {
       try {
         await sendPushToUser(acc.user_id, {
           title: autoMode
-            ? `🚀 Trend: ${ev.direction} ${symbol} — auto-trade skipped`
-            : `🚀 Trend signal: ${ev.direction} ${symbol} (${ev.rr}R)`,
+            ? `🚀 Trend: ${ev.direction} ${symbolLabel(symbol)} — auto-trade skipped`
+            : `🚀 Trend signal: ${ev.direction} ${symbolLabel(symbol)} (${ev.rr}R)`,
           body: autoMode
             ? `Auto-trade skipped: ${why}. Setup: entry ~${fmt(ev.entry)} · SL ${fmt(ev.stop)} · TP ${fmt(ev.takeProfit)}.`
             : `Alert-only mode — no trade placed. Entry ~${fmt(ev.entry)} · SL ${fmt(ev.stop)} · TP ${fmt(ev.takeProfit)}. ${ev.reason}`,
