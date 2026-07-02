@@ -7,7 +7,6 @@ import type { Account, Position, WatchlistItem, Transaction, Order, FxPosition, 
 import { FX_PAIRS, floatingPnl } from "@/lib/forex";
 import ForexPanel from "./ForexPanel";
 import ForexPerformance from "./ForexPerformance";
-import InsightsTeaser from "./InsightsTeaser";
 import LeveragePanel from "./LeveragePanel";
 import AiScanner, { type AutoSettings } from "./AiScanner";
 import SmcScanner from "./SmcScanner";
@@ -117,17 +116,6 @@ export default function AccountView({
     }
   }, [account.id]);
   const [filter, setFilter] = useState("");
-
-  // Header teaser → jump to the full Insights chart.
-  function openInsights() {
-    setTab("insights");
-    try {
-      localStorage.setItem(`poshkan-tab-${account.id}`, "insights");
-    } catch {}
-    setTimeout(() => {
-      document.getElementById("account-tabs")?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, 50);
-  }
 
   const positions = initialPositions;
   const watchlist = initialWatchlist;
@@ -399,11 +387,8 @@ export default function AccountView({
               {fxQuotesLoading ? "…" : formatSignedCurrency(fxFloating)} floating P&L
             </div>
           ) : (
-            <div className="flex flex-col items-end gap-1.5">
-              <div className={`text-sm font-medium ${quotesLoading ? "text-muted" : changeColor(todayPnl)}`}>
-                {quotesLoading ? "…" : `${formatSignedCurrency(todayPnl)} (${formatPercent(todayPnlPct)})`} today
-              </div>
-              <InsightsTeaser accountId={account.id} onOpen={openInsights} />
+            <div className={`text-sm font-medium ${quotesLoading ? "text-muted" : changeColor(todayPnl)}`}>
+              {quotesLoading ? "…" : `${formatSignedCurrency(todayPnl)} (${formatPercent(todayPnlPct)})`} today
             </div>
           )}
         </div>
