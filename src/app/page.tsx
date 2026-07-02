@@ -51,9 +51,9 @@ export default async function LandingPage({
         </div>
 
         {/* Right: hero */}
-        <div className="relative hidden overflow-hidden bg-gradient-to-br from-primary via-blue-600 to-indigo-800 lg:flex lg:flex-col lg:justify-center lg:px-16 lg:text-white">
-          <div className="pointer-events-none absolute inset-0 opacity-20">
-            <TickerBackdrop />
+        <div className="relative hidden overflow-hidden bg-gradient-to-br from-[#0b0e14] via-[#101726] to-indigo-950 lg:flex lg:flex-col lg:justify-center lg:px-16 lg:text-white">
+          <div className="pointer-events-none absolute inset-0">
+            <CandleBackdrop />
           </div>
           <div className="relative z-10 max-w-lg">
             <h1 className="text-5xl font-extrabold leading-tight tracking-tight">
@@ -82,6 +82,60 @@ export default async function LandingPage({
           </div>
         </div>
       </main>
+
+      {/* Product proof: a faithful in-CSS mock of the live scanners page */}
+      <section className="border-t border-border px-6 py-14 sm:px-12">
+        <div className="mx-auto max-w-4xl">
+          <h2 className="text-center text-2xl font-bold tracking-tight sm:text-3xl">
+            This is what it looks like
+          </h2>
+          <p className="mx-auto mt-2 max-w-2xl text-center text-sm text-muted">
+            Scanners running around the clock, signals landing, trades opening — all on virtual money.
+          </p>
+
+          <div className="relative mt-10">
+            {/* App window */}
+            <div className="overflow-hidden rounded-2xl border border-white/10 bg-[#0b0e14] text-[#e6e8eb] shadow-2xl">
+              {/* Window chrome */}
+              <div className="flex items-center gap-1.5 border-b border-white/10 px-4 py-3">
+                <span className="h-2.5 w-2.5 rounded-full bg-rose-500/80" />
+                <span className="h-2.5 w-2.5 rounded-full bg-amber-500/80" />
+                <span className="h-2.5 w-2.5 rounded-full bg-emerald-500/80" />
+                <span className="ml-3 text-xs text-white/40">poshkan.com/dashboard/scanners</span>
+              </div>
+
+              <div className="space-y-3 p-4 sm:p-5">
+                <div className="flex items-center gap-2 text-xs text-white/50">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                  Scanners healthy · last ran 1m ago
+                </div>
+
+                {/* Recent activity */}
+                <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
+                  <div className="mb-2 flex items-center justify-between text-xs">
+                    <span className="font-semibold">📋 Recent activity</span>
+                    <span className="text-blue-400">View full log ↓</span>
+                  </div>
+                  <MockActivityRow dir="LONG" sym="EUR/USD" scanner="🎯 OTE" tag="traded" ago="2m ago" />
+                  <MockActivityRow dir="SHORT" sym="BTC" scanner="📈 SMC" tag="alert" ago="18m ago" />
+                  <MockActivityRow dir="LONG" sym="NVDA" scanner="🚀 Trend" tag="traded" ago="1h ago" />
+                </div>
+
+                {/* Scanner cards */}
+                <MockScannerCard icon="🎯" name="OTE Scanner" mode="Auto-trade" last="LONG SOL (traded) 2h ago" />
+                <MockScannerCard icon="🚀" name="Trend Breakout" mode="Alert" last="LONG BTC (alert) 4h ago" />
+              </div>
+            </div>
+
+            {/* Floating account stat card */}
+            <div className="absolute -bottom-6 right-3 hidden rounded-xl border border-white/10 bg-[#12161f] px-5 py-4 text-white shadow-2xl sm:block">
+              <div className="text-[11px] uppercase tracking-wide text-white/40">Total value</div>
+              <div className="mt-0.5 text-2xl font-bold">$24,618.90</div>
+              <div className="mt-0.5 text-sm font-medium text-emerald-400">+$312.40 (+1.3%) today</div>
+            </div>
+          </div>
+        </div>
+      </section>
 
       {/* Scanners — the hero feature: a library across all markets */}
       <section className="border-t border-border bg-card px-6 py-14 sm:px-12">
@@ -324,15 +378,111 @@ function Dot() {
   return <span className="h-2 w-2 rounded-full bg-white/80" />;
 }
 
-function TickerBackdrop() {
-  const rows = ["AAPL +1.2%", "BTC +2.1%", "NVDA +3.4%", "ETH -0.7%", "EURUSD +0.3%", "SOL +4.4%", "TSLA -0.8%", "MSFT +0.5%"];
+function MockActivityRow({
+  dir,
+  sym,
+  scanner,
+  tag,
+  ago,
+}: {
+  dir: "LONG" | "SHORT";
+  sym: string;
+  scanner: string;
+  tag: "traded" | "alert";
+  ago: string;
+}) {
   return (
-    <div className="flex h-full flex-col justify-around font-mono text-2xl">
-      {Array.from({ length: 8 }).map((_, i) => (
-        <div key={i} className="whitespace-nowrap">
-          {rows.concat(rows).join("    ")}
-        </div>
-      ))}
+    <div className="mt-1 flex items-center justify-between gap-2 rounded-lg border border-white/10 bg-white/[0.03] px-2.5 py-1.5 text-xs first:mt-0">
+      <span className="min-w-0 truncate">
+        {scanner} ·{" "}
+        <span className={dir === "LONG" ? "text-emerald-400" : "text-rose-400"}>{dir}</span> {sym}
+      </span>
+      <span className="flex shrink-0 items-center gap-2">
+        {tag === "traded" ? (
+          <span className="rounded bg-emerald-500/15 px-1.5 py-0.5 text-emerald-400">traded</span>
+        ) : (
+          <span className="rounded bg-white/10 px-1.5 py-0.5 text-white/50">alert</span>
+        )}
+        <span className="text-white/40">{ago}</span>
+      </span>
+    </div>
+  );
+}
+
+function MockScannerCard({
+  icon,
+  name,
+  mode,
+  last,
+}: {
+  icon: string;
+  name: string;
+  mode: string;
+  last: string;
+}) {
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2.5">
+      <span className="text-sm font-semibold">
+        {icon} {name}
+      </span>
+      <span className="flex flex-wrap items-center gap-1.5 text-[11px]">
+        <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 font-medium text-emerald-400">Enabled</span>
+        <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 font-medium text-emerald-400">{mode}</span>
+        <span className="text-white/40">ran 1m ago · last: {last}</span>
+        <span className="flex h-6 w-6 items-center justify-center rounded-full border border-white/15 text-white/40">›</span>
+      </span>
+    </div>
+  );
+}
+
+// Neon candlestick backdrop for the hero — pure CSS, echoing a dark trading
+// aesthetic without shipping any image assets.
+const CANDLES: { left: number; top: number; h: number; up: boolean }[] = [
+  { left: 4, top: 58, h: 90, up: true },
+  { left: 12, top: 44, h: 130, up: false },
+  { left: 20, top: 52, h: 100, up: true },
+  { left: 28, top: 30, h: 150, up: true },
+  { left: 36, top: 42, h: 110, up: false },
+  { left: 44, top: 22, h: 170, up: true },
+  { left: 52, top: 36, h: 120, up: false },
+  { left: 60, top: 18, h: 180, up: true },
+  { left: 68, top: 30, h: 140, up: true },
+  { left: 76, top: 14, h: 160, up: false },
+  { left: 84, top: 24, h: 190, up: true },
+  { left: 92, top: 10, h: 150, up: true },
+];
+
+function CandleBackdrop() {
+  return (
+    <div className="relative h-full w-full opacity-50">
+      {CANDLES.map((c, i) => {
+        const color = c.up ? "rgba(34,197,94," : "rgba(239,68,68,";
+        return (
+          <div key={i} className="absolute" style={{ left: `${c.left}%`, top: `${c.top}%` }}>
+            {/* wick */}
+            <div
+              className="absolute left-1/2 -translate-x-1/2"
+              style={{
+                width: 2,
+                height: c.h * 1.6,
+                top: -(c.h * 0.3),
+                background: `${color}0.35)`,
+              }}
+            />
+            {/* body with glow */}
+            <div
+              className="relative rounded-[3px]"
+              style={{
+                width: 14,
+                height: c.h,
+                background: `${color}0.28)`,
+                border: `1px solid ${color}0.55)`,
+                boxShadow: `0 0 22px ${color}0.45), 0 0 60px ${color}0.18)`,
+              }}
+            />
+          </div>
+        );
+      })}
     </div>
   );
 }
