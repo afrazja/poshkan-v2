@@ -157,7 +157,12 @@ export default async function LeaderboardPage({
             <span className="ml-2 whitespace-nowrap text-xs text-muted">best of {others + 1}</span>
           )}
         </td>
-        <td className={`px-4 py-3 text-right font-semibold ${changeColor(Number(r.return_pct))}`}>
+        <td
+          className={`px-4 py-3 text-right font-semibold ${changeColor(
+            // Match the displayed rounding, so a −0.004% never colors red.
+            Math.abs(Number(r.return_pct)) < 0.005 ? 0 : Number(r.return_pct)
+          )}`}
+        >
           {formatPercent(Number(r.return_pct))}
         </td>
         <td className="px-4 py-3 text-right text-muted">{formatCurrency(Number(r.total_value))}</td>

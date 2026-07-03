@@ -15,8 +15,11 @@ export function formatNumber(value: number, maxFractionDigits = 4): string {
 }
 
 export function formatPercent(value: number): string {
-  const sign = value > 0 ? "+" : "";
-  return `${sign}${value.toFixed(2)}%`;
+  // Snap anything that would render as "±0.00%" to a plain zero — negative
+  // zero survives toFixed, and a red "−0.00%" reads as a bug.
+  const v = Math.abs(value) < 0.005 ? 0 : value;
+  const sign = v > 0 ? "+" : "";
+  return `${sign}${v.toFixed(2)}%`;
 }
 
 export function formatSignedCurrency(value: number, currency = "USD"): string {
