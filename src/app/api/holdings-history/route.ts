@@ -80,7 +80,12 @@ export async function GET(request: Request) {
     .eq("account_id", accountId);
   const current = (positions ?? []) as { symbol: string; quantity: number; avg_cost: number }[];
 
-  const symbols = Array.from(new Set(txns.filter((t) => t.symbol).map((t) => t.symbol as string)));
+  // Union of ledger symbols AND currently-held symbols — the "now" point prices
+  // real positions, so a holding the ledger doesn't know (e.g. hand-seeded)
+  // must still get a live quote or it silently falls back to cost.
+  const symbols = Array.from(
+    new Set([...txns.filter((t) => t.symbol).map((t) => t.symbol as string), ...current.map((p) => p.symbol)])
+  );
   const series: Record<string, Candle[]> = {};
   await Promise.all(
     symbols.map(async (sym) => {
