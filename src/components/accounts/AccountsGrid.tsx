@@ -23,6 +23,7 @@ export default function AccountsGrid({
     {
       marketValue: number;
       holdings: number;
+      fxOpen: number;
       unrealized: number;
       realized: number;
       todayPnl: number;
@@ -103,7 +104,7 @@ export default function AccountsGrid({
         {orderedAccounts.map((acc) => {
           const s =
             summary[acc.id] ??
-            { marketValue: 0, holdings: 0, unrealized: 0, realized: 0, todayPnl: 0, prevValue: 0 };
+            { marketValue: 0, holdings: 0, fxOpen: 0, unrealized: 0, realized: 0, todayPnl: 0, prevValue: 0 };
           const total = Number(acc.cash_balance) + s.marketValue;
           const todayPct = s.prevValue > 0 ? (s.todayPnl / s.prevValue) * 100 : 0;
           // Forex accounts have no spot holdings — their live number is floating P&L.
@@ -164,7 +165,12 @@ export default function AccountsGrid({
                     Cash <span className="text-foreground">{formatCurrency(Number(acc.cash_balance))}</span>
                   </span>
                   <span className="text-muted">
-                    {s.holdings} holding{s.holdings === 1 ? "" : "s"}
+                    {/* Leveraged trades aren't spot holdings but ARE market
+                        exposure — "0 holdings" on an account with three open
+                        EUR/USD positions reads like the app lost them. */}
+                    {s.fxOpen > 0
+                      ? `${s.holdings + s.fxOpen} open position${s.holdings + s.fxOpen === 1 ? "" : "s"}`
+                      : `${s.holdings} holding${s.holdings === 1 ? "" : "s"}`}
                   </span>
                 </div>
                 <div className="mt-2 flex justify-between text-xs">

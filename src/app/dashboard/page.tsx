@@ -88,6 +88,7 @@ export default async function DashboardPage() {
   type Sum = {
     marketValue: number;
     holdings: number;
+    fxOpen: number; // open leveraged/forex positions — not spot, but still "in the market"
     unrealized: number;
     realized: number;
     todayPnl: number;
@@ -95,7 +96,7 @@ export default async function DashboardPage() {
   };
   const summary: Record<string, Sum> = {};
   const ensure = (id: string): Sum =>
-    (summary[id] ??= { marketValue: 0, holdings: 0, unrealized: 0, realized: 0, todayPnl: 0, prevValue: 0 });
+    (summary[id] ??= { marketValue: 0, holdings: 0, fxOpen: 0, unrealized: 0, realized: 0, todayPnl: 0, prevValue: 0 });
 
   // Spot holdings: market value + unrealized P&L vs average cost + today's move.
   for (const p of posRows) {
@@ -115,6 +116,7 @@ export default async function DashboardPage() {
   for (const f of fxOpenRows) {
     const s = ensure(f.account_id);
     s.marketValue += Number(f.margin);
+    s.fxOpen += 1;
     const q = quotes[f.symbol.toUpperCase()];
     if (q?.price) {
       s.unrealized += floatingPnl(f.direction, Number(f.units), Number(f.open_rate), q.price, f.symbol);
