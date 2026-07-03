@@ -33,11 +33,24 @@ export default async function TermPage({ params }: { params: Promise<{ slug: str
 
   const jsonLd = {
     "@context": "https://schema.org",
-    "@type": "DefinedTerm",
-    name: t.title.replace(/^What (is|are|does|'s the difference between) /i, "").replace(/\?$/, ""),
-    description: t.definition,
-    url: `https://www.poshkan.com/learn/${t.slug}`,
-    inDefinedTermSet: { "@type": "DefinedTermSet", name: "Poshkan Trading Glossary", url: "https://www.poshkan.com/learn" },
+    "@graph": [
+      {
+        "@type": "DefinedTerm",
+        name: t.title.replace(/^What (is|are|does|'s the difference between) /i, "").replace(/\?$/, ""),
+        description: t.definition,
+        url: `https://www.poshkan.com/learn/${t.slug}`,
+        inDefinedTermSet: { "@type": "DefinedTermSet", name: "Poshkan Trading Glossary", url: "https://www.poshkan.com/learn" },
+      },
+      // Mirrors the visible breadcrumb nav — helps Google map site hierarchy.
+      {
+        "@type": "BreadcrumbList",
+        itemListElement: [
+          { "@type": "ListItem", position: 1, name: "Poshkan", item: "https://www.poshkan.com" },
+          { "@type": "ListItem", position: 2, name: "Learn", item: "https://www.poshkan.com/learn" },
+          { "@type": "ListItem", position: 3, name: t.title },
+        ],
+      },
+    ],
   };
 
   const related = t.related.map(termBySlug).filter(Boolean);

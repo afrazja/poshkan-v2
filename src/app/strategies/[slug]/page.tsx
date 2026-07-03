@@ -33,11 +33,24 @@ export default async function StrategyPage({ params }: { params: Promise<{ slug:
 
   const jsonLd = {
     "@context": "https://schema.org",
-    "@type": "Article",
-    headline: s.seoTitle,
-    description: s.seoDescription,
-    url: `https://www.poshkan.com/strategies/${s.slug}`,
-    publisher: { "@type": "Organization", name: "Poshkan", url: "https://www.poshkan.com" },
+    "@graph": [
+      {
+        "@type": "Article",
+        headline: s.seoTitle,
+        description: s.seoDescription,
+        url: `https://www.poshkan.com/strategies/${s.slug}`,
+        publisher: { "@type": "Organization", name: "Poshkan", url: "https://www.poshkan.com" },
+      },
+      // Mirrors the visible breadcrumb nav — helps Google map site hierarchy.
+      {
+        "@type": "BreadcrumbList",
+        itemListElement: [
+          { "@type": "ListItem", position: 1, name: "Poshkan", item: "https://www.poshkan.com" },
+          { "@type": "ListItem", position: 2, name: "Strategies", item: "https://www.poshkan.com/strategies" },
+          { "@type": "ListItem", position: 3, name: s.name },
+        ],
+      },
+    ],
   };
 
   const others = STRATEGIES.filter((o) => o.slug !== s.slug);

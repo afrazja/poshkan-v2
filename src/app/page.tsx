@@ -30,16 +30,37 @@ export const metadata = {
   },
 };
 
-// Rich-result hint for Google: a free finance web app.
+// Rich-result hints for Google. Organization + WebSite establish the brand
+// entity and site structure (prerequisites for sitelinks under brand
+// searches); WebApplication describes the free finance app itself.
 const JSON_LD = {
   "@context": "https://schema.org",
-  "@type": "WebApplication",
-  name: "Poshkan",
-  url: "https://www.poshkan.com",
-  applicationCategory: "FinanceApplication",
-  operatingSystem: "Web",
-  description: DESCRIPTION,
-  offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": "https://www.poshkan.com/#org",
+      name: "Poshkan",
+      url: "https://www.poshkan.com",
+      logo: "https://www.poshkan.com/icons/icon-512.png",
+    },
+    {
+      "@type": "WebSite",
+      "@id": "https://www.poshkan.com/#website",
+      name: "Poshkan",
+      url: "https://www.poshkan.com",
+      publisher: { "@id": "https://www.poshkan.com/#org" },
+    },
+    {
+      "@type": "WebApplication",
+      name: "Poshkan",
+      url: "https://www.poshkan.com",
+      applicationCategory: "FinanceApplication",
+      operatingSystem: "Web",
+      description: DESCRIPTION,
+      offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+      publisher: { "@id": "https://www.poshkan.com/#org" },
+    },
+  ],
 };
 
 // Live "activity proof" for the landing page — honest numbers the platform
