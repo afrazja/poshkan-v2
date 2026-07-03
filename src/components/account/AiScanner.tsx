@@ -6,6 +6,7 @@ import {
   setAiInstructionAction,
   setAutoSettingsAction,
   setAiSymbolsAction,
+  getAnthropicKeyStatusAction,
 } from "@/app/dashboard/[accountId]/actions";
 import ScannerCard from "./ScannerCard";
 import ScannerIcon from "@/components/ScannerIcon";
@@ -67,6 +68,19 @@ export default function AiScanner({
   const anyDirty = autoDirty || symbolsDirty || instructionDirty;
   useUnsavedGuard(anyDirty);
 
+  // Strictly bring-your-own-key: without a saved Anthropic key, no AI scans
+  // run for this user at all — so say it loudly instead of failing silently.
+  const [hasKey, setHasKey] = useState<boolean | null>(null); // null = still checking
+  useEffect(() => {
+    let active = true;
+    getAnthropicKeyStatusAction()
+      .then((s) => active && setHasKey(s.set))
+      .catch(() => active && setHasKey(null));
+    return () => {
+      active = false;
+    };
+  }, []);
+
   return (
     <ScannerCard
       icon={<ScannerIcon kind="ai" size={18} />}
@@ -82,6 +96,13 @@ export default function AiScanner({
         </>
       }
     >
+      {hasKey === false && (
+        <div className="mb-3 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-600 dark:text-amber-400">
+          <strong>No Anthropic API key saved — the AI Scanner is inactive.</strong> It runs
+          entirely on your own key (you pay Anthropic directly; Poshkan never bills you). Add one
+          via the ⚙️ menu → <em>Your Claude API key</em>, then scans start on the next cycle.
+        </div>
+      )}
       <ScannerInfo
         whatItIs="A discretionary scanner powered by Claude — instead of a fixed formula, it reads the market and your plain-English instructions to decide trades. The flexible one."
         bestWhen="When you want judgement and nuance, or to encode your own rules in plain words rather than rigid parameters."

@@ -87,11 +87,13 @@ export async function GET(request: Request) {
     const targets = ((accounts ?? []) as AccRow[]).filter((a) => pushUsers.has(a.user_id));
     if (targets.length === 0) return NextResponse.json({ targets: 0, globalKill: GLOBAL_KILL });
 
-    // Each user's AI calls bill THEIR own Anthropic key (env key as fallback).
+    // Strictly bring-your-own-key: the AI scanner runs ONLY on the user's own
+    // Anthropic key. No operator-key fallback — a user without a key simply
+    // gets no AI scans (the card explains how to add one).
     const keyByUser = new Map<string, string | undefined>();
     await Promise.all(
       Array.from(new Set(targets.map((t) => t.user_id))).map(async (uid) => {
-        keyByUser.set(uid, (await getUserAnthropicKey(db, uid)) || process.env.ANTHROPIC_API_KEY || undefined);
+        keyByUser.set(uid, (await getUserAnthropicKey(db, uid)) || undefined);
       })
     );
 
@@ -129,6 +131,8 @@ export async function GET(request: Request) {
     // Analyze per (owner, market, instruction) — cache so a user's accounts reuse one call.
     const analysisCache = new Map<string, Awaited<ReturnType<typeof analyzeMarket>>>();
     const analysisFor = async (acc: AccRow) => {
+      // BYOK: no key on file → no AI call at all (not even a failed attempt).
+      if (!keyByUser.get(acc.user_id)) return { setup: null };
       const all = summariesByMarket.get(acc.type);
       if (!all) return { setup: null };
       const want = new Set(accSymbols(acc).map((s) => s.toUpperCase()));
@@ -238,7 +242,11 @@ export async function GET(request: Request) {
           margin = marginFor(units, liveRate, lev, setup.pair);
         }
 
-        if ((force || (tradedToday < maxPerDay && !lossLimitHit && !tooSoon)) && units > 0 && margin <= cash) {
+        // A "limit" proposal is an order for a DIFFERENT price than now — filling
+        // it immediately at market would trade a plan the model never made.
+        // Auto-execute market setups only; limit ideas still go out as alerts.
+        const marketEntry = !setup.entryType || setup.entryType === "market";
+        if (marketEntry && (force || (tradedToday < maxPerDay && !lossLimitHit && !tooSoon)) && units > 0 && margin <= cash) {
           // Open at market; anchor SL/TP to the live fill, preserving reward:risk.
           const isLong = setup.direction === "LONG";
           const risk = Math.abs(setup.entry - setup.stop);

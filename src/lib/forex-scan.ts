@@ -142,12 +142,16 @@ export async function analyzeMarket(
   apiKey?: string,
   market: string = "forex"
 ): Promise<{ setup: Setup | null; error?: string }> {
+  // Strictly bring-your-own-key. Never construct the SDK without an explicit
+  // key: `new Anthropic({})` silently falls back to the operator's
+  // ANTHROPIC_API_KEY env var, billing us for the user's scans.
+  if (!apiKey) return { setup: null, error: "No Anthropic API key on file" };
   const assetClass = market === "stocks" ? "stock" : market === "crypto" ? "crypto" : "forex";
   const system = instruction?.trim() ? customSystem(instruction, assetClass) : baseSystem(assetClass);
   let text: string;
   try {
     const { default: Anthropic } = await import("@anthropic-ai/sdk");
-    const client = new Anthropic(apiKey ? { apiKey } : {});
+    const client = new Anthropic({ apiKey });
     const response = await client.messages.create({
       model: "claude-opus-4-8",
       max_tokens: 1500,
@@ -174,10 +178,31 @@ export async function analyzeMarket(
     const parsed = JSON.parse(json) as { setup: Setup | null };
     const s = parsed.setup;
     if (!s || !s.pair || !s.direction || !s.entry || !s.stop || !s.takeProfit) return { setup: null };
-    // Guard: enforce the 2:1 floor server-side too.
+
+    // ── Validate the model's proposal before it can become a trade ──
+    // 1. The pair must be one we actually sent — a hallucinated symbol would
+    //    otherwise trade at the model's own invented price downstream.
+    const summary = summaries.find((x) => x.pair.toUpperCase() === String(s.pair).toUpperCase());
+    if (!summary?.price) return { setup: null };
+    // 2. Direction must be the exact enum — "Long"/"buy" would silently invert
+    //    the SL/TP geometry in the execution path.
+    if (s.direction !== "LONG" && s.direction !== "SHORT") return { setup: null };
+    // 3. Stop and target must sit on the correct sides of entry.
+    const isLong = s.direction === "LONG";
+    const sane = isLong
+      ? s.stop < s.entry && s.takeProfit > s.entry
+      : s.stop > s.entry && s.takeProfit < s.entry;
+    if (!sane) return { setup: null };
+    // 4. All levels must be within a sane band of the live price (±10%) —
+    //    rejects fat-fingered magnitudes before any sizing math sees them.
+    const live = summary.price;
+    const inBand = (p: number) => Math.abs(p - live) / live <= 0.1;
+    if (!inBand(s.entry) || !inBand(s.stop) || !inBand(s.takeProfit)) return { setup: null };
+    // 5. Enforce the 2:1 floor server-side too.
     const risk = Math.abs(s.entry - s.stop);
     const reward = Math.abs(s.takeProfit - s.entry);
     if (risk <= 0 || reward / risk < 2) return { setup: null };
+
     return { setup: s };
   } catch {
     return { setup: null };
@@ -221,9 +246,14 @@ export interface PositionContext {
 
 /** Ask Claude to explain the strategy behind one specific position, on demand. */
 export async function explainPosition(ctx: PositionContext, apiKey?: string): Promise<string> {
+  // BYOK only — see analyzeMarket: an SDK constructed without a key silently
+  // falls back to the operator's env key.
+  if (!apiKey) {
+    throw new Error("Add your Anthropic API key (⚙️ menu → Your Claude API key) to use AI explanations.");
+  }
   const summary = await buildSummary(ctx.pair);
   const { default: Anthropic } = await import("@anthropic-ai/sdk");
-  const client = new Anthropic(apiKey ? { apiKey } : {});
+  const client = new Anthropic({ apiKey });
 
   const isOpen = ctx.status === "open";
   const system = `You are a professional forex analyst explaining the strategy behind ONE specific ${isOpen ? "open" : "closed"} position to the trader who holds it. Write 3-5 short sentences in plain language. Cover: the technical read (trend via SMA20/SMA50, RSI14, the 20-bar support/resistance), why the stop-loss and take-profit sit where they do (structure + reward:risk), and what price action would confirm or invalidate the idea. Reference the actual numbers. No preamble, no markdown headers or bullet lists — just the explanation as a short paragraph.`;
