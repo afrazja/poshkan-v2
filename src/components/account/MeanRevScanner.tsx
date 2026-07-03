@@ -534,7 +534,7 @@ export default function MeanRevScanner({
         </div>
         <p className="mt-1 text-[11px] text-muted">
           Replays this exact strategy on ~1 year of 1-hour data for your watched symbols. R = risk
-          multiple (a win banks the setup&apos;s reward:risk, which varies; a loss is −1R).
+          multiple (a win banks the setup&apos;s reward:risk, which varies; a loss is −1R). Results are net of estimated spread &amp; slippage.
         </p>
         {btErr && <p className="mt-2 text-xs text-negative">{btErr}</p>}
         {bt &&

@@ -534,7 +534,7 @@ export default function CandleRangeScanner({
         </div>
         <p className="mt-1 text-[11px] text-muted">
           Replays this exact strategy on the last ~60 days of 15-minute data for your watched symbols. R = risk
-          multiple (a win banks the setup&apos;s reward:risk, which varies; a loss is −1R).
+          multiple (a win banks the setup&apos;s reward:risk, which varies; a loss is −1R). Results are net of estimated spread &amp; slippage.
         </p>
         {btErr && <p className="mt-2 text-xs text-negative">{btErr}</p>}
         {bt &&

@@ -2,6 +2,7 @@ import "server-only";
 import { getOhlc } from "./marketdata";
 import { realBars } from "./smc";
 import { evaluateCandleRangeAt, CANDLERANGE_DEFAULTS, type CandleRangeParams } from "./candlerange";
+import { costInR } from "./trading-costs";
 
 const LOOKBACK = 130; // enough for the range window + ATR
 
@@ -83,7 +84,10 @@ async function backtestSymbol(symbol: string, params: CandleRangeParams): Promis
         entryTime: c[i].datetime,
         exitTime: c[exitIdx].datetime,
         exit,
-        r: win ? rr : -1,
+        // Net of estimated spread + slippage. A range strategy's many small
+        // wins pay the spread many times — exactly the cost that decides
+        // whether box-trading pays at all.
+        r: (win ? rr : -1) - costInR(symbol, entry, stop),
         win,
       });
       i = exitIdx + 1;

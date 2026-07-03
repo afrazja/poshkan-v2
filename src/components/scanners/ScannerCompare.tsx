@@ -62,8 +62,8 @@ export default function ScannerCompare({
         <div className="mt-3 space-y-3">
           <p className="text-xs text-muted">
             Backtests all five deterministic scanners on the same symbols and ranks them by net R — so
-            you can see which edge fits your list before turning one on. (Up to 5 symbols; can take a few
-            seconds.)
+            you can see which edge fits your list before turning one on. Results are net of estimated
+            spread &amp; slippage. (Up to 5 symbols; can take a few seconds.)
           </p>
 
           <div className="flex flex-wrap items-center gap-2">

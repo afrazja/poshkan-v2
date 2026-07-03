@@ -1,6 +1,7 @@
 import "server-only";
 import { getOhlc } from "./marketdata";
 import { realBars, evaluateAt, DEFAULT_PARAMS, type SmcParams } from "./smc";
+import { costInR } from "./trading-costs";
 
 // Live uses the last 150 M5 / 120 H1 bars — the replay mirrors that exactly.
 const M5_LOOKBACK = 150;
@@ -106,7 +107,9 @@ async function backtestSymbol(symbol: string, params: SmcParams): Promise<BtSymb
         entryTime: m5[i].datetime,
         exitTime: m5[exitIdx].datetime,
         exit,
-        r: win ? params.tpRR : -1,
+        // Net of estimated spread + slippage — ideal-price fills flatter every
+        // strategy, high-frequency ones most.
+        r: (win ? params.tpRR : -1) - costInR(symbol, entry, stop),
         win,
       });
       i = exitIdx + 1; // one position at a time — resume after it closes

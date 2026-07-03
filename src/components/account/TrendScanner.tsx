@@ -550,7 +550,7 @@ export default function TrendScanner({
         </div>
         <p className="mt-1 text-[11px] text-muted">
           Replays this exact strategy on ~1 year of 1-hour data for your watched symbols. R = risk
-          multiple (a win is +{tpRR}R, a loss −1R).
+          multiple (a win is +{tpRR}R, a loss −1R). Results are net of estimated spread &amp; slippage.
         </p>
         {btErr && <p className="mt-2 text-xs text-negative">{btErr}</p>}
         {bt &&

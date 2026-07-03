@@ -6,6 +6,7 @@ import { aiUniverse, buildSummary, analyzeMarket, fallbackSetup, type PairSummar
 import { sendPushToUser } from "@/lib/push";
 import { getUserAnthropicKey } from "@/lib/anthropic-key";
 import { assetTypeError } from "@/lib/assets";
+import { claimSignal, dailyLossHit } from "@/lib/scanner-shared";
 
 export const maxDuration = 60;
 
@@ -163,16 +164,25 @@ export async function GET(request: Request) {
       const symbol = setup.pair.toUpperCase();
       const liveRate = sums.find((s) => s.pair.toUpperCase() === symbol)?.price ?? setup.entry;
 
-      // Don't re-act on the same setup within 12h.
-      const { data: recent } = await db
-        .from("fx_scan_alerts")
-        .select("id")
-        .eq("account_id", acc.id)
-        .eq("symbol", symbol)
-        .eq("direction", setup.direction)
-        .gte("alerted_at", since)
-        .limit(1);
-      if (!force && recent && recent.length) continue;
+      // Don't re-act on the same setup within 12h. Claim-first so overlapping
+      // cron runs can't both fire; the claim row doubles as the alert log.
+      let claimId = await claimSignal(
+        db,
+        "fx_scan_alerts",
+        { account_id: acc.id, symbol, direction: setup.direction, executed: false },
+        since,
+        "alerted_at"
+      );
+      if (!claimId) {
+        if (!force) continue;
+        // Forced runs act despite the dedupe — log a fresh row to track it.
+        const { data: forced } = await db
+          .from("fx_scan_alerts")
+          .insert({ account_id: acc.id, symbol, direction: setup.direction, executed: false })
+          .select("id")
+          .single();
+        claimId = forced?.id ?? null;
+      }
 
       const autoTrade = !GLOBAL_KILL && !!acc.auto_trade_enabled;
       const riskPct = Number(acc.auto_risk_pct) || DEF_RISK_PCT;
@@ -183,7 +193,7 @@ export async function GET(request: Request) {
 
       // Skip if they already hold a position or pending order on this symbol.
       const [{ data: pos }, { data: ord }] = await Promise.all([
-        db.from("fx_positions").select("symbol, direction").eq("account_id", acc.id).eq("status", "open"),
+        db.from("fx_positions").select("symbol, direction, units, open_rate").eq("account_id", acc.id).eq("status", "open"),
         db.from("fx_orders").select("symbol").eq("account_id", acc.id).eq("status", "pending"),
       ]);
       const held = [...(pos ?? []), ...(ord ?? [])];
@@ -210,15 +220,10 @@ export async function GET(request: Request) {
         const tradedToday = count ?? 0;
         const cash = Number(acc.cash_balance);
 
-        // Daily loss limit.
-        const { data: closedToday } = await db
-          .from("fx_positions")
-          .select("pnl")
-          .eq("account_id", acc.id)
-          .neq("status", "open")
-          .gte("closed_at", dayStart.toISOString());
-        const realizedToday = (closedToday ?? []).reduce((sum, r) => sum + Number(r.pnl ?? 0), 0);
-        const lossLimitHit = realizedToday <= -Math.abs(cash * dailyLossPct);
+        // Daily loss limit — realized losses today plus current open drawdown.
+        const lossLimitHit = await dailyLossHit(
+          db, acc.id, pos ?? [], dayStart.toISOString(), cash, dailyLossPct
+        );
 
         // Frequency throttle.
         const { data: lastExec } = await db
@@ -265,9 +270,7 @@ export async function GET(request: Request) {
           });
           if (!openErr) {
             if (newId) await db.from("fx_positions").update({ source: "ai" }).eq("id", newId);
-            await db
-              .from("fx_scan_alerts")
-              .insert({ account_id: acc.id, symbol, direction: setup.direction, executed: true });
+            if (claimId) await db.from("fx_scan_alerts").update({ executed: true }).eq("id", claimId);
             placed++;
             try {
               await sendPushToUser(acc.user_id, {
@@ -288,8 +291,7 @@ export async function GET(request: Request) {
       const entryDesc =
         setup.entryType === "limit" ? `limit ${fmtRate(setup.entry)}` : `market ~${fmtRate(setup.entry)}`;
 
-      await db.from("fx_scan_alerts").insert({ account_id: acc.id, symbol, direction: setup.direction });
-      pushed++;
+      pushed++; // the claim row already logged this alert
       try {
         await sendPushToUser(acc.user_id, {
           title: `📊 Setup: ${setup.direction} ${fmtSym(setup.pair)} (${setup.rr.toFixed(1)}R)`,

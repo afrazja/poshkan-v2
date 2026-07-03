@@ -5,6 +5,7 @@ import { marginFor, clampTradeLeverage } from "@/lib/forex";
 import { evaluateOteSymbol, OTE_DEFAULTS, type OteEval, type OteParams } from "@/lib/ote";
 import { marketUniverse, assetTypeError, symbolLabel } from "@/lib/assets";
 import { sendPushToUser } from "@/lib/push";
+import { claimSignal, markExecuted, dailyLossHit } from "@/lib/scanner-shared";
 
 export const maxDuration = 60;
 
@@ -111,27 +112,36 @@ export async function GET(request: Request) {
       if (ev.status !== "signal" || !ev.direction || ev.entry == null || ev.stop == null || ev.takeProfit == null)
         continue;
       const symbol = ev.symbol.toUpperCase();
-
-      const { data: recent } = await db
-        .from("ote_signals")
-        .select("id")
-        .eq("account_id", acc.id)
-        .eq("symbol", symbol)
-        .eq("direction", ev.direction)
-        .gte("created_at", dedupeSince)
-        .limit(1);
-      if (recent && recent.length) continue;
-
       const isLong = ev.direction === "LONG";
       const autoMode = s.mode === "auto";
 
       const { data: pos } = await db
         .from("fx_positions")
-        .select("symbol, direction")
+        .select("symbol, direction, units, open_rate")
         .eq("account_id", acc.id)
         .eq("status", "open");
       const open = pos ?? [];
       if (open.some((p) => (p.symbol ?? "").toUpperCase() === symbol)) continue; // already in it
+
+      // Dedup (4h per symbol+direction), claim-first so overlapping cron runs
+      // can't both fire. The claim row doubles as the alert log.
+      const claimId = await claimSignal(
+        db,
+        "ote_signals",
+        {
+          account_id: acc.id,
+          symbol,
+          direction: ev.direction,
+          entry: ev.entry,
+          stop: ev.stop,
+          take_profit: ev.takeProfit,
+          rr: ev.rr,
+          reason: ev.reason,
+          executed: false,
+        },
+        dedupeSince
+      );
+      if (!claimId) continue;
 
       // Decide whether to auto-trade; capture WHY we don't, to explain in the alert.
       let why = autoMode ? "" : "scanner is in Alert-only mode";
@@ -150,20 +160,15 @@ export async function GET(request: Request) {
             .eq("account_id", acc.id)
             .eq("executed", true)
             .gte("created_at", dayStart.toISOString());
-          const { data: closedToday } = await db
-            .from("fx_positions")
-            .select("pnl")
-            .eq("account_id", acc.id)
-            .neq("status", "open")
-            .gte("closed_at", dayStart.toISOString());
-          const realizedToday = (closedToday ?? []).reduce((sum, r) => sum + Number(r.pnl ?? 0), 0);
           const cash = Number(acc.cash_balance);
-          const lossHit = realizedToday <= -Math.abs(cash * (Number(s.daily_loss_pct) || 0.04));
+          const lossHit = await dailyLossHit(
+            db, acc.id, open, dayStart.toISOString(), cash, Number(s.daily_loss_pct) || 0.04
+          );
 
           if ((tradesToday ?? 0) >= (Number(s.max_per_day) || 5)) {
             why = "daily trade cap reached";
           } else if (lossHit) {
-            why = "daily loss limit hit";
+            why = "daily loss limit hit (realized + open drawdown)";
           } else {
             // Anchor the fill to the live quote, preserving the plan's R distances.
             const q = await getQuote(symbol).catch(() => null);
@@ -204,7 +209,7 @@ export async function GET(request: Request) {
                 if (Number(s.auto_close_hours) > 0 && newId) {
                   await db.rpc("fx_set_auto_close", { p_position_id: newId, p_minutes: Math.round(Number(s.auto_close_hours) * 60) });
                 }
-                await logAlert(db, acc, { ...ev, entry: liveRate, stop: sl, takeProfit: tp }, true);
+                await markExecuted(db, "ote_signals", claimId, { entry: liveRate, stop: sl, take_profit: tp });
                 placed++;
                 didTrade = true;
                 try {
@@ -224,8 +229,7 @@ export async function GET(request: Request) {
 
       if (didTrade) continue;
 
-      await logAlert(db, acc, ev, false);
-      alerted++;
+      alerted++; // the claim row already logged this alert
       try {
         await sendPushToUser(acc.user_id, {
           title: autoMode
@@ -248,23 +252,4 @@ function roundUnits(units: number, type: string): number {
   if (type === "stocks") return Math.floor(units);
   if (type === "forex") return Math.max(0, Math.round(units / 1000) * 1000);
   return Math.floor(units * 1e6) / 1e6;
-}
-
-async function logAlert(
-  db: ReturnType<typeof createAdminClient>,
-  acc: AccRow,
-  ev: OteEval,
-  executed: boolean
-) {
-  await db.from("ote_signals").insert({
-    account_id: acc.id,
-    symbol: ev.symbol.toUpperCase(),
-    direction: ev.direction,
-    entry: ev.entry,
-    stop: ev.stop,
-    take_profit: ev.takeProfit,
-    rr: ev.rr,
-    reason: ev.reason,
-    executed,
-  });
 }

@@ -2,6 +2,7 @@ import "server-only";
 import { getOhlc } from "./marketdata";
 import { realBars } from "./smc";
 import { evaluateMeanRevAt, MEANREV_DEFAULTS, type MeanRevParams } from "./meanrev";
+import { costInR } from "./trading-costs";
 
 const LOOKBACK = 140; // enough for a 100-MA trend filter + the bands
 
@@ -83,7 +84,8 @@ async function backtestSymbol(symbol: string, params: MeanRevParams): Promise<Me
         entryTime: c[i].datetime,
         exitTime: c[exitIdx].datetime,
         exit,
-        r: win ? rr : -1,
+        // Net of estimated spread + slippage.
+        r: (win ? rr : -1) - costInR(symbol, entry, stop),
         win,
       });
       i = exitIdx + 1;

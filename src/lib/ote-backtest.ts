@@ -2,6 +2,7 @@ import "server-only";
 import { getOhlc } from "./marketdata";
 import { realBars } from "./smc";
 import { evaluateOteAt, OTE_DEFAULTS, type OteParams } from "./ote";
+import { costInR } from "./trading-costs";
 
 // Live fetches 250 entry-TF (5min) bars and 200 trend-TF (15min) bars — the
 // replay must use the same window sizes or it measures a different strategy
@@ -115,7 +116,8 @@ async function backtestSymbol(symbol: string, params: OteParams): Promise<OteBtS
         entryTime: m15[i].datetime,
         exitTime: m15[exitIdx].datetime,
         exit,
-        r: win ? rr : -1,
+        // Net of estimated spread + slippage.
+        r: (win ? rr : -1) - costInR(symbol, entry, stop),
         win,
       });
       i = exitIdx + 1;

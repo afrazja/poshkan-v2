@@ -2,6 +2,7 @@ import "server-only";
 import { getOhlc } from "./marketdata";
 import { realBars } from "./smc";
 import { evaluateTrendAt, TREND_DEFAULTS, type TrendParams } from "./trend";
+import { costInR } from "./trading-costs";
 
 // A 120-bar window is plenty for Donchian(20) + a 50-MA filter.
 const LOOKBACK = 120;
@@ -84,7 +85,8 @@ async function backtestSymbol(symbol: string, params: TrendParams): Promise<Tren
         entryTime: c[i].datetime,
         exitTime: c[exitIdx].datetime,
         exit,
-        r: win ? params.tpRR : -1,
+        // Net of estimated spread + slippage.
+        r: (win ? params.tpRR : -1) - costInR(symbol, entry, stop),
         win,
       });
       i = exitIdx + 1;
