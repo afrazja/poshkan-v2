@@ -59,11 +59,14 @@ async function backtestSymbol(symbol: string, params: SmcParams): Promise<BtSymb
 
   let i = M5_LOOKBACK;
   while (i < m5.length) {
-    const m5win = m5.slice(Math.max(0, i - M5_LOOKBACK), i + 1);
+    // Window of exactly M5_LOOKBACK bars ending at bar i — matches the live fetch.
+    const m5win = m5.slice(Math.max(0, i - M5_LOOKBACK + 1), i + 1);
     const tTime = new Date(m5[i].datetime).getTime();
-    // H1 window = the last H1_LOOKBACK bars closed at/before this M5 bar.
+    // H1 window = only bars fully CLOSED by this M5 bar's close. Timestamps are
+    // bar OPENS, so an H1 bar is usable when open + 60min ≤ m5 open + 5min —
+    // otherwise its close contains up to ~55 minutes of future data (lookahead).
     let hi = h1Time.length;
-    while (hi > 0 && h1Time[hi - 1] > tTime) hi--;
+    while (hi > 0 && h1Time[hi - 1] + 3_600_000 > tTime + 5 * 60_000) hi--;
     const h1win = h1.slice(Math.max(0, hi - H1_LOOKBACK), hi);
     if (h1win.length < 30) {
       i++;

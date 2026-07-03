@@ -240,19 +240,23 @@ export function evaluateAt(
   // ── Signal ──
   const direction: "LONG" | "SHORT" = f.type === "bullish" ? "LONG" : "SHORT";
   const buffer = a * params.slBufferAtr;
+  const entry = last.close;
   let stop: number;
   if (params.slMode === "swing") {
     if (f.type === "bullish") {
       const pl = sl.filter((s) => s.i < f.i).slice(-1)[0];
       stop = (pl?.price ?? f.bottom) - buffer;
+      // Stair-step structure can leave the last pre-FVG swing low ABOVE the
+      // entry — an inverted stop. Fall back to the FVG edge in that case.
+      if (stop >= entry) stop = f.bottom - buffer;
     } else {
       const ph = sh.filter((s) => s.i < f.i).slice(-1)[0];
       stop = (ph?.price ?? f.top) + buffer;
+      if (stop <= entry) stop = f.top + buffer;
     }
   } else {
     stop = f.type === "bullish" ? f.bottom - buffer : f.top + buffer;
   }
-  const entry = last.close;
   const risk = Math.abs(entry - stop);
   const takeProfit = f.type === "bullish" ? entry + params.tpRR * risk : entry - params.tpRR * risk;
 
