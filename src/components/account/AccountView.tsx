@@ -360,7 +360,13 @@ export default function AccountView({
           <div className="flex items-center gap-5">
             <div>
               <div className="text-3xl font-bold">
-                {formatCurrency(isForex ? fxEquity : totalValue + fxMargin + fxFloating)}
+                {/* Until live quotes land, holdings are valued at cost — a real-looking
+                    number that then silently jumps tens of percent. Skeleton instead. */}
+                {quotesLoading || fxQuotesLoading ? (
+                  <TextSkeleton className="w-44" />
+                ) : (
+                  formatCurrency(isForex ? fxEquity : totalValue + fxMargin + fxFloating)
+                )}
               </div>
               <div className="text-xs capitalize text-muted">
                 {account.type} account · {isForex ? "equity" : "total value"}
