@@ -449,10 +449,13 @@ function StrategyBlock({
     ) : null;
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-1.5">
+      {/* Named after its scanner and indented toward the card below — an
+          unlabeled chip row floating between two cards reads as belonging to
+          either, especially when accounts are named after scanners. */}
       {active.length > 0 && (
-        <div className="flex flex-wrap items-center gap-1.5">
-          <span className="text-xs text-muted">Active on</span>
+        <div className="flex flex-wrap items-center gap-1.5 pl-3">
+          <span className="text-xs text-muted">{scannerName} · active on account{active.length === 1 ? "" : "s"}</span>
           {active.map((a) => (
             <span
               key={a.id}
