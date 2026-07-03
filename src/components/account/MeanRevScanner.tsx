@@ -24,6 +24,7 @@ import {
   type MeanRevStatusItem,
 } from "@/app/dashboard/[accountId]/meanrev-actions";
 import type { MeanRevBtResult } from "@/lib/meanrev-backtest";
+import SignalHistory from "@/components/scanners/SignalHistory";
 
 const fmtNum = (n: number | null | undefined) =>
   n == null ? "—" : n >= 100 ? n.toFixed(2) : n >= 1 ? n.toFixed(3) : n.toFixed(5);
@@ -626,33 +627,7 @@ export default function MeanRevScanner({
       )}
 
       {/* Signal history */}
-      {signals.length > 0 && (
-        <div className="mt-3">
-          <div className="mb-1 text-xs font-medium text-muted">Recent signals</div>
-          <div className="space-y-1">
-            {signals.slice(0, 8).map((sig) => (
-              <div key={sig.id} className="flex items-center justify-between rounded-lg border border-border bg-background px-2 py-1.5 text-xs">
-                <span>
-                  <span className={sig.direction === "LONG" ? "text-emerald-500" : "text-rose-500"}>
-                    {sig.direction}
-                  </span>{" "}
-                  {symbolLabel(sig.symbol)} · {fmtNum(sig.entry)} → TP {fmtNum(sig.take_profit)}
-                </span>
-                <span className="flex items-center gap-2 text-muted">
-                  {sig.executed ? (
-                    <span className="rounded bg-emerald-500/15 px-1.5 py-0.5 text-emerald-600 dark:text-emerald-400">
-                      traded
-                    </span>
-                  ) : (
-                    <span className="rounded bg-muted/20 px-1.5 py-0.5">alert</span>
-                  )}
-                  {ago(sig.created_at)}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+      <SignalHistory signals={signals} interval="1h" />
     </ScannerCard>
   );
 }
