@@ -2,13 +2,14 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { symbolLabel } from "@/lib/assets";
 import { unsubSignature } from "@/lib/digest";
+import { sendEmail } from "@/lib/email";
 
 export const maxDuration = 60;
 
 // Weekly digest email — "your Poshkan week" per user. Trigger Mondays via the
 // external pinger: /api/cron/weekly-digest?key=<CRON_SECRET>
-// Sends through Resend's REST API; without RESEND_API_KEY it reports and does
-// nothing, so the route can ship before the email account exists.
+// Sends via the shared sendEmail helper (RESEND_API_KEY + EMAIL_FROM, same as
+// the price-alert emails); without a key it reports and does nothing.
 //
 // Opt-out lives in email_prefs (user_id uuid pk, weekly_digest bool). If the
 // table doesn't exist yet, everyone is treated as subscribed — run:
@@ -77,9 +78,7 @@ export async function GET(request: Request) {
   const authed = !!secret && (request.headers.get("authorization") === `Bearer ${secret}` || key === secret);
   if (!authed) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const resendKey = process.env.RESEND_API_KEY;
-  if (!resendKey) return NextResponse.json({ skipped: "RESEND_API_KEY not set" });
-  const from = process.env.DIGEST_FROM || "Poshkan <onboarding@resend.dev>";
+  if (!process.env.RESEND_API_KEY) return NextResponse.json({ skipped: "RESEND_API_KEY not set" });
 
   const db = createAdminClient();
   const d7 = new Date(Date.now() - 7 * DAY).toISOString();
@@ -163,17 +162,8 @@ export async function GET(request: Request) {
       : "Your Poshkan week";
     const unsubUrl = `https://www.poshkan.com/api/digest/unsubscribe?u=${u.id}&sig=${unsubSignature(u.id)}`;
 
-    try {
-      const res = await fetch("https://api.resend.com/emails", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${resendKey}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ from, to: u.email, subject, html: digestHtml(stats, unsubUrl) }),
-      });
-      if (res.ok) sent++;
-      else failed++;
-    } catch {
-      failed++;
-    }
+    if (await sendEmail(u.email, subject, digestHtml(stats, unsubUrl))) sent++;
+    else failed++;
   }
 
   return NextResponse.json({ users: users.length, sent, failed, optedOut: unsubscribed.size });
