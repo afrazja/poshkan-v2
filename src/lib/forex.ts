@@ -45,7 +45,7 @@ export function pipSize(symbol?: string): number {
 
 // USD/XXX pairs (USD is the base) realize P&L in the quote currency, so it must
 // be converted to USD at the live rate. XXX/USD pairs are already in USD.
-function isUsdBase(symbol?: string): boolean {
+export function isUsdBase(symbol?: string): boolean {
   return !!symbol && /^USD/i.test(symbol.replace(/=X$/i, ""));
 }
 

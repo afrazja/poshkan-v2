@@ -884,6 +884,15 @@ function FxTradeModal({
       ? floatingPnl(direction, effUnits, execRate, Number(tp), symbol)
       : null;
 
+  // Risk-based sizing: dollar risk of ONE unit at the stop → units that risk 1%
+  // of cash, rounded down to the 1k lots forex trades in. Teaches sizing from
+  // risk instead of picking a lot size by feel.
+  const slRiskPerUnit =
+    sl.trim() && Number(sl) > 0 && execRate > 0
+      ? Math.abs(floatingPnl(direction, 1, execRate, Number(sl), symbol))
+      : 0;
+  const onePctUnits = slRiskPerUnit > 0 ? Math.floor((cash * 0.01) / slRiskPerUnit / 1000) * 1000 : 0;
+
   async function submit() {
     setError(null);
     if (effUnits <= 0) return setError("Enter a position size.");
@@ -1100,6 +1109,17 @@ function FxTradeModal({
               placeholder="Custom units…"
               className="mt-2 w-full rounded-lg border border-border bg-input px-3 py-2 text-sm outline-none focus:border-primary"
             />
+            {onePctUnits > 0 ? (
+              <button
+                type="button"
+                onClick={() => setCustom(String(onePctUnits))}
+                className="mt-1 text-xs font-medium text-primary hover:underline"
+              >
+                🎯 Size for 1% risk → {onePctUnits.toLocaleString("en-US")} units
+              </button>
+            ) : (
+              <p className="mt-1 text-xs text-muted">Tip: set a stop-loss below to size this trade by risk.</p>
+            )}
           </div>
 
           {/* Leverage — chosen per trade */}
@@ -1138,6 +1158,11 @@ function FxTradeModal({
               {slLossOpen != null && (
                 <p className={`mt-0.5 text-xs font-medium ${changeColor(slLossOpen)}`}>
                   ≈ {formatSignedCurrency(slLossOpen)}
+                  {cash > 0 && (
+                    <span className={Math.abs(slLossOpen) / cash > 0.02 ? " text-amber-600 dark:text-amber-400" : " text-muted"}>
+                      {" "}({((Math.abs(slLossOpen) / cash) * 100).toFixed(1)}% of cash)
+                    </span>
+                  )}
                 </p>
               )}
             </div>

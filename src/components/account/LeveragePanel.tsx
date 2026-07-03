@@ -209,6 +209,22 @@ function OpenModal({
   const units = Number(qty) || 0;
   const margin = symbol && price ? marginFor(units, price, lev, symbol.symbol) : 0;
   const affordable = margin > 0 && margin <= cash;
+
+  // Risk-based sizing: with a stop set, the dollar loss at the stop is knowable
+  // BEFORE entering — surfacing it (and a 1%-risk size) teaches the habit that
+  // matters most: size from risk, not from gut feel.
+  const slNum = sl.trim() ? Number(sl) : null;
+  const slValid =
+    slNum != null && slNum > 0 && price != null && (direction === "LONG" ? slNum < price : slNum > price);
+  const riskPerUnit = slValid && price ? Math.abs(price - slNum) : 0;
+  const riskAtStop = riskPerUnit * units;
+  const riskPct = cash > 0 ? (riskAtStop / cash) * 100 : 0;
+  const onePctUnits =
+    riskPerUnit > 0
+      ? accountType === "crypto"
+        ? Math.floor(((cash * 0.01) / riskPerUnit) * 1e4) / 1e4
+        : Math.floor((cash * 0.01) / riskPerUnit)
+      : 0;
   // Optional trade duration → auto-close after this many minutes (null = none).
   const autoCloseMinutes =
     durUnit === "off"
@@ -306,6 +322,17 @@ function OpenModal({
             <div>
               <label className="mb-1 block text-sm font-medium">Quantity ({unit})</label>
               <input type="number" min="0" step="any" value={qty} onChange={(e) => setQty(e.target.value)} className={inputClass} placeholder="0" />
+              {slValid && onePctUnits > 0 ? (
+                <button
+                  type="button"
+                  onClick={() => setQty(String(onePctUnits))}
+                  className="mt-1 text-xs font-medium text-primary hover:underline"
+                >
+                  🎯 Size for 1% risk → {onePctUnits.toLocaleString("en-US")} {unit}
+                </button>
+              ) : (
+                <p className="mt-1 text-xs text-muted">Tip: set a stop-loss below to size this trade by risk.</p>
+              )}
             </div>
 
             <div>
@@ -370,6 +397,14 @@ function OpenModal({
               <Row label={`Notional`} value={price ? formatCurrency(units * price) : "…"} />
               <Row label={`Margin required (${lev}:1)`} value={price ? formatCurrency(margin) : "…"} bold />
               <Row label="Free cash" value={formatCurrency(cash)} />
+              {slValid && units > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-muted">Risk at stop-loss</span>
+                  <span className={`font-semibold ${riskPct > 2 ? "text-amber-600 dark:text-amber-400" : ""}`}>
+                    {formatCurrency(riskAtStop)} ({riskPct.toFixed(1)}% of cash)
+                  </span>
+                </div>
+              )}
             </div>
 
             <button

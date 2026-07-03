@@ -11,6 +11,7 @@ import ScannerIcon from "@/components/ScannerIcon";
 import EquitySpark from "./EquitySpark";
 import { TextSkeleton } from "@/components/Skeleton";
 import LeveragePanel from "./LeveragePanel";
+import TradeCoach from "./TradeCoach";
 import AiScanner, { type AutoSettings } from "./AiScanner";
 import SmcScanner from "./SmcScanner";
 import OteScanner from "./OteScanner";
@@ -455,6 +456,7 @@ export default function AccountView({
       {isForex && (
         <ForexPerformance accountId={account.id} closed={fxPositions.filter((p) => p.status !== "open")} />
       )}
+      {isForex && <TradeCoach positions={fxPositions} cash={cash} />}
 
       {/* Search (always available) */}
       {!isForex && (
@@ -503,6 +505,8 @@ export default function AccountView({
         positions={fxPositions}
         quotes={quotes}
       />
+
+      <TradeCoach positions={fxPositions} cash={cash} />
 
       {/* Pending limit orders */}
       {orders.length > 0 && (
