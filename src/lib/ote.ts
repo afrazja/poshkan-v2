@@ -29,6 +29,11 @@ export const OTE_DEFAULTS: OteParams = {
   slBufferAtr: 0.1,
 };
 
+// Staleness bounds — a retrace into an old leg, or a confirmation long after
+// the sweep, is a different (and worse) trade than the OTE playbook describes.
+const LEG_MAX_AGE = 60; // trend-TF bars: the leg's end swing must be this recent (~15h on 15m)
+const SWEEP_MAX_AGE = 12; // entry-TF bars: confirmation must come within this of the sweep (~1h on 5m)
+
 export type OteStatus = "signal" | "waiting" | "no-setup" | "neutral" | "no-data";
 
 export interface OteEval {
@@ -93,12 +98,31 @@ export function evaluateOteAt(
   if (!swH || !swL) {
     return { ...base, status: "no-setup", reason: "no external H1 swing high/low to anchor the OTE" };
   }
+  const isShort = trend === "bearish";
+
+  // The anchors must form a genuine impulse leg IN the trend direction:
+  // bearish = swing high first, then a later, lower swing low (a down-leg);
+  // bullish = swing low first, then a later, higher swing high. Taking the
+  // last high/low independently can draw the fib across a counter-trend leg —
+  // a geometrically meaningless zone that still passes every later phase.
+  const ordered = isShort ? swH.i < swL.i : swL.i < swH.i;
+  if (!ordered) {
+    return {
+      ...base,
+      status: "no-setup",
+      reason: `${trend}: last H1 swings don't form a ${isShort ? "down" : "up"}-leg — no valid OTE anchor`,
+    };
+  }
+  // The leg must also be recent — retracing into an old leg is a stale setup.
+  const legEnd = isShort ? swL.i : swH.i;
+  if (h1.length - 1 - legEnd > LEG_MAX_AGE) {
+    return { ...base, status: "no-setup", reason: `${trend}: last impulse leg is stale (ended >${LEG_MAX_AGE} bars ago)` };
+  }
+
   const hi = swH.price;
   const lo = swL.price;
   const range = hi - lo;
   if (range <= 0) return { ...base, status: "no-setup", reason: "degenerate H1 range" };
-
-  const isShort = trend === "bearish";
   // Short: down-leg high→low, retrace UP into [lo+0.62R, lo+0.79R].
   // Long:  up-leg   low→high, retrace DOWN into [hi-0.79R, hi-0.62R].
   const zoneLow = isShort ? lo + params.oteLow * range : hi - params.oteHigh * range;
@@ -134,16 +158,20 @@ export function evaluateOteAt(
     };
   }
 
-  // Sweep: a later bar wicks beyond the establishment swing. Trigger = that bar.
+  // Sweep: a later bar wicks beyond the establishment swing. The trigger is the
+  // bar that set the DEEPEST sweep, so the confirmation threshold and the stop
+  // (at sweepExtreme) reference the same candle — with multiple sweeps, keying
+  // confirmation off a shallow later sweep would loosen the entry while the
+  // stop sat at a much earlier extreme.
   let triggerIdx = -1;
   let sweepExtreme = isShort ? -Infinity : Infinity;
   for (let j = est.i + 1; j < m15.length; j++) {
-    if (isShort && m15[j].high > est.price) {
+    if (isShort && m15[j].high > est.price && m15[j].high > sweepExtreme) {
       triggerIdx = j;
-      sweepExtreme = Math.max(sweepExtreme, m15[j].high);
-    } else if (!isShort && m15[j].low < est.price) {
+      sweepExtreme = m15[j].high;
+    } else if (!isShort && m15[j].low < est.price && m15[j].low < sweepExtreme) {
       triggerIdx = j;
-      sweepExtreme = Math.min(sweepExtreme, m15[j].low);
+      sweepExtreme = m15[j].low;
     }
   }
   const checks = { zone: true, sweep: triggerIdx >= 0, confirm: false };
@@ -153,6 +181,16 @@ export function evaluateOteAt(
       status: "waiting",
       reason: `${trend}: M15 ${isShort ? "high" : "low"} established — waiting for a liquidity sweep`,
       checks,
+    };
+  }
+  // A confirmation long after the sweep is a different trade — the trap has
+  // usually resolved by then. Require the sweep to be recent.
+  if (lastIdx - triggerIdx > SWEEP_MAX_AGE) {
+    return {
+      ...base,
+      status: "no-setup",
+      reason: `${trend}: sweep is stale (${lastIdx - triggerIdx} bars ago, >${SWEEP_MAX_AGE}) — setup expired`,
+      checks: { zone: true, sweep: false, confirm: false },
     };
   }
 

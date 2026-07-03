@@ -3,9 +3,13 @@ import { getOhlc } from "./marketdata";
 import { realBars } from "./smc";
 import { evaluateOteAt, OTE_DEFAULTS, type OteParams } from "./ote";
 
-// Live uses the last 200 M15 / 180 H1 bars — the replay mirrors that exactly.
-const M15_LOOKBACK = 200;
-const H1_LOOKBACK = 180;
+// Live fetches 250 entry-TF (5min) bars and 200 trend-TF (15min) bars — the
+// replay must use the same window sizes or it measures a different strategy
+// (window length changes trendBOS, the swing anchors, and the sweep pool).
+// NOTE the historical naming: "m15" here is the 5-min ENTRY series and "h1"
+// is the 15-min TREND series, matching ote.ts's fetches.
+const M15_LOOKBACK = 250;
+const H1_LOOKBACK = 200;
 
 export interface OteTrade {
   symbol: string;
@@ -58,10 +62,14 @@ async function backtestSymbol(symbol: string, params: OteParams): Promise<OteBtS
 
   let i = M15_LOOKBACK;
   while (i < m15.length) {
-    const m15win = m15.slice(Math.max(0, i - M15_LOOKBACK), i + 1);
+    // Window of exactly M15_LOOKBACK entry bars ending at bar i — matches live.
+    const m15win = m15.slice(Math.max(0, i - M15_LOOKBACK + 1), i + 1);
     const tTime = new Date(m15[i].datetime).getTime();
+    // Trend window = only 15-min bars fully CLOSED by this 5-min bar's close.
+    // Timestamps are bar OPENS, so a trend bar is usable when open + 15min ≤
+    // entry open + 5min — otherwise its close is future data (lookahead).
     let hi = h1Time.length;
-    while (hi > 0 && h1Time[hi - 1] > tTime) hi--;
+    while (hi > 0 && h1Time[hi - 1] + 15 * 60_000 > tTime + 5 * 60_000) hi--;
     const h1win = h1.slice(Math.max(0, hi - H1_LOOKBACK), hi);
     if (h1win.length < 30) {
       i++;
