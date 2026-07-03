@@ -11,6 +11,10 @@ export default function SiteFooter() {
       </p>
       <p className="mt-1">
         Market data may be delayed or inaccurate ·{" "}
+        <Link href="/how-it-works" className="underline hover:text-foreground">
+          How it works
+        </Link>{" "}
+        ·{" "}
         <Link href="/strategies" className="underline hover:text-foreground">
           Strategies
         </Link>{" "}

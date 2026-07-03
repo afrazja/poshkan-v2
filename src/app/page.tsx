@@ -158,7 +158,7 @@ export default async function LandingPage({
                 Your session expired — please log in again.
               </div>
             )}
-            <AuthCard />
+            <AuthCard defaultTab={expired ? "login" : "signup"} />
           </div>
         </div>
 
@@ -185,7 +185,8 @@ export default async function LandingPage({
                 <Dot /> Go long or short — stocks, crypto &amp; forex, 1–10× leverage
               </li>
               <li className="flex items-center gap-3">
-                <Dot /> An AI scanner that trades your plain-English rules
+                <Dot /> An AI scanner that trades your plain-English rules — on your own API key,
+                inside risk limits you set
               </li>
               <li className="flex items-center gap-3">
                 <Dot /> A leaderboard to beat your friends on
@@ -283,12 +284,12 @@ export default async function LandingPage({
           <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Quote
               text="The most complete and easy-to-use platform I've found for practicing trading and honestly evaluating my skills."
-              name="Vahid"
+              name="Vahid Alizadeh"
               role="forex trader on the leaderboard"
             />
             <Quote
               text="The scanners are the best part — set one loose on your watchlist and experimenting with strategies becomes the whole game."
-              name="Masoud"
+              name="Masoud Nikkhah"
               role="early Poshkan trader"
             />
           </div>
