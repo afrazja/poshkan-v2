@@ -504,7 +504,7 @@ function outcomeLabel(status: string): string {
       ? "Take-profit"
       : status === "stopped"
         ? "Stop-out"
-        : "Closed";
+        : "Manual close";
 }
 
 function fmtClosed(iso: string): string {

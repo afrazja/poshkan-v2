@@ -54,7 +54,7 @@ function outcomeLabel(status: string): string {
       ? "Take-profit"
       : status === "stopped"
         ? "Stop-out"
-        : "Closed";
+        : "Manual close"; // plain "Closed" read as "Closed Short · Closed X"
 }
 
 // Effective leverage = USD notional ÷ reserved margin (currency-aware for forex).
