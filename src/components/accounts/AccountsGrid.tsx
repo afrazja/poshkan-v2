@@ -167,8 +167,10 @@ export default function AccountsGrid({
                   <span className="text-muted">
                     {/* Leveraged trades aren't spot holdings but ARE market
                         exposure — "0 holdings" on an account with three open
-                        EUR/USD positions reads like the app lost them. */}
-                    {s.fxOpen > 0
+                        EUR/USD positions reads like the app lost them. Forex
+                        accounts only ever hold positions, so they always use
+                        that wording, even when empty. */}
+                    {isForex || s.fxOpen > 0
                       ? `${s.holdings + s.fxOpen} open position${s.holdings + s.fxOpen === 1 ? "" : "s"}`
                       : `${s.holdings} holding${s.holdings === 1 ? "" : "s"}`}
                   </span>
