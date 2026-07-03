@@ -81,7 +81,13 @@ export default function TradeCoach({ positions, cash }: { positions: FxPosition[
         />
         <Stat
           label="Typical risk"
-          value={medianRiskPct != null ? `${medianRiskPct.toFixed(1)}%` : "—"}
+          value={
+            medianRiskPct == null
+              ? "—"
+              : medianRiskPct < 0.05
+                ? "<0.1%" // tiny-but-real risk would render as a broken-looking "0.0%"
+                : `${medianRiskPct.toFixed(1)}%`
+          }
           warn={medianRiskPct != null && medianRiskPct > 3}
         />
         <Stat
