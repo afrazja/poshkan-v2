@@ -90,10 +90,25 @@ export function evaluateCandleRangeAt(
   const height = resistance - support;
   if (height <= 0 || !isFinite(height)) return { ...base, status: "no-setup", reason: "no range" };
 
-  // A TRADEABLE range only if price oscillated — touched both edges a few times.
+  // A TRADEABLE range only if price OSCILLATED between the edges. Naive
+  // per-bar counting is degenerate: the bar that set the low always "touches"
+  // support, and a smooth trend's early/late bars count as touches of each
+  // edge without price ever crossing the box — letting the scanner fade
+  // trends while calling them ranges. Instead, classify each bar's edge
+  // contact chronologically and collapse consecutive same-edge bars into one
+  // EPISODE; the sequence alternates by construction, so minTouches episodes
+  // per edge means price genuinely traversed the box that many times.
   const band = params.edgeZone * height;
-  const lowTouches = win.filter((k) => k.low <= support + band).length;
-  const highTouches = win.filter((k) => k.high >= resistance - band).length;
+  const episodes: ("S" | "R")[] = [];
+  for (const k of win) {
+    const atS = k.low <= support + band;
+    const atR = k.high >= resistance - band;
+    if (atS === atR) continue; // neither edge, or one bar spanning both — ambiguous
+    const edge = atS ? "S" : "R";
+    if (episodes[episodes.length - 1] !== edge) episodes.push(edge);
+  }
+  const lowTouches = episodes.filter((e) => e === "S").length;
+  const highTouches = episodes.filter((e) => e === "R").length;
   const oscillates = lowTouches >= params.minTouches && highTouches >= params.minTouches;
   const tooWide = a > 0 && height > 25 * a; // a trend masquerading as a wide "range"
   if (!oscillates || tooWide) {
