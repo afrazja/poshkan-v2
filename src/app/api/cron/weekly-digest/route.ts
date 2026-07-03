@@ -54,9 +54,9 @@ function digestHtml(stats: WeekStats, unsubUrl: string): string {
     }</p>
     <table style="width:100%;border-collapse:collapse">
       ${row("Portfolio value", money(stats.equityNow))}
-      ${change != null ? row("Week change", `${change >= 0 ? "+" : ""}${change.toFixed(2)}%`) : ""}
+      ${change != null ? row("Week change (incl. open positions)", `${change >= 0 ? "+" : ""}${change.toFixed(2)}%`) : ""}
       ${row("Trades closed", `${stats.closed.length}${stats.closed.length ? ` (${wins} wins)` : ""}`)}
-      ${stats.closed.length ? row("Realized P&L", money(pnl)) : ""}
+      ${stats.closed.length ? row("Realized P&L (closed trades)", money(pnl)) : ""}
       ${best && best.pnl > 0 ? row("Best trade", `${best.direction} ${symbolLabel(best.symbol)} ${money(best.pnl)}`) : ""}
       ${row("Positions opened", String(stats.opened + stats.stockTrades))}
       ${row("Scanner signals", String(stats.signals))}
