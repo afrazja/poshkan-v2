@@ -440,23 +440,27 @@ export default function AccountView({
         </div>
       </div>
 
-      {/* Forex accounts: pair picker + leveraged positions instead of search/tabs */}
+      {/* Forex accounts: two columns on desktop — pair picker + positions in the
+          main column, performance + coach in the rail, so trading and results
+          are visible side by side. Mobile keeps the familiar stacked order. */}
       {isForex && (
-        <ForexPanel
-          accountId={account.id}
-          cash={cash}
-          positions={fxPositions}
-          quotes={quotes}
-          orders={initialFxOrders}
-          tpLevels={initialFxTpLevels}
-        />
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3 lg:items-start">
+          <div className="min-w-0 space-y-6 lg:col-span-2">
+            <ForexPanel
+              accountId={account.id}
+              cash={cash}
+              positions={fxPositions}
+              quotes={quotes}
+              orders={initialFxOrders}
+              tpLevels={initialFxTpLevels}
+            />
+          </div>
+          <div className="min-w-0 space-y-6 lg:col-span-1">
+            <ForexPerformance accountId={account.id} closed={fxPositions.filter((p) => p.status !== "open")} />
+            <TradeCoach positions={fxPositions} cash={cash} />
+          </div>
+        </div>
       )}
-
-      {/* Forex performance: equity curve + closed-trade stats */}
-      {isForex && (
-        <ForexPerformance accountId={account.id} closed={fxPositions.filter((p) => p.status !== "open")} />
-      )}
-      {isForex && <TradeCoach positions={fxPositions} cash={cash} />}
 
       {/* Search (always available) */}
       {!isForex && (

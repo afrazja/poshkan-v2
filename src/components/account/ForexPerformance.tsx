@@ -124,7 +124,9 @@ export default function ForexPerformance({
       {/* Trade stats */}
       {s.n > 0 ? (
         <>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          {/* Two columns: this card lives in the desktop rail (1/3 width), where
+              four-across tiles would be unreadably cramped. */}
+          <div className="grid grid-cols-2 gap-2">
             <Card label="Realized P&L" value={formatSignedCurrency(s.total)} cls={changeColor(s.total)} />
             <Card label="Win rate" value={`${s.winRate.toFixed(0)}% (${s.n})`} />
             <Card label="Profit factor" value={pf} cls={s.profitFactor >= 1 ? "text-positive" : "text-negative"} />
@@ -148,7 +150,7 @@ export default function ForexPerformance({
           </div>
 
           {(s.best || s.worst) && (
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-2">
               {s.best && (
                 <TradeLine label="Best trade" p={s.best} />
               )}
