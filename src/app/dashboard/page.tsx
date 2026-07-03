@@ -42,9 +42,17 @@ export default async function DashboardPage() {
     .select("id")
     .in("side", ["BUY", "SELL"])
     .limit(1);
+  // Any scanner enabled on any of their accounts (RLS scopes to the owner).
+  const scannerTables = ["smc_settings", "ote_settings", "trend_settings", "meanrev_settings", "candlerange_settings"];
+  const scannerChecks = await Promise.all(
+    scannerTables.map((t) => supabase.from(t).select("account_id").eq("enabled", true).limit(1))
+  );
   const checks = {
     hasAccount: (accounts?.length ?? 0) > 0,
     hasTrade: (anyTrade?.length ?? 0) > 0,
+    hasScanner:
+      scannerChecks.some((r) => (r.data?.length ?? 0) > 0) ||
+      ((accounts ?? []) as Array<{ auto_trade_enabled?: boolean | null }>).some((a) => !!a.auto_trade_enabled),
     hasAlert: (alerts?.length ?? 0) > 0,
   };
 

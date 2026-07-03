@@ -6,6 +6,7 @@ import Link from "next/link";
 export interface StartChecks {
   hasAccount: boolean;
   hasTrade: boolean;
+  hasScanner: boolean;
   hasAlert: boolean;
 }
 
@@ -30,6 +31,19 @@ export default function GettingStarted({ checks }: { checks: StartChecks }) {
       done: checks.hasTrade,
       title: "Place your first trade",
       hint: <>Open your account, search a stock (try <strong>AAPL</strong>), and hit <strong>Buy</strong>.</>,
+    },
+    {
+      done: checks.hasScanner,
+      title: "Turn on a strategy scanner",
+      hint: (
+        <>
+          Head to{" "}
+          <Link href="/dashboard/scanners" className="font-medium text-primary hover:underline">
+            Scanners
+          </Link>{" "}
+          and switch one on — it watches the market for you and pings you when a setup appears.
+        </>
+      ),
     },
     {
       done: checks.hasAlert,
