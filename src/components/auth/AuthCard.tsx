@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { signInAction, usernameAvailableAction, resetPasswordAction } from "@/app/auth/actions";
+import { signInAction, usernameAvailableAction, resetPasswordAction, notifySignupAction } from "@/app/auth/actions";
 
 type Tab = "login" | "signup";
 
@@ -117,6 +117,8 @@ export default function AuthCard({ defaultTab = "signup" }: { defaultTab?: Tab }
       return;
     }
     setSent(true);
+    // Tell the owner someone joined — fire-and-forget, never blocks the signup.
+    notifySignupAction().catch(() => {});
   }
 
   const inputClass =
