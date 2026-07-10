@@ -98,10 +98,8 @@ export default function AccountsGrid({
     router.refresh();
   }
 
-  return (
-    <>
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {orderedAccounts.map((acc) => {
+  // One account card — extracted so the grouped and flat layouts share it.
+  const renderCard = (acc: Account) => {
           const s =
             summary[acc.id] ??
             { marketValue: 0, holdings: 0, fxOpen: 0, unrealized: 0, realized: 0, todayPnl: 0, prevValue: 0 };
@@ -130,6 +128,17 @@ export default function AccountsGrid({
               <Link
                 href={`/dashboard/${acc.id}`}
                 draggable={false}
+                // A hydration/re-render race can swallow the anchor's click (the
+                // "first click only highlights" bug) — navigate on pointerup
+                // instead, and cancel the anchor's own click so nothing fires
+                // twice. Modified clicks (new tab, etc.) keep native behavior.
+                onPointerUp={(e) => {
+                  if (e.button !== 0 || dragId || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;
+                  router.push(`/dashboard/${acc.id}`);
+                }}
+                onClick={(e) => {
+                  if (e.button === 0 && !e.ctrlKey && !e.metaKey && !e.shiftKey && !e.altKey) e.preventDefault();
+                }}
                 className="group block rounded-2xl border border-border bg-card p-5 transition hover:border-primary hover:shadow-md"
               >
                 <div className="mb-3 flex items-center gap-2 pl-6 pr-8">
@@ -241,19 +250,63 @@ export default function AccountsGrid({
               </div>
             </div>
           );
-        })}
+  };
 
-        {/* + create card */}
-        <button
-          onClick={() => setShowCreate(true)}
-          className="flex min-h-[160px] flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-border text-muted transition hover:border-primary hover:text-primary"
-        >
-          <span className="flex h-12 w-12 items-center justify-center rounded-full border-2 border-current text-2xl">
-            +
-          </span>
-          <span className="text-sm font-medium">New account</span>
-        </button>
-      </div>
+  const newAccountTile = (
+    <button
+      onClick={() => setShowCreate(true)}
+      className="flex min-h-[160px] flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-border text-muted transition hover:border-primary hover:text-primary"
+    >
+      <span className="flex h-12 w-12 items-center justify-center rounded-full border-2 border-current text-2xl">
+        +
+      </span>
+      <span className="text-sm font-medium">New account</span>
+    </button>
+  );
+
+  // With many accounts the flat grid becomes a wall of identical tiles — group
+  // by market once there is enough to drown in. Small fleets keep the flat grid.
+  const groupDefs = [
+    { type: "stocks", label: "Stocks" },
+    { type: "crypto", label: "Crypto" },
+    { type: "forex", label: "Forex" },
+  ];
+  const groups = groupDefs
+    .map((g) => ({ ...g, list: orderedAccounts.filter((a) => a.type === g.type) }))
+    .filter((g) => g.list.length > 0);
+  const other = orderedAccounts.filter((a) => !groupDefs.some((g) => g.type === a.type));
+  if (other.length) groups.push({ type: "other", label: "Other", list: other });
+  const useGroups = groups.length > 1 && orderedAccounts.length > 3;
+  const totalFor = (acc: Account) => Number(acc.cash_balance) + (summary[acc.id]?.marketValue ?? 0);
+
+  return (
+    <>
+      {useGroups ? (
+        <div className="space-y-8">
+          {groups.map((g) => (
+            <section key={g.type}>
+              <div className="mb-2 flex items-baseline justify-between">
+                <h2 className="text-xs font-semibold uppercase tracking-wide text-muted">
+                  {g.label}{" "}
+                  <span className="font-normal normal-case">
+                    · {g.list.length} account{g.list.length === 1 ? "" : "s"}
+                  </span>
+                </h2>
+                <span className="text-xs text-muted">
+                  {formatCurrency(g.list.reduce((sum, a) => sum + totalFor(a), 0))}
+                </span>
+              </div>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">{g.list.map(renderCard)}</div>
+            </section>
+          ))}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">{newAccountTile}</div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {orderedAccounts.map(renderCard)}
+          {newAccountTile}
+        </div>
+      )}
 
       {/* Click-away backdrop for the open menu */}
       {menuFor && <div className="fixed inset-0 z-10" onClick={() => setMenuFor(null)} />}
