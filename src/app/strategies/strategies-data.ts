@@ -26,7 +26,7 @@ export const STRATEGIES: Strategy[] = [
     shortName: "SMC",
     seoTitle: "What Is Smart Money Concepts (SMC) Trading? Strategy Explained",
     seoDescription:
-      "Smart Money Concepts explained in plain English: break of structure, fair value gaps, retests, and confirmation entries — and how to practice SMC risk-free with virtual money.",
+      "Smart Money Concepts explained in plain English: break of structure, fair value gaps, retests, confirmation entries, and how to practice SMC with virtual money.",
     hook: "Trade the footprints institutions leave behind — structure breaks, fair value gaps, and confirmed retests.",
     lead: [
       "Smart Money Concepts (SMC) is a price-action methodology built on a simple idea: large institutional orders can't hide. When a big player moves a market quickly, they leave footprints — a break in the market's structure and a price 'gap' the market tends to revisit. SMC traders wait for those footprints, then join in the same direction when price comes back to fill them.",
@@ -130,7 +130,7 @@ export const STRATEGIES: Strategy[] = [
     shortName: "Mean Rev",
     seoTitle: "Mean Reversion Trading with Bollinger Bands, Explained",
     seoDescription:
-      "The Bollinger Band mean-reversion strategy in plain English: fading over-stretched moves back to the average, with a trend filter and ATR stops. Practice it risk-free.",
+      "The Bollinger Band mean-reversion strategy in plain English: fading over-stretched moves back to the average, with a trend filter and ATR stops. Practice it with virtual money.",
     hook: "When price stretches too far, too fast — bet on the snap-back.",
     lead: [
       "Mean reversion is the counterpunch to trend-following. Markets overreact: a burst of buying or selling stretches price far from its recent average, and more often than not it snaps back. This strategy quantifies 'too far' with Bollinger Bands — a moving average with bands drawn a set number of standard deviations away — and fades the stretch, targeting the return to the middle.",
@@ -197,17 +197,17 @@ export const STRATEGIES: Strategy[] = [
     shortName: "AI",
     seoTitle: "AI Trading in Plain English: How Poshkan's Claude-Powered Scanner Works",
     seoDescription:
-      "Write your trading rules in plain English and let Claude scan the market, propose trades with entries, stops and rationale — alert-only or auto-trading on 100% virtual money.",
+      "Write trading rules in plain English and let Claude scan the market, propose entries, stops and rationale — alert-only or virtual auto-trading.",
     hook: "Describe your strategy in plain English. The AI does the scanning.",
     lead: [
-      "The other five scanners are deterministic — fixed formulas that fire when their exact conditions are met. The AI Scanner is the flexible one: instead of parameters, you give it instructions in plain English ('only trade pullbacks in uptrends, skip anything before major news, prefer 1:3 or better'), and Claude — the AI model by Anthropic — reads recent price action against your rules and decides.",
-      "Every proposal comes with an entry, stop-loss, target, and a written rationale, so you can see why it wants the trade — and it either alerts you or trades automatically inside the same risk limits every Poshkan scanner obeys.",
+      "The other five scanners are deterministic — fixed formulas that fire when their exact conditions are met. The AI Scanner is the flexible one: instead of parameters, you give it instructions in plain English ('only trade pullbacks in uptrends, skip anything before major news, prefer 1:3 or better'), and Claude — the AI model by Anthropic — evaluates recent price action against your rules.",
+      "Every proposal comes with an entry, stop-loss, target, and a written rationale, so you can review why it likes the setup — and it either alerts you or places virtual trades inside the same risk limits every Poshkan scanner obeys.",
     ],
     how: [
       "Write your strategy in plain English — or start with the built-in one and edit from there.",
       "On each run, Claude analyses your chosen symbols and their recent price action against your instructions.",
-      "It proposes trades with an entry, stop, target, and a written rationale.",
-      "In alert mode it notifies you and does nothing else; in auto-trade mode it opens positions within your risk %, max-open, max-per-day, and daily-loss limits.",
+      "It proposes virtual trades with an entry, stop, target, and a written rationale.",
+      "In alert mode it notifies you and does nothing else; in auto-trade mode it opens simulated positions within your risk %, max-open, max-per-day, and daily-loss limits.",
     ],
     shines: [
       "It shines when your edge is judgement rather than a formula — nuanced rules, context, exceptions — or when you want to prototype a strategy idea in an afternoon by literally writing it down. It's also the honest one about its limits: because the model isn't deterministic, it can't be backtested the way the formula scanners can.",
@@ -218,7 +218,7 @@ export const STRATEGIES: Strategy[] = [
       { term: "Risk limits", def: "Hard caps (risk %, max open trades, daily loss limit) that bound the AI regardless of what it wants to do." },
     ],
     judging: [
-      "Since backtesting doesn't apply, judge it live: let it run in alert mode on virtual money, read its rationales, and track how its proposals play out before ever enabling auto-trade. That workflow — try, watch, then trust — is exactly what a paper-trading platform is for.",
+      "Since backtesting doesn't apply, judge it live: let it run in alert mode on virtual money, read its rationales, and track how its proposals play out before enabling virtual auto-trade. That workflow — try, watch, then trust — is exactly what a paper-trading platform is for.",
     ],
     markets: "stocks, crypto, and forex — any symbols you watch",
   },

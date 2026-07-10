@@ -20,7 +20,7 @@ export const TERMS: Term[] = [
     title: "What is a pip?",
     seoTitle: "What Is a Pip in Forex? Definition and Examples",
     seoDescription:
-      "A pip is the smallest common price step in a currency pair — 0.0001 for most pairs. What a pip is worth, how to calculate it, and how to practice risk-free.",
+      "A pip is the smallest common price step in a currency pair — 0.0001 for most pairs. What a pip is worth, how to calculate it, and how to practice with virtual money.",
     definition:
       "A pip is the smallest common price step in a currency pair — 0.0001 for most pairs (0.01 for yen pairs). If EUR/USD moves from 1.1000 to 1.1001, it moved one pip.",
     body: [

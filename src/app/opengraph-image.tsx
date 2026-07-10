@@ -2,7 +2,7 @@ import { ImageResponse } from "next/og";
 
 // Branded 1200×630 preview for link shares (WhatsApp, Telegram, X, Discord…).
 // Rendered on demand — no binary asset to keep in sync with the design.
-export const alt = "Poshkan — trade fearlessly, lose nothing. Paper trading with strategy scanners.";
+export const alt = "Poshkan — paper trading with strategy scanners and virtual money.";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -87,10 +87,10 @@ export default function OgImage() {
             <div style={{ fontSize: 40, fontWeight: 700 }}>Poshkan</div>
           </div>
           <div style={{ marginTop: 40, fontSize: 72, fontWeight: 800, lineHeight: 1.1 }}>
-            Trade fearlessly. Lose nothing.
+            Practice trading. Lose nothing real.
           </div>
           <div style={{ marginTop: 28, fontSize: 30, color: "rgba(255,255,255,0.75)", lineHeight: 1.4 }}>
-            Strategy scanners that find & trade setups on stocks, crypto and forex — 100% virtual money.
+            Strategy scanners for stocks, crypto and forex — 100% virtual money, no broker connection.
           </div>
           <div
             style={{

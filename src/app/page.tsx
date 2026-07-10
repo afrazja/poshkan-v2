@@ -8,9 +8,9 @@ import LandingThemeToggle from "@/components/auth/LandingThemeToggle";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { symbolLabel } from "@/lib/assets";
 
-const TITLE = "Poshkan — Automated strategy scanners for stocks, crypto & forex (virtual money)";
+const TITLE = "Poshkan — Paper trading with strategy scanners for stocks, crypto & forex";
 const DESCRIPTION =
-  "A library of strategy scanners that find & auto-trade setups, go long or short with 1–10× leverage, and a live leaderboard — across US stocks, crypto, and forex. 100% virtual money, risk-free.";
+  "Practice stocks, crypto, and forex with virtual money, broker-style orders, strategy scanners, and a live leaderboard. No deposits, no broker connection, no financial advice.";
 
 export const metadata = {
   title: TITLE,
@@ -167,11 +167,11 @@ export default async function LandingPage({
                 (On lg+ the gradient hero panel on the right carries this instead.) */}
             <div className="mb-2 text-center lg:hidden">
               <h1 className="text-2xl font-extrabold tracking-tight">
-                Trade fearlessly. Lose nothing.
+                Practice trading. Lose nothing real.
               </h1>
               <p className="mx-auto mt-2 max-w-md text-sm text-muted">
-                A library of strategy scanners across stocks, crypto, and forex — long or short,
-                with backtests and a leaderboard. 100% virtual money.
+                Broker-style orders, strategy scanners, backtests, and a leaderboard across stocks,
+                crypto, and forex. 100% virtual money, no card required.
               </p>
             </div>
             {expired && (
@@ -190,27 +190,26 @@ export default async function LandingPage({
           </div>
           <div className="relative z-10 max-w-lg">
             <h1 className="text-5xl font-extrabold leading-tight tracking-tight">
-              Trade fearlessly.
+              Practice trading.
               <br />
-              Lose nothing.
+              Lose nothing real.
             </h1>
             <p className="mt-6 text-lg text-white/80">
-              Practice stocks, crypto, and forex with live prices and 100% virtual money — and let
-              a library of strategy scanners find and trade setups for you, around the clock.
+              Practice stocks, crypto, and forex with market prices, 100% virtual money, and
+              strategy scanners that surface setups or place simulated trades inside limits you set.
             </p>
             <ul className="mt-8 space-y-3 text-white/90">
               <li className="flex items-center gap-3">
-                <Dot /> Six strategy scanners that hunt &amp; trade setups for you
+                <Dot /> Six strategy scanners for ideas, alerts, and virtual auto-trades
               </li>
               <li className="flex items-center gap-3">
-                <Dot /> Go long or short — stocks, crypto &amp; forex, 1–10× leverage
+                <Dot /> Practice long or short — stocks, crypto &amp; forex, 1–10× virtual leverage
               </li>
               <li className="flex items-center gap-3">
-                <Dot /> An AI scanner that trades your plain-English rules — on your own API key,
-                inside risk limits you set
+                <Dot /> An optional AI scanner tests your plain-English rules using your own API key
               </li>
               <li className="flex items-center gap-3">
-                <Dot /> A leaderboard to beat your friends on
+                <Dot /> A leaderboard based on percentage returns, not deposits
               </li>
             </ul>
           </div>
@@ -224,7 +223,7 @@ export default async function LandingPage({
             This is what it looks like
           </h2>
           <p className="mx-auto mt-2 max-w-2xl text-center text-sm text-muted">
-            Scanners running around the clock, signals landing, trades opening — all on virtual money.
+            Scanners running around the clock, signals landing, virtual trades opening.
           </p>
 
           <div className="relative mt-10">
@@ -252,6 +251,26 @@ export default async function LandingPage({
           <p className="mt-4 text-center text-xs text-muted">
             Real footage of the live app — every number is virtual money.
           </p>
+        </div>
+      </section>
+
+      {/* Trust basics: answer the credibility questions before the feature tour gets too exciting. */}
+      <section className="border-t border-border bg-card px-6 py-10 sm:px-12">
+        <div className="mx-auto grid max-w-5xl grid-cols-1 gap-4 sm:grid-cols-3">
+          <TrustPoint
+            title="Virtual money only"
+            text="No deposits, withdrawals, broker connection, or real-money prize pool. Every balance and trade is simulated."
+          />
+          <TrustPoint
+            title="Transparent simulation"
+            text="Market data can be delayed or missing, and fills are broker-style estimates. The mechanics are published in plain English."
+            href="/how-it-works"
+            cta="How it works"
+          />
+          <TrustPoint
+            title="Bounded automation"
+            text="Auto-trading stays inside your risk caps, and the AI scanner is optional, bring-your-own-key, and still virtual."
+          />
         </div>
       </section>
 
@@ -341,7 +360,7 @@ export default async function LandingPage({
 
           {/* The library — each tile links to its public strategy explainer */}
           <div className="mt-8 grid grid-cols-1 gap-4 text-left sm:grid-cols-2 lg:grid-cols-3">
-            <ScannerTile href="/strategies/ai-scanner" icon="🤖" title="AI Scanner" text="Claude reads the market and your plain-English rules to decide trades." />
+            <ScannerTile href="/strategies/ai-scanner" icon="🤖" title="AI Scanner" text="Claude checks recent price action against your plain-English rules and proposes virtual trades." />
             <ScannerTile href="/strategies/smart-money-concepts" icon="📈" title="Smart Money Concepts" text="Order-block and fair-value-gap retests, confirmed before entry." />
             <ScannerTile href="/strategies/optimal-trade-entry" icon="🎯" title="Optimal Trade Entry" text="Fibonacci pullbacks into the OTE zone of an established trend." />
             <ScannerTile href="/strategies/trend-breakout" icon="🚀" title="Trend Breakout" text="Confirmed breakouts with ADX strength and room left to run." />
@@ -356,7 +375,7 @@ export default async function LandingPage({
           <div className="mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-muted">
             <span>🧪 Backtest it first</span>
             <span>🔔 Alert your phone</span>
-            <span>⚡ Auto-trade, 1–10× leverage</span>
+            <span>⚡ Virtual auto-trade, 1–10× leverage</span>
           </div>
           <p className="mt-6 text-xs text-muted">
             New strategies land regularly — and they&apos;re free while we grow the library.
@@ -364,14 +383,14 @@ export default async function LandingPage({
         </div>
       </section>
 
-      {/* Trade any market, your way */}
+      {/* Practice any market, your way */}
       <section className="border-t border-border px-6 py-14 sm:px-12">
         <div className="mx-auto max-w-5xl">
           <h2 className="text-center text-2xl font-bold tracking-tight sm:text-3xl">
-            Trade any market, your way
+            Practice any market, your way
           </h2>
           <p className="mx-auto mt-2 max-w-2xl text-center text-sm text-muted">
-            Not just buy-and-hold. Trade however the setup demands — by hand, or by scanner.
+            Not just buy-and-hold. Try the setup by hand, or let a scanner run it virtually.
           </p>
           <div className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-3">
             <Feature
@@ -387,7 +406,7 @@ export default async function LandingPage({
             <Feature
               icon="⚡"
               title="Real order types"
-              text="Market and limit orders, Day/GTC, forex entry orders — filled 24/7 by background workers, even while you sleep."
+              text="Market and limit orders, Day/GTC, forex entry orders — simulated 24/7 by background workers, even while you sleep."
             />
           </div>
         </div>
@@ -397,18 +416,18 @@ export default async function LandingPage({
       <section className="border-t border-border px-6 py-14 sm:px-12">
         <div className="mx-auto max-w-5xl">
           <h2 className="text-center text-2xl font-bold tracking-tight sm:text-3xl">
-            Everything a real broker has — except the risk
+            Broker-style tools, without real money at stake
           </h2>
           <p className="mx-auto mt-2 max-w-2xl text-center text-sm text-muted">
-            Poshkan isn&apos;t a toy. It&apos;s a full trading environment where your mistakes are
-            free — and your instincts are real.
+            Poshkan is built for practice: realistic mechanics, explicit limits, and mistakes that
+            cost virtual money instead of rent money.
           </p>
 
           <div className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <Feature
               icon="🤖"
               title="An AI scanner on watch"
-              text="Claude reads price action on your watchlist around the clock and flags setups — alert-only, or auto-trading within the risk limits you set."
+              text="Claude checks price action on your watchlist and flags setups — alert-only, or virtual auto-trading within the risk limits you set."
             />
             <Feature
               icon="🏆"
@@ -428,12 +447,12 @@ export default async function LandingPage({
             <Feature
               icon="🧪"
               title="Backtest before you trust it"
-              text="See how a deterministic scanner would've performed on recent history — win rate, net R, and an equity curve — before you risk a cent."
+              text="See how a deterministic scanner would've performed on recent history — win rate, net R, and an equity curve — before turning it loose."
             />
             <Feature
               icon="📊"
               title="Honest performance tracking"
-              text="Daily snapshots build your true performance history — including a 'you vs. the S&P 500' chart that never lies to you."
+              text="Daily snapshots build your performance history — including a 'you vs. the S&P 500' chart that keeps you honest."
             />
           </div>
         </div>
@@ -478,12 +497,12 @@ export default async function LandingPage({
       <section className="border-t border-border bg-card px-6 py-14 sm:px-12">
         <div className="mx-auto max-w-4xl">
           <h2 className="text-center text-2xl font-bold tracking-tight">
-            Trading in three minutes
+            Practicing in three minutes
           </h2>
           <div className="mt-10 grid grid-cols-1 gap-8 text-center sm:grid-cols-3">
             <Step n="1" title="Create a free account" text="Email, username, password. No card, no broker forms, nothing real at stake." />
             <Step n="2" title="Fund it with virtual cash" text="Open stock, crypto, or forex accounts and seed them with as much play money as you like." />
-            <Step n="3" title="Trade — or let a scanner do it" text="Buy in seconds, or flip on a strategy scanner and let it find and trade setups while you watch and learn." />
+            <Step n="3" title="Trade — or let a scanner practice" text="Place a virtual order in seconds, or flip on a strategy scanner and watch how its setups play out." />
           </div>
           <div className="mt-10 text-center">
             <a
@@ -513,6 +532,30 @@ function Alternative({ title, point, catchLine }: { title: string; point: string
         <span className="font-medium text-negative">The catch:</span>{" "}
         <span className="text-muted">{catchLine}</span>
       </p>
+    </div>
+  );
+}
+
+function TrustPoint({
+  title,
+  text,
+  href,
+  cta,
+}: {
+  title: string;
+  text: string;
+  href?: string;
+  cta?: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-border bg-background p-5">
+      <h3 className="font-semibold">{title}</h3>
+      <p className="mt-1 text-sm leading-relaxed text-muted">{text}</p>
+      {href && cta && (
+        <a href={href} className="mt-3 inline-block text-sm font-medium text-primary hover:underline">
+          {cta}
+        </a>
+      )}
     </div>
   );
 }

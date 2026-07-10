@@ -104,7 +104,7 @@ export default function AiScanner({
         </div>
       )}
       <ScannerInfo
-        whatItIs="A discretionary scanner powered by Claude — instead of a fixed formula, it reads the market and your plain-English instructions to decide trades. The flexible one."
+        whatItIs="A discretionary scanner powered by Claude — instead of a fixed formula, it checks recent market data against your plain-English instructions and proposes virtual trades. The flexible one."
         bestWhen="When you want judgement and nuance, or to encode your own rules in plain words rather than rigid parameters."
         how={[
           "You write a strategy in plain English (or leave it to the built-in one).",

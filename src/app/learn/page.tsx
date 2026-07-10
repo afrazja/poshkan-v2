@@ -37,7 +37,7 @@ export default function LearnIndex() {
         </div>
 
         <div className="mt-12 rounded-2xl border border-primary/30 bg-primary/5 p-6 text-center">
-          <p className="font-medium">The fastest way to learn a term is to trade it — risk-free.</p>
+          <p className="font-medium">The fastest way to learn a term is to practice it with virtual money.</p>
           <Link
             href="/"
             className="mt-4 inline-block rounded-xl bg-primary px-8 py-3 text-sm font-semibold text-primary-foreground hover:opacity-90"

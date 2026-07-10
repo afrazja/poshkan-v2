@@ -173,6 +173,12 @@ export default function AuthCard({ defaultTab = "signup" }: { defaultTab?: Tab }
         </button>
       </div>
 
+      {tab === "signup" && (
+        <p className="mb-4 rounded-lg border border-primary/20 bg-primary/10 px-3 py-2 text-center text-xs text-muted">
+          Free paper trading. No card, no broker connection, no real money.
+        </p>
+      )}
+
       {error && (
         <div className="mb-4 rounded-lg border border-negative/30 bg-negative/10 px-3 py-2 text-sm text-negative">
           {error}

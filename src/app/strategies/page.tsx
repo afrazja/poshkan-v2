@@ -19,8 +19,8 @@ export default function StrategiesIndex() {
         <h1 className="mb-2 mt-4 text-3xl font-bold tracking-tight">Trading strategies, explained</h1>
         <p className="mb-10 max-w-2xl text-muted">
           Every strategy below is explained in plain English — and every one of them runs as a live
-          scanner on Poshkan, so you can watch it find and trade real setups with 100% virtual
-          money instead of taking anyone&apos;s word for it.
+          scanner on Poshkan, so you can watch it find setups and place virtual trades instead of
+          taking anyone&apos;s word for it.
         </p>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
