@@ -85,12 +85,13 @@ export default function TrendScanner({
 
   useEffect(() => {
     const id = setInterval(async () => {
+      if (document.hidden) return; // background tabs shouldn't burn function invocations
       const data = await getTrendData(accountId);
       if (data) {
         setSettings(data.settings);
         setSignals(data.signals);
       }
-    }, 45_000);
+    }, 90_000);
     return () => clearInterval(id);
   }, [accountId]);
 

@@ -13,7 +13,12 @@ export async function GET(request: Request) {
 
   try {
     const quote = await getQuote(symbol);
-    return NextResponse.json({ quote });
+    // Market data is the same for every user — let the CDN serve repeats so
+    // concurrent tabs/users don't each invoke this function.
+    return NextResponse.json(
+      { quote },
+      { headers: { "Cache-Control": "public, s-maxage=10, stale-while-revalidate=30" } }
+    );
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 502 });
   }

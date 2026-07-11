@@ -33,7 +33,9 @@ export default function CronHealth({
         setAnyEnabled(h.anyEnabled);
       } catch {}
     };
-    const id = setInterval(refresh, 60_000);
+    const id = setInterval(() => {
+      if (!document.hidden) refresh();
+    }, 60_000);
     return () => {
       active = false;
       clearInterval(id);

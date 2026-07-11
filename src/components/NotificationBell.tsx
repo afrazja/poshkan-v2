@@ -29,10 +29,12 @@ export default function NotificationBell() {
     setUnread(res.unread);
   }
 
-  // Initial load + light polling so the badge stays current.
+  // Initial load + light polling so the badge stays current (hidden tabs skip).
   useEffect(() => {
     load();
-    const id = setInterval(load, 30_000);
+    const id = setInterval(() => {
+      if (!document.hidden) load();
+    }, 60_000);
     return () => clearInterval(id);
   }, []);
 

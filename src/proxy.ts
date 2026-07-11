@@ -9,7 +9,9 @@ export default async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    // Run on all paths except static assets and image optimization files.
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    // Run on all paths except static assets, image optimization files, and
+    // self-authenticated machine endpoints (cron + MCP use their own tokens —
+    // refreshing a browser session there is pure wasted CPU at high volume).
+    "/((?!_next/static|_next/image|favicon.ico|sw\\.js|manifest\\.webmanifest|icons/|api/cron/|api/mcp/|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };

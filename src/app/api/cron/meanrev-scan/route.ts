@@ -16,6 +16,7 @@ interface MeanRevRow {
   enabled: boolean;
   mode: string;
   symbols: string[];
+  last_run_at: string | null;
   risk_pct: number;
   max_position_pct: number;
   bb_period: number;
@@ -83,6 +84,9 @@ export async function GET(request: Request) {
   for (const s of settings) {
     const acc = live.find((a) => a.id === s.account_id);
     if (!acc) continue;
+
+    // CPU saver: signals form on 15-min bars — skip rows scanned in the last ~8 min.
+    if (s.last_run_at && Date.now() - new Date(s.last_run_at).getTime() < 8 * 60_000) continue;
 
     const params: MeanRevParams = {
       ...MEANREV_DEFAULTS,

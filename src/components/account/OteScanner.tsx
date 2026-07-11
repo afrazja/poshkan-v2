@@ -82,12 +82,13 @@ export default function OteScanner({
   // Light polling so the live feed updates without a manual refresh.
   useEffect(() => {
     const id = setInterval(async () => {
+      if (document.hidden) return; // background tabs shouldn't burn function invocations
       const data = await getOteData(accountId);
       if (data) {
         setSettings(data.settings);
         setSignals(data.signals);
       }
-    }, 45_000);
+    }, 90_000);
     return () => clearInterval(id);
   }, [accountId]);
 
