@@ -23,6 +23,10 @@ export default function SiteFooter() {
           Learn
         </Link>{" "}
         ·{" "}
+        <Link href="/tools" className="underline hover:text-foreground">
+          Calculators
+        </Link>{" "}
+        ·{" "}
         <Link href="/help" className="underline hover:text-foreground">
           Help
         </Link>{" "}

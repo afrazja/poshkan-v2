@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next";
 import { STRATEGIES } from "./strategies/strategies-data";
 import { TERMS } from "./learn/terms-data";
+import { TOOL_CALCS, TOOL_PAIRS } from "./tools/tools-data";
 
 const BASE = "https://www.poshkan.com";
 
@@ -14,6 +15,19 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: "monthly" as const,
       priority: 0.7,
     })),
+    { url: `${BASE}/tools`, changeFrequency: "weekly", priority: 0.8 },
+    ...TOOL_CALCS.map((c) => ({
+      url: `${BASE}/tools/${c.slug}`,
+      changeFrequency: "weekly" as const,
+      priority: 0.7,
+    })),
+    ...TOOL_CALCS.flatMap((c) =>
+      TOOL_PAIRS.map((p) => ({
+        url: `${BASE}/tools/${c.slug}/${p.slug}`,
+        changeFrequency: "weekly" as const,
+        priority: 0.6,
+      }))
+    ),
     { url: `${BASE}/learn`, changeFrequency: "monthly", priority: 0.8 },
     ...TERMS.map((t) => ({
       url: `${BASE}/learn/${t.slug}`,
