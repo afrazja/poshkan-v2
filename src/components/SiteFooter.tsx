@@ -27,6 +27,10 @@ export default function SiteFooter() {
           Calculators
         </Link>{" "}
         ·{" "}
+        <Link href="/mcp" className="underline hover:text-foreground">
+          Claude MCP
+        </Link>{" "}
+        ·{" "}
         <Link href="/help" className="underline hover:text-foreground">
           Help
         </Link>{" "}

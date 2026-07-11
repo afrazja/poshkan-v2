@@ -34,6 +34,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: "monthly" as const,
       priority: 0.6,
     })),
+    { url: `${BASE}/mcp`, changeFrequency: "monthly", priority: 0.8 },
     { url: `${BASE}/how-it-works`, changeFrequency: "monthly", priority: 0.7 },
     { url: `${BASE}/help`, changeFrequency: "monthly", priority: 0.6 },
     { url: `${BASE}/privacy`, changeFrequency: "yearly", priority: 0.2 },
