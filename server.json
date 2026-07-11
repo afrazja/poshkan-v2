@@ -2,7 +2,7 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.afrazja/poshkan",
   "title": "Poshkan Paper Trading",
-  "description": "Paper trading for AI: live quotes, OHLC + indicators (SMA/RSI/S&R), market & limit orders on US stocks and crypto, and leveraged forex with SL/TP — on free virtual-money accounts.",
+  "description": "Paper trading for AI: live quotes, indicators, and virtual trades on stocks, crypto, and forex.",
   "version": "1.0.0",
   "websiteUrl": "https://www.poshkan.com/mcp",
   "repository": {
