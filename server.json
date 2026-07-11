@@ -1,0 +1,26 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.afrazja/poshkan",
+  "title": "Poshkan Paper Trading",
+  "description": "Paper trading for AI: live quotes, OHLC + indicators (SMA/RSI/S&R), market & limit orders on US stocks and crypto, and leveraged forex with SL/TP — on free virtual-money accounts.",
+  "version": "1.0.0",
+  "websiteUrl": "https://www.poshkan.com/mcp",
+  "repository": {
+    "url": "https://github.com/afrazja/poshkan-v2",
+    "source": "github"
+  },
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://www.poshkan.com/api/mcp/mcp",
+      "headers": [
+        {
+          "name": "Authorization",
+          "description": "Bearer pk_… — create a free token at poshkan.com: settings menu → Claude API access",
+          "isRequired": true,
+          "isSecret": true
+        }
+      ]
+    }
+  ]
+}
