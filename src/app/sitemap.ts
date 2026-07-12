@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next";
 import { STRATEGIES } from "./strategies/strategies-data";
 import { TERMS } from "./learn/terms-data";
+import { SCANS } from "./scans/scans-data";
 import { TOOL_CALCS, TOOL_PAIRS } from "./tools/tools-data";
 
 const BASE = "https://www.poshkan.com";
@@ -33,6 +34,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
       url: `${BASE}/learn/${t.slug}`,
       changeFrequency: "monthly" as const,
       priority: 0.6,
+    })),
+    { url: `${BASE}/scans`, changeFrequency: "daily", priority: 0.8 },
+    ...SCANS.map((s) => ({
+      url: `${BASE}/scans/${s.slug}`,
+      changeFrequency: "daily" as const,
+      priority: 0.7,
     })),
     { url: `${BASE}/mcp`, changeFrequency: "monthly", priority: 0.8 },
     { url: `${BASE}/how-it-works`, changeFrequency: "monthly", priority: 0.7 },

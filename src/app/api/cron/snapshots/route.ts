@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getQuotes } from "@/lib/marketdata";
+import { GET as dailyScans } from "../daily-scans/route";
 
 export const maxDuration = 60;
 
@@ -17,6 +18,13 @@ export async function GET(request: Request) {
 
   const db = createAdminClient();
 
+  // Piggyback: the public /scans results are computed alongside this daily
+  // cron (both Vercel cron slots are taken). Runs concurrently with the
+  // snapshot work; failures must never break snapshots.
+  const scansPromise = dailyScans(request)
+    .then((r) => r.json())
+    .catch((e) => ({ error: String(e) }));
+
   // End-of-day sweep: DAY limit orders that didn't fill this session expire.
   await db.from("orders").update({ status: "expired" }).eq("status", "pending").eq("time_in_force", "DAY");
 
@@ -25,7 +33,7 @@ export async function GET(request: Request) {
     db.from("positions").select("account_id, symbol, quantity, avg_cost"),
     db.from("fx_positions").select("account_id, margin").eq("status", "open"),
   ]);
-  if (!accounts?.length) return NextResponse.json({ snapshots: 0 });
+  if (!accounts?.length) return NextResponse.json({ snapshots: 0, scans: await scansPromise });
 
   const symbols = Array.from(new Set((positions ?? []).map((p) => p.symbol.toUpperCase())));
   const quotes = symbols.length ? await getQuotes(symbols) : {};
@@ -57,5 +65,5 @@ export async function GET(request: Request) {
     .upsert(rows, { onConflict: "account_id,snapshot_date" });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  return NextResponse.json({ snapshots: rows.length, date: today });
+  return NextResponse.json({ snapshots: rows.length, date: today, scans: await scansPromise });
 }
