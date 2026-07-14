@@ -350,6 +350,19 @@
       <button class="btn" id="nextLevelBtn">NEXT LEVEL</button>
     </div>
 
+    <div class="overlay" id="installHelp" hidden>
+      <h1 class="title" style="font-size: 22px;">INSTALL THE APP</h1>
+      <p class="rules">
+        <b class="w0">ANDROID / PC (Chrome, Edge)</b><br>
+        tap the <span class="k">&#8942;</span> browser menu &#8594;<br>
+        "Add to Home screen" or "Install app"<br><br>
+        <b class="w0">IPHONE / IPAD (Safari)</b><br>
+        tap <span class="k">Share</span> &#8594; "Add to Home Screen"<br><br>
+        the game then runs fullscreen &amp; offline
+      </p>
+      <button class="btn" id="installHelpClose">BACK</button>
+    </div>
+
     <div class="overlay" id="menuScreen" hidden>
       <h1 class="title" style="font-size: 24px;">MENU</h1>
       <div id="menuCol">
@@ -2650,26 +2663,37 @@ requestAnimationFrame(frame);
 
 // PWA: offline support when served from a web host (no-ops for local files / hosts without a sw)
 if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
-  navigator.serviceWorker.register("sw.js", { scope: "./" }).catch(() => {});
+  navigator.serviceWorker.register("sw.js", { scope: "./" })
+    .then((reg) => reg.update())   // check for a newer version on every visit
+    .catch(() => {});
 }
 
-// PWA: install button — appears on the title screen when the browser allows installing
+// PWA: install button. Native prompt when the browser offers one; otherwise
+// the button opens step-by-step instructions. Hidden when already installed
+// or when not running from the hosted game (local file, preview embeds).
+const installBtnEl = document.getElementById("installBtn");
+const runningInstalled = matchMedia("(display-mode: fullscreen), (display-mode: standalone)").matches;
+if (!runningInstalled && location.protocol === "https:" && location.pathname.startsWith("/game")) {
+  installBtnEl.hidden = false;
+}
 let installPrompt = null;
 addEventListener("beforeinstallprompt", (e) => {
   e.preventDefault();               // suppress the mini-infobar; we offer our own button
   installPrompt = e;
-  document.getElementById("installBtn").hidden = false;
+  if (!runningInstalled) installBtnEl.hidden = false;
 });
-document.getElementById("installBtn").addEventListener("click", async () => {
-  if (!installPrompt) return;
-  installPrompt.prompt();           // the browser's native install dialog
-  const choice = await installPrompt.userChoice;
-  installPrompt = null;             // a prompt event is single-use
-  if (choice && choice.outcome === "accepted") {
-    document.getElementById("installBtn").hidden = true;
+installBtnEl.addEventListener("click", async () => {
+  if (installPrompt) {
+    installPrompt.prompt();         // the browser's native install dialog
+    const choice = await installPrompt.userChoice;
+    installPrompt = null;           // a prompt event is single-use
+    if (choice && choice.outcome === "accepted") installBtnEl.hidden = true;
+  } else {
+    document.getElementById("installHelp").hidden = false;   // manual instructions
   }
 });
-addEventListener("appinstalled", () => {
-  document.getElementById("installBtn").hidden = true;
+document.getElementById("installHelpClose").addEventListener("click", () => {
+  document.getElementById("installHelp").hidden = true;
 });
+addEventListener("appinstalled", () => { installBtnEl.hidden = true; });
 </script>
