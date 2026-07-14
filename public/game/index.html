@@ -337,6 +337,7 @@
         <span class="k">SPACE</span> pause &nbsp;&middot;&nbsp; <span class="k">ESC</span> menu &nbsp;&middot;&nbsp; <span class="k">M</span> mute
       </p>
       <button class="btn" id="startBtn">LAUNCH</button>
+      <button class="btn alt" id="installBtn" hidden>&#11123; INSTALL APP</button>
       <button class="chip" id="lbFromStart">LEADERBOARD</button>
       <button class="chip" id="clearSave">RESET PILOT</button>
     </div>
@@ -2651,4 +2652,24 @@ requestAnimationFrame(frame);
 if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
   navigator.serviceWorker.register("sw.js", { scope: "./" }).catch(() => {});
 }
+
+// PWA: install button — appears on the title screen when the browser allows installing
+let installPrompt = null;
+addEventListener("beforeinstallprompt", (e) => {
+  e.preventDefault();               // suppress the mini-infobar; we offer our own button
+  installPrompt = e;
+  document.getElementById("installBtn").hidden = false;
+});
+document.getElementById("installBtn").addEventListener("click", async () => {
+  if (!installPrompt) return;
+  installPrompt.prompt();           // the browser's native install dialog
+  const choice = await installPrompt.userChoice;
+  installPrompt = null;             // a prompt event is single-use
+  if (choice && choice.outcome === "accepted") {
+    document.getElementById("installBtn").hidden = true;
+  }
+});
+addEventListener("appinstalled", () => {
+  document.getElementById("installBtn").hidden = true;
+});
 </script>

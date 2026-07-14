@@ -1,6 +1,6 @@
 // Starfall Defender service worker — scoped to /game/ only.
 // Cache-first so the game loads instantly and works fully offline.
-const CACHE = "starfall-v1";
+const CACHE = "starfall-v2";   // bump on every game update so installed apps refresh
 const ASSETS = ["index.html", "manifest.webmanifest", "icon-192.png", "icon-512.png"];
 
 self.addEventListener("install", (e) => {
