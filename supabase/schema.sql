@@ -69,24 +69,40 @@ create index if not exists watchlist_account_id_idx on public.watchlist (account
 
 -- ============================================================================
 -- Auto-create a profile row when a new auth user confirms / signs up.
--- The username is taken from the sign-up metadata (raw_user_meta_data.username),
--- falling back to the email's local part.
+-- The username is taken from email sign-up metadata. Social sign-ins do not
+-- provide one, so they receive a private, collision-safe generated username.
 -- ============================================================================
 create or replace function public.handle_new_user()
 returns trigger
 language plpgsql
 security definer set search_path = public
 as $$
+declare
+  v_username text;
+  v_suffix integer := 0;
 begin
-  insert into public.profiles (id, username)
-  values (
-    new.id,
-    coalesce(
-      new.raw_user_meta_data ->> 'username',
-      split_part(new.email, '@', 1)
-    )
-  )
-  on conflict (id) do nothing;
+  v_username := nullif(btrim(new.raw_user_meta_data ->> 'username'), '');
+
+  if v_username is not null then
+    insert into public.profiles (id, username)
+    values (new.id, v_username)
+    on conflict (id) do nothing;
+  else
+    v_username := 'trader_' || left(replace(new.id::text, '-', ''), 12);
+    loop
+      begin
+        insert into public.profiles (id, username)
+        values (new.id, v_username)
+        on conflict (id) do nothing;
+        exit;
+      exception when unique_violation then
+        v_suffix := v_suffix + 1;
+        v_username := 'trader_' || left(replace(new.id::text, '-', ''), 12)
+          || '_' || v_suffix::text;
+      end;
+    end loop;
+  end if;
+
   return new;
 end;
 $$;

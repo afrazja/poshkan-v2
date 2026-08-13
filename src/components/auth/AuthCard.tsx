@@ -29,6 +29,7 @@ export default function AuthCard({ defaultTab = "signup" }: { defaultTab?: Tab }
   const [confirm, setConfirm] = useState("");
 
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sent, setSent] = useState(false);
   const [forgotSent, setForgotSent] = useState(false);
@@ -70,6 +71,25 @@ export default function AuthCard({ defaultTab = "signup" }: { defaultTab?: Tab }
     // takes a moment to load, and this component unmounts once it arrives.
     router.refresh();
     router.push("/dashboard");
+  }
+
+  async function handleGoogleSignIn() {
+    reset();
+    setGoogleLoading(true);
+    const supabase = createClient();
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`,
+      },
+    });
+
+    // A successful call redirects away from this page. We only get to this
+    // branch when Supabase could not start the OAuth flow.
+    if (error) {
+      setGoogleLoading(false);
+      setError("Google sign-in could not be started. Please try again.");
+    }
   }
 
   async function handleSignup(e: React.FormEvent) {
@@ -185,6 +205,26 @@ export default function AuthCard({ defaultTab = "signup" }: { defaultTab?: Tab }
         </div>
       )}
 
+      <button
+        type="button"
+        onClick={handleGoogleSignIn}
+        disabled={loading || googleLoading}
+        className="flex w-full items-center justify-center gap-3 rounded-lg border border-border bg-background py-2.5 text-sm font-semibold transition hover:bg-card disabled:opacity-70"
+      >
+        {googleLoading ? (
+          <span className="h-4 w-4 animate-spin rounded-full border-2 border-muted/40 border-t-foreground" />
+        ) : (
+          <GoogleIcon />
+        )}
+        {googleLoading ? "Connecting to Google…" : "Continue with Google"}
+      </button>
+
+      <div className="my-5 flex items-center gap-3" aria-hidden="true">
+        <span className="h-px flex-1 bg-border" />
+        <span className="text-xs uppercase tracking-wide text-muted">or</span>
+        <span className="h-px flex-1 bg-border" />
+      </div>
+
       {tab === "login" ? (
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
@@ -213,7 +253,7 @@ export default function AuthCard({ defaultTab = "signup" }: { defaultTab?: Tab }
           </div>
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || googleLoading}
             className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary py-2.5 text-sm font-semibold text-primary-foreground transition hover:opacity-90 disabled:opacity-70"
           >
             {loading && <Spinner />}
@@ -222,7 +262,7 @@ export default function AuthCard({ defaultTab = "signup" }: { defaultTab?: Tab }
           <button
             type="button"
             onClick={handleForgot}
-            disabled={loading}
+            disabled={loading || googleLoading}
             className="w-full text-center text-xs text-muted hover:text-foreground hover:underline"
           >
             Forgot your password?
@@ -282,7 +322,7 @@ export default function AuthCard({ defaultTab = "signup" }: { defaultTab?: Tab }
           </div>
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || googleLoading}
             className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary py-2.5 text-sm font-semibold text-primary-foreground transition hover:opacity-90 disabled:opacity-70"
           >
             {loading && <Spinner />}
@@ -303,5 +343,28 @@ export default function AuthCard({ defaultTab = "signup" }: { defaultTab?: Tab }
         </form>
       )}
     </div>
+  );
+}
+
+function GoogleIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+      <path
+        fill="#4285F4"
+        d="M21.6 12.23c0-.71-.06-1.4-.18-2.07H12v3.91h5.38a4.6 4.6 0 0 1-2 3.02v2.54h3.24c1.9-1.75 2.98-4.33 2.98-7.4Z"
+      />
+      <path
+        fill="#34A853"
+        d="M12 22c2.7 0 4.98-.9 6.63-2.43l-3.24-2.53c-.9.6-2.05.96-3.39.96-2.61 0-4.82-1.76-5.61-4.13H3.04v2.61A10 10 0 0 0 12 22Z"
+      />
+      <path
+        fill="#FBBC05"
+        d="M6.39 13.87A6.02 6.02 0 0 1 6.07 12c0-.65.11-1.28.32-1.87V7.52H3.04A10 10 0 0 0 2 12c0 1.61.39 3.14 1.04 4.48l3.35-2.61Z"
+      />
+      <path
+        fill="#EA4335"
+        d="M12 6c1.47 0 2.79.51 3.83 1.5l2.87-2.87A9.62 9.62 0 0 0 12 2a10 10 0 0 0-8.96 5.52l3.35 2.61C7.18 7.76 9.39 6 12 6Z"
+      />
+    </svg>
   );
 }

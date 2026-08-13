@@ -142,10 +142,16 @@ const ago = (iso: string) => {
 export default async function LandingPage({
   searchParams,
 }: {
-  searchParams: Promise<{ expired?: string }>;
+  searchParams: Promise<{ expired?: string; error?: string }>;
 }) {
-  const { expired } = await searchParams;
+  const { expired, error } = await searchParams;
   const live = await getLiveStats();
+  const authError =
+    error === "confirm"
+      ? "That confirmation link is invalid or expired. Please request a new one."
+      : error === "oauth"
+        ? "Google sign-in wasn’t completed. Please try again."
+        : null;
   return (
     <div className="relative flex min-h-screen flex-col">
       <script
@@ -177,6 +183,11 @@ export default async function LandingPage({
             {expired && (
               <div className="w-full max-w-md rounded-lg border border-primary/30 bg-primary/10 px-4 py-3 text-sm">
                 Your session expired — please log in again.
+              </div>
+            )}
+            {authError && (
+              <div className="w-full max-w-md rounded-lg border border-negative/30 bg-negative/10 px-4 py-3 text-sm text-negative">
+                {authError}
               </div>
             )}
             <AuthCard defaultTab={expired ? "login" : "signup"} />

@@ -27,8 +27,25 @@ npm install
    This creates the tables, RLS policies, the auto-profile trigger, and the
    trading RPC functions.
 3. In **Authentication → Providers → Email**, keep "Confirm email" enabled.
-4. In **Authentication → URL Configuration**, add your site URL
-   (`http://localhost:3000` for dev) to the redirect allow-list.
+4. In **Authentication → URL Configuration**, set the production Site URL and add these exact
+   redirect URLs (plus the equivalent URL for any other production hostname you serve):
+   - `https://www.poshkan.com/auth/callback`
+   - `http://localhost:3000/auth/callback`
+5. Run [`supabase/google-auth.sql`](supabase/google-auth.sql) in the SQL Editor. This updates the
+   profile trigger so social-auth users receive a non-email, collision-safe username.
+
+### 2a. Enable Google sign-in
+
+1. In the Google Auth Platform console, configure the OAuth consent screen and create an OAuth
+   client with application type **Web application**.
+2. Add your app origins under **Authorized JavaScript origins**, for example
+   `https://www.poshkan.com` and `http://localhost:3000`.
+3. Under **Authorized redirect URIs**, add the Supabase callback URL shown on the Supabase
+   **Authentication → Providers → Google** page. It has this form:
+   `https://YOUR-PROJECT-REF.supabase.co/auth/v1/callback`.
+   This is the Supabase URL, not Poshkan's `/auth/callback` URL.
+4. Copy the Google Client ID and Client Secret into Supabase's Google provider settings and enable
+   the provider.
 
 ### 3. Get a Twelve Data API key
 
@@ -58,8 +75,8 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ## How it works
 
-- **Auth** — email/password sign-up sends a confirmation email; the link lands
-  on `/auth/confirm` which verifies the token and signs you in.
+- **Auth** — users can continue with Google, or use email/password with email confirmation. Google
+  returns through `/auth/callback`; email confirmation returns through `/auth/confirm`.
 - **Accounts** — create multiple paper portfolios with starting cash and
   optional seeded holdings. Top up or reset cash anytime.
 - **Trading** — search a symbol, then Buy / Sell / add to Watchlist. Trades fill
