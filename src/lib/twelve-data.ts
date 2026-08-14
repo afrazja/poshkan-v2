@@ -69,7 +69,12 @@ function isRateLimit(message: string, code?: unknown): boolean {
   return Number(code) === 429 || /rate.?limit|api credits|run out of credits|too many requests/i.test(message);
 }
 
-async function request(path: string, params: Record<string, string>, credits: number): Promise<JsonObject> {
+async function request(
+  path: string,
+  params: Record<string, string>,
+  credits: number,
+  revalidateSeconds: number
+): Promise<JsonObject> {
   reserveCredits(credits);
   const url = new URL(path, BASE_URL);
   for (const [key, value] of Object.entries(params)) url.searchParams.set(key, value);
@@ -78,7 +83,7 @@ async function request(path: string, params: Record<string, string>, credits: nu
   let response: Response;
   try {
     response = await fetch(url, {
-      cache: "no-store",
+      next: { revalidate: revalidateSeconds },
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
   } catch (error) {
@@ -163,7 +168,8 @@ export async function getTwelveQuotes(symbols: string[]): Promise<Record<string,
   const response = await request(
     "/quote",
     { symbol: Array.from(providerToCanonical.keys()).join(",") },
-    providerToCanonical.size
+    providerToCanonical.size,
+    15
   );
 
   const quotes: Record<string, Quote> = {};
@@ -266,7 +272,7 @@ export async function getTwelveOhlc(
     params.start_date = daily ? start.toISOString().slice(0, 10) : start.toISOString().slice(0, 19);
   }
 
-  const response = await request("/time_series", params, 1);
+  const response = await request("/time_series", params, 1, daily ? 600 : 60);
   const candles = parseCandles(response.values, daily);
   if (candles.length === 0) throw new TwelveDataError(`No valid Twelve Data candles for ${symbol}`);
   return candles.slice(-size);
