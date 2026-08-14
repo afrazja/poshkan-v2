@@ -5,7 +5,7 @@ import Link from "next/link";
 import Modal from "@/components/Modal";
 import { useRouter } from "next/navigation";
 import { deactivateScanner } from "@/app/dashboard/scanners/actions";
-import AiScanner, { type AutoSettings } from "@/components/account/AiScanner";
+import type { AutoSettings } from "@/components/account/AiScanner";
 import SmcScanner from "@/components/account/SmcScanner";
 import OteScanner from "@/components/account/OteScanner";
 import TrendScanner from "@/components/account/TrendScanner";
@@ -16,7 +16,9 @@ import CronHealth from "@/components/scanners/CronHealth";
 import ScannerCompare from "@/components/scanners/ScannerCompare";
 import ScannerActivity, { RecentActivitySummary, type ActivityItem } from "@/components/scanners/ScannerActivity";
 import { type ScannerKind } from "@/components/ScannerIcon";
-import { Radar } from "lucide-react";
+import { BarChart3, BookOpen, FlaskConical, Plus, Radio } from "lucide-react";
+import CustomStrategiesPanel, { type CustomStrategySignalSummary } from "@/components/scanners/CustomStrategiesPanel";
+import type { CustomStrategyRow } from "@/lib/custom-strategy-types";
 import ScannerFilterBar, {
   type ScannerStatusFilter,
   type ScannerAssetFilter,
@@ -63,7 +65,6 @@ function freshest(accounts: ScanAcct[], pick: (a: ScanAcct) => string | null | u
 }
 
 const SCANNER_DEFS: ScannerDef[] = [
-  { key: "ai", name: "AI Scanner", isEnabledFor: (a) => a.autoSettings.enabled, lastRunAt: () => null },
   {
     key: "smc",
     name: "SMC Scanner",
@@ -122,11 +123,15 @@ export default function ScannersHub({
   onboard = false,
   lastRunAt = null,
   anyEnabled = false,
+  customStrategies,
+  customSignals,
 }: {
   accounts: ScanAcct[];
   onboard?: boolean;
   lastRunAt?: string | null;
   anyEnabled?: boolean;
+  customStrategies: CustomStrategyRow[];
+  customSignals: CustomStrategySignalSummary[];
 }) {
   // One chronological activity feed, built from the signals already loaded above.
   type Sig = {
@@ -170,6 +175,7 @@ export default function ScannersHub({
   const [status, setStatus] = useState<ScannerStatusFilter>("all");
   const [assetClass, setAssetClass] = useState<ScannerAssetFilter>("all");
   const [sort, setSort] = useState<ScannerSort>("default");
+  const [labTab, setLabTab] = useState<"templates" | "mine" | "live" | "results">("templates");
 
   const visible: Record<string, boolean> = {};
   for (const def of SCANNER_DEFS) visible[def.key] = matchesFilters(def, accounts, search, status, assetClass);
@@ -193,31 +199,61 @@ export default function ScannersHub({
   ranked.forEach((r, pos) => (order[r.key] = pos));
 
   const anyVisible = Object.values(visible).some(Boolean);
+  const runningTemplates = SCANNER_DEFS.map((definition) => ({
+    name: definition.name,
+    accounts: accounts.filter((account) => definition.isEnabledFor(account)),
+  })).filter((item) => item.accounts.length > 0);
 
   return (
     <div className="space-y-6">
       {onboard && <ScannerOnboard />}
-      <CronHealth lastRunAt={lastRunAt} anyEnabled={anyEnabled} />
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="flex items-center gap-2 text-xl font-semibold">
-            <Radar size={20} className="text-primary" aria-hidden /> Scanners
+            <FlaskConical size={20} className="text-primary" aria-hidden /> Strategy Lab
           </h1>
           <p className="mt-1 text-sm text-muted">
-            Automated strategy scanners that watch the market for you 24/7 — they alert you, or trade on
-            their own within the risk limits you set. Each uses a different <em>edge</em> (trend-following,
-            mean-reversion, smart-money structure, or AI judgement), so they shine in different market
-            conditions. Open any card and tap <strong>“How it works”</strong> to learn what it does. Free.
+            Build explicit market rules, test them on historical candles, and observe them with paper
+            alerts. Strategies here are experiments to learn from, not promises of profit.
           </p>
         </div>
         <Link
-          href="/dashboard"
-          className="shrink-0 text-sm text-muted hover:text-foreground hover:underline"
+          href="/dashboard/scanners/new"
+          className="inline-flex shrink-0 items-center gap-2 rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90"
         >
-          ← Your accounts
+          <Plus size={16} aria-hidden /> <span className="hidden sm:inline">New strategy</span>
         </Link>
       </div>
 
+      <div className="grid grid-cols-4 border-b border-border" role="tablist" aria-label="Strategy Lab views">
+        {([
+          ["templates", "Templates", BookOpen],
+          ["mine", "My strategies", FlaskConical],
+          ["live", "Live", Radio],
+          ["results", "Results", BarChart3],
+        ] as const).map(([key, label, Icon]) => (
+          <button
+            key={key}
+            role="tab"
+            aria-selected={labTab === key}
+            onClick={() => setLabTab(key)}
+            className={`flex items-center justify-center gap-1.5 border-b-2 px-2 py-3 text-xs font-medium sm:text-sm ${
+              labTab === key
+                ? "border-primary text-primary"
+                : "border-transparent text-muted hover:text-foreground"
+            }`}
+          >
+            <Icon size={15} aria-hidden />
+            <span className={key === "mine" ? "hidden min-[420px]:inline" : ""}>{label}</span>
+          </button>
+        ))}
+      </div>
+
+      {labTab === "templates" && (
+        <>
+          <div className="border-l-2 border-primary pl-3 text-sm text-muted">
+            Start from a researched rule set, inspect how it works, then use what you learn to build your own experiment.
+          </div>
       <RecentActivitySummary items={activity} />
 
       <ScannerCompare accounts={accounts.map((a) => ({ id: a.id, name: a.name, type: a.type }))} />
@@ -234,26 +270,6 @@ export default function ScannersHub({
       />
 
       <div className="flex flex-col gap-6">
-        {visible.ai && (
-          <div style={{ order: order.ai }}>
-            <StrategyBlock
-              accounts={accounts}
-              scannerKey="ai"
-              isActive={(a) => a.autoSettings.enabled}
-              render={(a, accountSelector) => (
-                <AiScanner
-                  accountId={a.id}
-                  accountType={a.type}
-                  autoSettings={a.autoSettings}
-                  aiInstruction={a.aiInstruction}
-                  aiSymbols={a.aiSymbols}
-                  accountSelector={accountSelector}
-                />
-              )}
-            />
-          </div>
-        )}
-
         {visible.smc && (
           <div style={{ order: order.smc }}>
             <StrategyBlock
@@ -357,6 +373,53 @@ export default function ScannersHub({
       </div>
 
       <ScannerActivity items={activity} />
+        </>
+      )}
+
+      {labTab === "mine" && (
+        <CustomStrategiesPanel strategies={customStrategies} signals={customSignals} accounts={accounts} />
+      )}
+
+      {labTab === "live" && (
+        <div className="space-y-5">
+          <CronHealth lastRunAt={lastRunAt} anyEnabled={anyEnabled} />
+          {runningTemplates.length > 0 && (
+            <section className="border-y border-border py-4">
+              <h2 className="text-sm font-semibold">Template scanners running</h2>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {runningTemplates.flatMap((item) =>
+                  item.accounts.map((account) => (
+                    <span
+                      key={`${item.name}-${account.id}`}
+                      className="rounded-full bg-positive/10 px-2.5 py-1 text-xs text-positive"
+                    >
+                      {item.name} / {account.name}
+                    </span>
+                  ))
+                )}
+              </div>
+            </section>
+          )}
+          <CustomStrategiesPanel
+            mode="live"
+            strategies={customStrategies}
+            signals={customSignals}
+            accounts={accounts}
+          />
+        </div>
+      )}
+
+      {labTab === "results" && (
+        <div className="space-y-6">
+          <CustomStrategiesPanel
+            mode="results"
+            strategies={customStrategies}
+            signals={customSignals}
+            accounts={accounts}
+          />
+          <ScannerCompare accounts={accounts.map((a) => ({ id: a.id, name: a.name, type: a.type }))} />
+        </div>
+      )}
     </div>
   );
 }
@@ -384,10 +447,18 @@ function StrategyBlock({
   const [busy, setBusy] = useState<string | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
     try {
       const stored = window.localStorage.getItem(scannerAccountKey(scannerKey));
-      if (stored && accounts.some((a) => a.id === stored)) setSelectedId(stored);
+      if (stored && accounts.some((a) => a.id === stored)) {
+        queueMicrotask(() => {
+          if (!cancelled) setSelectedId(stored);
+        });
+      }
     } catch {}
+    return () => {
+      cancelled = true;
+    };
     // Only read the remembered choice once, on mount.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scannerKey]);

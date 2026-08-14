@@ -6,6 +6,8 @@ import type { OteSettings, OteSignal } from "../[accountId]/ote-actions";
 import type { TrendSettings, TrendSignal } from "../[accountId]/trend-actions";
 import type { MeanRevSettings, MeanRevSignal } from "../[accountId]/meanrev-actions";
 import type { CandleRangeSettings, CandleRangeSignal } from "../[accountId]/candlerange-actions";
+import { customStrategyFromDb, type CustomStrategyRow } from "@/lib/custom-strategy-types";
+import type { CustomStrategySignalSummary } from "@/components/scanners/CustomStrategiesPanel";
 
 export default async function ScannersPage({
   searchParams,
@@ -183,6 +185,36 @@ export default async function ScannersPage({
     candlerangeSignals: candlerangeSignalsBy[a.id] ?? [],
   }));
 
+  // User-built strategy experiments. The page still renders the template lab
+  // when the migration has not been applied yet.
+  let customStrategies: CustomStrategyRow[] = [];
+  let customSignals: CustomStrategySignalSummary[] = [];
+  try {
+    const { data: strategies } = await supabase
+      .from("custom_strategies")
+      .select("*")
+      .order("updated_at", { ascending: false });
+    customStrategies = (strategies ?? []).map((row) => customStrategyFromDb(row as Record<string, unknown>));
+    const strategyIds = customStrategies.map((strategy) => strategy.id);
+    if (strategyIds.length) {
+      const { data: signals } = await supabase
+        .from("custom_strategy_signals")
+        .select("id, strategy_id, symbol, direction, created_at")
+        .in("strategy_id", strategyIds)
+        .order("created_at", { ascending: false })
+        .limit(100);
+      customSignals = (signals ?? []).map((signal) => ({
+        id: String(signal.id),
+        strategyId: String(signal.strategy_id),
+        symbol: String(signal.symbol),
+        direction: signal.direction as "LONG" | "SHORT",
+        createdAt: String(signal.created_at),
+      }));
+    }
+  } catch {
+    // custom-strategies.sql not run yet
+  }
+
   // Cron health: the freshest run across all ENABLED scanners (they share one
   // /api/cron/scanners ping, so this is a reliable "is my cron alive?" signal).
   const allSettings = [
@@ -196,8 +228,13 @@ export default async function ScannersPage({
     .filter((s) => s.enabled)
     .map((s) => s.last_run_at)
     .filter(Boolean) as string[];
+  enabledRuns.push(
+    ...customStrategies
+      .filter((strategy) => strategy.status === "live" && strategy.lastRunAt)
+      .map((strategy) => strategy.lastRunAt as string)
+  );
   const lastRunAt = enabledRuns.length ? enabledRuns.sort().slice(-1)[0] : null;
-  const anyEnabled = allSettings.some((s) => s.enabled);
+  const anyEnabled = allSettings.some((s) => s.enabled) || customStrategies.some((strategy) => strategy.status === "live");
 
   return (
     <ScannersHub
@@ -205,6 +242,8 @@ export default async function ScannersPage({
       onboard={onboard === "1"}
       lastRunAt={lastRunAt}
       anyEnabled={anyEnabled}
+      customStrategies={customStrategies}
+      customSignals={customSignals}
     />
   );
 }

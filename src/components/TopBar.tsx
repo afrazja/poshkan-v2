@@ -8,7 +8,7 @@ import { createClient } from "@/lib/supabase/client";
 import Avatar from "./Avatar";
 import NotificationBell from "./NotificationBell";
 import ThemeToggle from "./ThemeToggle";
-import { Trophy, Radar, History } from "lucide-react";
+import { Trophy, FlaskConical, History } from "lucide-react";
 import ChangePasswordModal from "./ChangePasswordModal";
 import ApiAccessModal from "./ApiAccessModal";
 import AnthropicKeyModal from "./AnthropicKeyModal";
@@ -155,7 +155,7 @@ export default function TopBar({
             href="/dashboard/scanners"
             className="hidden items-center gap-1.5 rounded-lg px-2 py-1 text-sm font-medium text-muted transition hover:bg-background hover:text-foreground sm:inline-flex"
           >
-            <Radar size={15} aria-hidden /> Scanners
+            <FlaskConical size={15} aria-hidden /> Strategy Lab
           </Link>
           <Link
             href="/dashboard/history"

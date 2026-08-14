@@ -4,6 +4,7 @@ import { GET as oteScan } from "../ote-scan/route";
 import { GET as trendScan } from "../trend-scan/route";
 import { GET as meanrevScan } from "../meanrev-scan/route";
 import { GET as candlerangeScan } from "../candlerange-scan/route";
+import { GET as customScan } from "../custom-scan/route";
 import { GET as aiScan } from "../scan-opportunities/route";
 import { GET as marketCheck } from "../market-check/route";
 
@@ -16,12 +17,13 @@ export const maxDuration = 60;
 // alerts — so this single cron keeps everything moving. Auth (Bearer or ?key=)
 // is enforced by each underlying handler.
 export async function GET(request: Request) {
-  const [smcRes, oteRes, trendRes, meanrevRes, candlerangeRes, aiRes, marketRes] = await Promise.all([
+  const [smcRes, oteRes, trendRes, meanrevRes, candlerangeRes, customRes, aiRes, marketRes] = await Promise.all([
     smcScan(request),
     oteScan(request),
     trendScan(request),
     meanrevScan(request),
     candlerangeScan(request),
+    customScan(request),
     aiScan(request),
     marketCheck(request),
   ]);
@@ -33,20 +35,22 @@ export async function GET(request: Request) {
     trendRes.status === 401 ||
     meanrevRes.status === 401 ||
     candlerangeRes.status === 401 ||
+    customRes.status === 401 ||
     aiRes.status === 401 ||
     marketRes.status === 401
   ) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const [smc, ote, trend, meanrev, candlerange, ai, market] = await Promise.all([
+  const [smc, ote, trend, meanrev, candlerange, custom, ai, market] = await Promise.all([
     smcRes.json().catch(() => ({ error: "smc parse" })),
     oteRes.json().catch(() => ({ error: "ote parse" })),
     trendRes.json().catch(() => ({ error: "trend parse" })),
     meanrevRes.json().catch(() => ({ error: "meanrev parse" })),
     candlerangeRes.json().catch(() => ({ error: "candlerange parse" })),
+    customRes.json().catch(() => ({ error: "custom parse" })),
     aiRes.json().catch(() => ({ error: "ai parse" })),
     marketRes.json().catch(() => ({ error: "market parse" })),
   ]);
-  return NextResponse.json({ smc, ote, trend, meanrev, candlerange, ai, market });
+  return NextResponse.json({ smc, ote, trend, meanrev, candlerange, custom, ai, market });
 }

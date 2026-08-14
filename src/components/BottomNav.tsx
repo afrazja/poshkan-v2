@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Wallet, Radar, History, Trophy } from "lucide-react";
+import { Wallet, FlaskConical, History, Trophy } from "lucide-react";
 
 const items = [
   {
@@ -18,8 +18,8 @@ const items = [
   },
   {
     href: "/dashboard/scanners",
-    label: "Scanners",
-    Icon: Radar,
+    label: "Lab",
+    Icon: FlaskConical,
     match: (p: string) => p.startsWith("/dashboard/scanners"),
   },
   {
