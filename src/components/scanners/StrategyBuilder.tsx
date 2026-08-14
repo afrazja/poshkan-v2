@@ -6,8 +6,11 @@ import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
   ArrowRight,
+  BookOpenCheck,
   Check,
+  FilePlus2,
   FlaskConical,
+  Lightbulb,
   Play,
   Plus,
   Radio,
@@ -37,6 +40,7 @@ import {
 } from "@/app/dashboard/scanners/custom-actions";
 
 type BuilderAccount = { id: string; name: string; type: string };
+type BuilderMode = "choose" | "guided" | "blank";
 
 const STEPS = ["Setup", "Entry rules", "Exit & risk", "Test"];
 const fieldClass =
@@ -49,6 +53,36 @@ function initialRules(): CustomRule[] {
   ];
 }
 
+function guidedRules(): CustomRule[] {
+  return [
+    { id: "rule-1", kind: "price_sma", operator: "above", period: 50 },
+    { id: "rule-2", kind: "rsi", operator: "below", period: 14, value: 30 },
+  ];
+}
+
+const GUIDED_STEPS = [
+  {
+    title: "Start with a testable hypothesis",
+    description:
+      "This example asks whether an hourly RSI pullback can recover while price remains above its 50-bar moving average. Keep the first test narrow: three symbols and one clear idea.",
+  },
+  {
+    title: "Separate market context from the entry",
+    description:
+      "Match all means both rules must be true. Price above SMA(50) supplies the uptrend context; RSI(14) below 30 identifies the pullback. Change a value and the Rule summary translates it immediately.",
+  },
+  {
+    title: "Define the loss before the target",
+    description:
+      "A 1.5x ATR stop adapts to recent volatility. A 2R target is twice the initial risk, and 24 hourly bars gives the idea about one day to work.",
+  },
+  {
+    title: "Look for evidence, not a winning number",
+    description:
+      "Run the exact rules, then inspect sample size, net R, drawdown, and symbol concentration together. A positive replay still needs live paper evidence before it deserves confidence.",
+  },
+] as const;
+
 export default function StrategyBuilder({
   accounts,
   initial,
@@ -58,6 +92,7 @@ export default function StrategyBuilder({
 }) {
   const router = useRouter();
   const firstAccount = accounts.find((account) => account.id === initial?.accountId) ?? accounts[0];
+  const [builderMode, setBuilderMode] = useState<BuilderMode>(initial ? "blank" : "choose");
   const [strategyId, setStrategyId] = useState(initial?.id ?? null);
   const [step, setStep] = useState(initial?.lastBacktest ? 3 : 0);
   const [accountId, setAccountId] = useState(firstAccount?.id ?? "");
@@ -111,6 +146,44 @@ export default function StrategyBuilder({
   function clearNotices() {
     setError(null);
     setMessage(null);
+  }
+
+  function startGuided() {
+    setName("Hourly RSI pullback");
+    setDescription("Hypothesis: after a sharp pullback, price may resume an existing uptrend.");
+    setTimeframe("1h");
+    setSymbols(marketUniverse(account?.type).slice(0, 3));
+    setDirection("LONG");
+    setMatchMode("all");
+    setRules(guidedRules());
+    setStopAtr(1.5);
+    setTakeProfitRr(2);
+    setMaxHoldBars(24);
+    setResult(null);
+    setTestedSignature(null);
+    setStatus("draft");
+    setStep(0);
+    setBuilderMode("guided");
+    clearNotices();
+  }
+
+  function startBlank() {
+    setName("My candle experiment");
+    setDescription("");
+    setTimeframe("1h");
+    setSymbols(marketUniverse(account?.type).slice(0, 3));
+    setDirection("LONG");
+    setMatchMode("all");
+    setRules(initialRules());
+    setStopAtr(1.5);
+    setTakeProfitRr(2);
+    setMaxHoldBars(24);
+    setResult(null);
+    setTestedSignature(null);
+    setStatus("draft");
+    setStep(0);
+    setBuilderMode("blank");
+    clearNotices();
   }
 
   function addSymbol(symbol: string) {
@@ -225,6 +298,78 @@ export default function StrategyBuilder({
     );
   }
 
+  if (builderMode === "choose") {
+    return (
+      <div className="mx-auto max-w-4xl space-y-6">
+        <header className="border-b border-border pb-5">
+          <Link href="/dashboard/scanners" className="inline-flex items-center gap-1 text-xs text-muted hover:text-foreground">
+            <ArrowLeft size={14} aria-hidden /> Strategy Lab
+          </Link>
+          <h1 className="mt-3 text-xl font-semibold sm:text-2xl">Create your first strategy</h1>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-muted">
+            Learn with a complete example or open the same builder with neutral defaults. Both paths
+            create editable rules for backtesting and paper observation.
+          </p>
+        </header>
+
+        <div className="grid gap-4 md:grid-cols-2">
+          <section className="flex flex-col rounded-lg border border-primary/40 bg-primary/5 p-5" aria-labelledby="guided-choice-title">
+            <div className="flex items-start justify-between gap-3">
+              <span className="flex h-10 w-10 items-center justify-center rounded-md bg-primary/10 text-primary">
+                <BookOpenCheck size={20} aria-hidden />
+              </span>
+              <span className="rounded-full bg-primary/15 px-2.5 py-1 text-[11px] font-semibold text-primary">
+                Recommended
+              </span>
+            </div>
+            <h2 id="guided-choice-title" className="mt-4 text-base font-semibold">Build a guided example</h2>
+            <p className="mt-2 text-sm leading-6 text-muted">
+              Create an hourly RSI pullback experiment while the builder explains the hypothesis,
+              entry logic, risk, and evidence at each step.
+            </p>
+            <ul className="mt-4 space-y-2 text-xs text-muted">
+              {["Three symbols", "Two entry rules", "1.5x ATR stop", "2R target"].map((item) => (
+                <li key={item} className="flex items-center gap-2">
+                  <Check size={14} className="text-primary" aria-hidden /> {item}
+                </li>
+              ))}
+            </ul>
+            <button
+              onClick={startGuided}
+              className="mt-6 inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground hover:opacity-90"
+            >
+              Start guided strategy <ArrowRight size={16} aria-hidden />
+            </button>
+          </section>
+
+          <section className="flex flex-col rounded-lg border border-border bg-card p-5" aria-labelledby="blank-choice-title">
+            <span className="flex h-10 w-10 items-center justify-center rounded-md bg-background text-muted">
+              <FilePlus2 size={20} aria-hidden />
+            </span>
+            <h2 id="blank-choice-title" className="mt-4 text-base font-semibold">Start with a blank strategy</h2>
+            <p className="mt-2 text-sm leading-6 text-muted">
+              Use the builder directly with neutral candle defaults. Best when you already know the
+              market behavior and conditions you want to test.
+            </p>
+            <div className="mt-4 border-l-2 border-border pl-3 text-xs leading-5 text-muted">
+              You can combine up to eight candle and indicator rules across as many as five symbols.
+            </div>
+            <button
+              onClick={startBlank}
+              className="mt-auto inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-border px-4 text-sm font-semibold hover:bg-background"
+            >
+              Open blank builder <ArrowRight size={16} aria-hidden />
+            </button>
+          </section>
+        </div>
+
+        <p className="border-y border-border py-4 text-center text-xs leading-5 text-muted">
+          The guided example is a teaching exercise, not a recommended trade or a promise of profit.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-5">
       <header className="flex flex-wrap items-start justify-between gap-3 border-b border-border pb-4">
@@ -236,6 +381,11 @@ export default function StrategyBuilder({
           <p className="mt-1 text-sm text-muted">Build explicit rules, replay them on completed candles, then observe them with paper alerts.</p>
         </div>
         <div className="flex items-center gap-2">
+          {builderMode === "guided" && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">
+              <BookOpenCheck size={13} aria-hidden /> Guided example
+            </span>
+          )}
           {dirty && <UnsavedBadge />}
           <StatusBadge status={testIsCurrent ? status : "draft"} />
         </div>
@@ -257,6 +407,9 @@ export default function StrategyBuilder({
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_300px]">
         <section className="min-w-0">
+          {builderMode === "guided" && (
+            <GuidedCoach step={step} onHide={() => setBuilderMode("blank")} />
+          )}
           {step === 0 && (
             <SetupStep
               accounts={accounts}
@@ -361,6 +514,26 @@ export default function StrategyBuilder({
             </p>
           </div>
         </aside>
+      </div>
+    </div>
+  );
+}
+
+function GuidedCoach({ step, onHide }: { step: number; onHide: () => void }) {
+  const guidance = GUIDED_STEPS[step] ?? GUIDED_STEPS[0];
+  return (
+    <div className="mb-5 border-l-2 border-primary pl-4">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="flex items-center gap-1.5 text-xs font-semibold text-primary">
+            <Lightbulb size={14} aria-hidden /> Guided step {step + 1}
+          </p>
+          <h2 className="mt-1 text-sm font-semibold">{guidance.title}</h2>
+          <p className="mt-1 text-sm leading-6 text-muted">{guidance.description}</p>
+        </div>
+        <button onClick={onHide} className="shrink-0 text-xs text-muted hover:text-foreground hover:underline">
+          Hide guide
+        </button>
       </div>
     </div>
   );
@@ -508,10 +681,13 @@ function RulesStep({
                 <Trash2 size={15} aria-hidden />
               </button>
             </div>
-            <div className="mt-2 grid gap-2 sm:grid-cols-2">
-              <select value={rule.kind} onChange={(event) => onChangeKind(rule.id, event.target.value as CustomRuleKind)} className={fieldClass} aria-label={`Rule ${index + 1} type`}>
-                {(Object.entries(RULE_LABELS) as [CustomRuleKind, string][]).map(([kind, label]) => <option key={kind} value={kind}>{label}</option>)}
-              </select>
+            <div className="mt-2 grid items-end gap-2 sm:grid-cols-[minmax(0,180px)_1fr]">
+              <label>
+                <span className="mb-1 block text-[10px] font-semibold uppercase text-muted">Condition</span>
+                <select value={rule.kind} onChange={(event) => onChangeKind(rule.id, event.target.value as CustomRuleKind)} className={fieldClass} aria-label={`Rule ${index + 1} type`}>
+                  {(Object.entries(RULE_LABELS) as [CustomRuleKind, string][]).map(([kind, label]) => <option key={kind} value={kind}>{label}</option>)}
+                </select>
+              </label>
               <RuleFields rule={rule} onUpdate={(patch) => onUpdateRule(rule.id, patch)} />
             </div>
           </div>
@@ -525,16 +701,67 @@ function RulesStep({
 }
 
 function RuleFields({ rule, onUpdate }: { rule: CustomRule; onUpdate: (patch: Partial<CustomRule>) => void }) {
-  const number = (value: number | undefined, patch: "period" | "value", min: number, max: number, step = 1) => (
-    <input type="number" value={value ?? ""} min={min} max={max} step={step} onChange={(event) => onUpdate({ [patch]: Number(event.target.value) })} className={fieldClass} aria-label={patch} />
+  const number = (label: string, value: number | undefined, patch: "period" | "value", min: number, max: number, step = 1) => (
+    <label className="min-w-0">
+      <span className="mb-1 block text-[10px] font-semibold uppercase text-muted">{label}</span>
+      <input type="number" value={value ?? ""} min={min} max={max} step={step} onChange={(event) => onUpdate({ [patch]: Number(event.target.value) })} className={fieldClass} aria-label={label} />
+    </label>
   );
-  if (rule.kind === "rsi") return <div className="grid grid-cols-[1fr_76px_76px] gap-2"><select value={rule.operator} onChange={(event) => onUpdate({ operator: event.target.value })} className={fieldClass}><option value="below">Below</option><option value="above">Above</option></select>{number(rule.value, "value", 1, 99)}{number(rule.period, "period", 2, 200)}</div>;
-  if (rule.kind === "price_sma") return <div className="grid grid-cols-[1fr_90px] gap-2"><select value={rule.operator} onChange={(event) => onUpdate({ operator: event.target.value })} className={fieldClass}><option value="above">Closes above</option><option value="below">Closes below</option></select>{number(rule.period, "period", 2, 200)}</div>;
-  if (rule.kind === "candle_direction") return <select value={rule.operator} onChange={(event) => onUpdate({ operator: event.target.value })} className={fieldClass}><option value="bullish">Bullish close</option><option value="bearish">Bearish close</option></select>;
-  if (rule.kind === "body_percent") return <div className="grid grid-cols-[1fr_100px] gap-2"><span className="flex items-center text-sm text-muted">At least % of range</span>{number(rule.value, "value", 1, 100)}</div>;
-  if (rule.kind === "close_previous") return <select value={rule.operator} onChange={(event) => onUpdate({ operator: event.target.value })} className={fieldClass}><option value="above_high">Close above previous high</option><option value="below_low">Close below previous low</option></select>;
-  if (rule.kind === "range_atr") return <div className="grid grid-cols-[1fr_72px_72px] gap-2"><select value={rule.operator} onChange={(event) => onUpdate({ operator: event.target.value })} className={fieldClass}><option value="at_least">At least</option><option value="at_most">At most</option></select>{number(rule.value, "value", 0.1, 10, 0.1)}{number(rule.period, "period", 2, 200)}</div>;
-  return <div className="grid grid-cols-[1fr_90px] gap-2"><select value={rule.operator} onChange={(event) => onUpdate({ operator: event.target.value })} className={fieldClass}><option value="bullish">Bullish</option><option value="bearish">Bearish</option></select>{number(rule.value, "value", 2, 5)}</div>;
+  const select = (label: string, options: { value: string; label: string }[]) => (
+    <label className="min-w-0">
+      <span className="mb-1 block text-[10px] font-semibold uppercase text-muted">{label}</span>
+      <select value={rule.operator} onChange={(event) => onUpdate({ operator: event.target.value })} className={fieldClass}>
+        {options.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+      </select>
+    </label>
+  );
+
+  if (rule.kind === "rsi") {
+    return (
+      <div className="grid grid-cols-[minmax(0,1fr)_76px_76px] items-end gap-2">
+        {select("Comparison", [{ value: "below", label: "Below" }, { value: "above", label: "Above" }])}
+        {number("Level", rule.value, "value", 1, 99)}
+        {number("Period", rule.period, "period", 2, 200)}
+      </div>
+    );
+  }
+  if (rule.kind === "price_sma") {
+    return (
+      <div className="grid grid-cols-[minmax(0,1fr)_90px] items-end gap-2">
+        {select("Comparison", [{ value: "above", label: "Closes above" }, { value: "below", label: "Closes below" }])}
+        {number("Period", rule.period, "period", 2, 200)}
+      </div>
+    );
+  }
+  if (rule.kind === "candle_direction") {
+    return select("Direction", [{ value: "bullish", label: "Bullish close" }, { value: "bearish", label: "Bearish close" }]);
+  }
+  if (rule.kind === "body_percent") {
+    return (
+      <div className="grid grid-cols-[minmax(0,1fr)_100px] items-end gap-2">
+        <div><span className="mb-1 block text-[10px] font-semibold uppercase text-muted">Measure</span><span className="flex min-h-10 items-center text-sm text-muted">At least % of range</span></div>
+        {number("Percent", rule.value, "value", 1, 100)}
+      </div>
+    );
+  }
+  if (rule.kind === "close_previous") {
+    return select("Break condition", [{ value: "above_high", label: "Close above previous high" }, { value: "below_low", label: "Close below previous low" }]);
+  }
+  if (rule.kind === "range_atr") {
+    return (
+      <div className="grid grid-cols-[minmax(0,1fr)_72px_72px] items-end gap-2">
+        {select("Comparison", [{ value: "at_least", label: "At least" }, { value: "at_most", label: "At most" }])}
+        {number("Multiple", rule.value, "value", 0.1, 10, 0.1)}
+        {number("Period", rule.period, "period", 2, 200)}
+      </div>
+    );
+  }
+  return (
+    <div className="grid grid-cols-[minmax(0,1fr)_90px] items-end gap-2">
+      {select("Direction", [{ value: "bullish", label: "Bullish" }, { value: "bearish", label: "Bearish" }])}
+      {number("Candles", rule.value, "value", 2, 5)}
+    </div>
+  );
 }
 
 function RiskStep({ stopAtr, onStopAtrChange, takeProfitRr, onTakeProfitRrChange, maxHoldBars, onMaxHoldBarsChange, timeframe }: { stopAtr: number; onStopAtrChange: (value: number) => void; takeProfitRr: number; onTakeProfitRrChange: (value: number) => void; maxHoldBars: number; onMaxHoldBarsChange: (value: number) => void; timeframe: string }) {
@@ -574,6 +801,7 @@ function TestStep({ result, busy, status, strategyId, onSave, onTest, onToggleLi
             <Metric label="Profit factor" value={result.profitFactor === -1 ? "infinite" : result.profitFactor.toFixed(2)} />
             <Metric label="Max drawdown" value={`-${result.maxDrawdownR}R`} />
           </div>
+          <EvidenceCoach result={result} />
           {result.equity.length > 1 && <AreaChart points={result.equity.map((point) => ({ label: point.t, value: point.value }))} height={190} formatValue={(value) => `${value >= 0 ? "+" : ""}${value.toFixed(1)}R`} baseline={0} />}
           <div className="divide-y divide-border border-y border-border">
             {result.perSymbol.map((item) => <div key={item.symbol} className="flex items-center justify-between gap-3 py-2 text-sm"><span className="font-medium">{symbolLabel(item.symbol)}</span><span className="text-xs text-muted">{item.n} trades / {Math.round(item.winRate * 100)}% wins / <span className={item.totalR >= 0 ? "text-positive" : "text-negative"}>{item.totalR >= 0 ? "+" : ""}{item.totalR.toFixed(1)}R</span></span></div>)}
@@ -582,6 +810,44 @@ function TestStep({ result, busy, status, strategyId, onSave, onTest, onToggleLi
         </div>
       )}
     </div>
+  );
+}
+
+function EvidenceCoach({ result }: { result: CustomBacktestResult }) {
+  const positiveSymbols = result.perSymbol.filter((item) => item.totalR > 0);
+  const positiveR = positiveSymbols.reduce((sum, item) => sum + item.totalR, 0);
+  const strongest = positiveSymbols.reduce<(typeof positiveSymbols)[number] | undefined>(
+    (best, item) => (!best || item.totalR > best.totalR ? item : best),
+    undefined
+  );
+  const strongestShare = strongest && positiveR > 0 ? strongest.totalR / positiveR : 0;
+  const notes = [
+    result.n < 30
+      ? `Only ${result.n} trades matched. Treat this as a small sample and test more history or symbols before drawing conclusions.`
+      : `${result.n} trades matched. The sample is more useful than a handful of trades, but still needs forward testing.`,
+    result.totalR > 0
+      ? `The replay finished positive at +${result.totalR}R. That is evidence for further testing, not proof the rules will remain profitable.`
+      : `The replay finished at ${result.totalR}R. Keep the result as evidence and change one assumption at a time before testing again.`,
+    `The largest peak-to-trough decline was ${result.maxDrawdownR}R. Compare that loss sequence with the return, not with win rate alone.`,
+  ];
+  if (strongest && strongestShare >= 0.7 && result.perSymbol.length > 1) {
+    notes.push(
+      `${symbolLabel(strongest.symbol)} produced ${Math.round(strongestShare * 100)}% of the positive R. Check whether the idea works beyond one symbol.`
+    );
+  }
+
+  return (
+    <section className="border-y border-border py-4" aria-labelledby="evidence-coach-title">
+      <h3 id="evidence-coach-title" className="text-sm font-semibold">How to read this result</h3>
+      <ul className="mt-3 space-y-2 text-xs leading-5 text-muted">
+        {notes.map((note) => (
+          <li key={note} className="flex items-start gap-2">
+            <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
+            <span>{note}</span>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 
