@@ -1,9 +1,26 @@
 import "server-only";
 import YahooFinance from "yahoo-finance2";
 import type { Quote, SymbolSearchResult } from "./types";
+import { candleCacheTtl, readCandleCache, writeCandleCache } from "./market-candle-cache";
+import {
+  getTwelveOhlc,
+  getTwelveQuote,
+  getTwelveQuotes,
+  isTwelveDataConfigured,
+  toTwelveSymbol,
+} from "./twelve-data";
 
-// Yahoo Finance (unofficial) market data. No API key or daily limit. (v3 class API)
+// Twelve Data is the primary quote/OHLC source when configured. Yahoo remains
+// the discovery/news source and a fail-open fallback during provider outages.
 const yf = new YahooFinance({ suppressNotices: ["yahooSurvey"] });
+
+let lastFallbackLog = 0;
+
+function logTwelveFallback(error: unknown) {
+  if (Date.now() - lastFallbackLog < 60_000) return;
+  lastFallbackLog = Date.now();
+  console.warn(`[marketdata] Twelve Data fallback: ${(error as Error).message ?? "unknown error"}`);
+}
 
 // ---------------------------------------------------------------------------
 // In-memory cache + in-flight de-dup + stale fallback. Keeps request volume low
@@ -74,6 +91,7 @@ interface YCandle {
   high?: number | null;
   low?: number | null;
   close?: number | null;
+  volume?: number | null;
 }
 
 export async function searchSymbols(query: string): Promise<SymbolSearchResult[]> {
@@ -130,11 +148,53 @@ function toIso(v: number | Date | undefined): string | undefined {
 
 const QUOTE_TTL = 15_000;
 
+async function getYahooQuote(symbol: string): Promise<Quote> {
+  const raw = (await yf.quote(symbol, {}, { validateResult: false })) as unknown as YQuote;
+  return toQuote(raw);
+}
+
+async function getYahooQuotes(symbols: string[]): Promise<Record<string, Quote>> {
+  if (symbols.length === 0) return {};
+  const response = await yf.quote(symbols, {}, { validateResult: false });
+  const rows = (Array.isArray(response) ? response : [response]) as unknown as YQuote[];
+  const quotes: Record<string, Quote> = {};
+  for (const raw of rows) {
+    if (!raw?.symbol) continue;
+    const quote = toQuote(raw);
+    quotes[quote.symbol.toUpperCase()] = quote;
+  }
+  return quotes;
+}
+
+function enrichTwelveQuote(primary: Quote, yahoo: Quote | null): Quote {
+  if (!yahoo) return primary;
+  return {
+    ...yahoo,
+    ...primary,
+    marketCap: yahoo.marketCap,
+    peRatio: yahoo.peRatio,
+    dividendRate: yahoo.dividendRate,
+    earningsDate: yahoo.earningsDate,
+    fiftyTwoWeekHigh: primary.fiftyTwoWeekHigh ?? yahoo.fiftyTwoWeekHigh,
+    fiftyTwoWeekLow: primary.fiftyTwoWeekLow ?? yahoo.fiftyTwoWeekLow,
+  };
+}
+
 export async function getQuote(symbol: string): Promise<Quote> {
   const sym = symbol.toUpperCase();
   return cached(`quote:${sym}`, QUOTE_TTL, async () => {
-    const q = (await yf.quote(symbol, {}, { validateResult: false })) as unknown as YQuote;
-    return toQuote(q);
+    if (isTwelveDataConfigured()) {
+      try {
+        const [primary, enrichment] = await Promise.all([
+          getTwelveQuote(sym),
+          getYahooQuote(sym).catch(() => null),
+        ]);
+        return enrichTwelveQuote(primary, enrichment);
+      } catch (error) {
+        logTwelveFallback(error);
+      }
+    }
+    return getYahooQuote(sym);
   });
 }
 
@@ -151,21 +211,29 @@ export async function getQuotes(symbols: string[]): Promise<Record<string, Quote
   }
   if (missing.length === 0) return out;
 
-  try {
-    const res = await yf.quote(missing, {}, { validateResult: false });
-    const arr = (Array.isArray(res) ? res : [res]) as unknown as YQuote[];
-    for (const raw of arr) {
-      if (raw && raw.symbol) {
-        const q = toQuote(raw);
-        const sym = q.symbol.toUpperCase();
-        out[sym] = q;
-        cache.set(`quote:${sym}`, { at: Date.now(), data: q });
-      }
+  if (isTwelveDataConfigured()) {
+    try {
+      Object.assign(out, await getTwelveQuotes(missing));
+    } catch (error) {
+      logTwelveFallback(error);
     }
-  } catch {
-    for (const sym of missing) {
+  }
+
+  const unresolved = missing.filter((sym) => !out[sym]);
+  if (unresolved.length > 0) {
+    try {
+      Object.assign(out, await getYahooQuotes(unresolved));
+    } catch {
+      // Stale entries below are preferable to failing the whole quote batch.
+    }
+  }
+
+  for (const sym of missing) {
+    const quote = out[sym];
+    if (quote) cache.set(`quote:${sym}`, { at: Date.now(), data: quote });
+    else {
       const hit = cache.get(`quote:${sym}`) as Entry<Quote> | undefined;
-      if (hit && !out[sym]) out[sym] = hit.data;
+      if (hit) out[sym] = hit.data;
     }
   }
   return out;
@@ -214,55 +282,114 @@ export interface OhlcCandle {
   high: number;
   low: number;
   close: number;
+  volume?: number;
 }
 
-// Full OHLC candles (for candlestick + indicator analysis). Mirrors getTimeSeries
-// but keeps open/high/low; intraday returns multiple days of bars (not just today).
+async function getYahooOhlc(
+  symbol: string,
+  interval: string,
+  outputsize: number,
+  lookbackDays?: number
+): Promise<OhlcCandle[]> {
+  const weekly = interval === "1week" || interval.startsWith("1w");
+  const intraday = !weekly && interval !== "1day" && /\d+(min|m|h)$/i.test(interval);
+  let yInterval: string;
+  let days: number;
+  if (intraday) {
+    const isHour = interval.includes("h");
+    yInterval = interval.replace("min", "m");
+    const base = lookbackDays ?? (isHour ? Math.ceil(outputsize / 7) + 5 : 10);
+    // Yahoo caps intraday history: ~730d for hourly, ~60d for sub-hour bars.
+    days = Math.min(base, isHour ? 720 : 59);
+  } else if (weekly) {
+    yInterval = "1wk";
+    days = outputsize * 7 + 14;
+  } else {
+    yInterval = "1d";
+    days = Math.ceil(outputsize * 1.6) + 7;
+  }
+  const period1 = new Date(Date.now() - days * 86_400_000);
+  const chart = (await yf.chart(
+    symbol,
+    { period1, interval: yInterval as "1d" },
+    { validateResult: false }
+  )) as unknown as { quotes?: YCandle[] };
+  const rows = Array.isArray(chart.quotes) ? chart.quotes : [];
+  return rows
+    .filter((c) => c.close != null && c.open != null && c.high != null && c.low != null && c.date)
+    .map((c) => {
+      const iso = new Date(c.date as Date | string).toISOString();
+      return {
+        datetime: intraday ? iso : iso.slice(0, 10),
+        open: Number(c.open),
+        high: Number(c.high),
+        low: Number(c.low),
+        close: Number(c.close),
+        ...(c.volume != null ? { volume: Number(c.volume) } : {}),
+      };
+    })
+    .slice(-outputsize);
+}
+
+function mergeOhlc(older: OhlcCandle[], newer: OhlcCandle[], outputsize: number): OhlcCandle[] {
+  const merged = new Map<string, OhlcCandle>();
+  for (const candle of older) merged.set(candle.datetime, candle);
+  for (const candle of newer) merged.set(candle.datetime, candle);
+  return Array.from(merged.values())
+    .sort((left, right) => new Date(left.datetime).getTime() - new Date(right.datetime).getTime())
+    .slice(-outputsize);
+}
+
+// Full OHLC candles for charts, indicators, backtests, and scanners. Twelve
+// Data is preferred; the persistent cache and Yahoo fallback keep it fail-open.
 export async function getOhlc(
   symbol: string,
   interval = "1day",
   outputsize = 120,
-  lookbackDays?: number // override the history span (e.g. for backtests)
+  lookbackDays?: number
 ): Promise<OhlcCandle[]> {
   const weekly = interval === "1week" || interval.startsWith("1w");
   const intraday = !weekly && interval !== "1day" && /\d+(min|m|h)$/i.test(interval);
   const key = `ohlc:${symbol.toUpperCase()}:${interval}:${outputsize}:${lookbackDays ?? ""}`;
-  return cached(key, intraday ? 60_000 : 600_000, async () => {
-    let yInterval: string;
-    let days: number;
-    if (intraday) {
-      const isHour = interval.includes("h");
-      yInterval = interval.replace("min", "m");
-      const base = lookbackDays ?? (isHour ? Math.ceil(outputsize / 7) + 5 : 10);
-      // Yahoo caps intraday history: ~730d for hourly, ~60d for sub-hour bars.
-      days = Math.min(base, isHour ? 720 : 59);
-    } else if (weekly) {
-      yInterval = "1wk";
-      days = outputsize * 7 + 14;
-    } else {
-      yInterval = "1d";
-      days = Math.ceil(outputsize * 1.6) + 7;
+  const ttl = intraday ? 60_000 : 600_000;
+
+  return cached(key, ttl, async () => {
+    if (!isTwelveDataConfigured()) {
+      return getYahooOhlc(symbol, interval, outputsize, lookbackDays);
     }
-    const period1 = new Date(Date.now() - days * 86_400_000);
-    const chart = (await yf.chart(
+
+    const requestedSize = Math.max(1, Math.min(Math.floor(outputsize), 5_000));
+    const persisted = await readCandleCache(
       symbol,
-      { period1, interval: yInterval as "1d" },
-      { validateResult: false }
-    )) as unknown as { quotes?: YCandle[] };
-    const rows = Array.isArray(chart.quotes) ? chart.quotes : [];
-    const candles = rows
-      .filter((c) => c.close != null && c.open != null && c.high != null && c.low != null && c.date)
-      .map((c) => {
-        const iso = new Date(c.date as Date | string).toISOString();
-        return {
-          datetime: intraday ? iso : iso.slice(0, 10),
-          open: Number(c.open),
-          high: Number(c.high),
-          low: Number(c.low),
-          close: Number(c.close),
-        };
-      });
-    return candles.slice(-outputsize);
+      interval,
+      requestedSize,
+      candleCacheTtl(interval)
+    );
+    if (persisted?.fresh) return persisted.candles.slice(-requestedSize);
+
+    try {
+      const candles = await getTwelveOhlc(symbol, interval, requestedSize, lookbackDays);
+      await writeCandleCache(
+        symbol,
+        toTwelveSymbol(symbol),
+        interval,
+        candles,
+        requestedSize,
+        persisted?.meta
+      );
+      return candles;
+    } catch (error) {
+      logTwelveFallback(error);
+      try {
+        const yahoo = await getYahooOhlc(symbol, interval, outputsize, lookbackDays);
+        return persisted?.candles.length
+          ? mergeOhlc(persisted.candles, yahoo, outputsize)
+          : yahoo;
+      } catch {
+        if (persisted?.candles.length) return persisted.candles.slice(-outputsize);
+        throw error;
+      }
+    }
   });
 }
 
@@ -279,32 +406,10 @@ export async function getTimeSeries(
   const intraday = !weekly && interval !== "1day" && /\d+(min|m|h)$/i.test(interval);
   const key = `ts:${symbol.toUpperCase()}:${interval}:${outputsize}`;
   return cached(key, intraday ? INTRADAY_TTL : TIMESERIES_TTL, async () => {
-    let yInterval: string;
-    let days: number;
-    if (intraday) {
-      yInterval = interval.replace("min", "m"); // "5min" -> "5m", "1h" stays
-      days = 5; // span a few days so we always catch the latest full session
-    } else if (weekly) {
-      yInterval = "1wk";
-      days = outputsize * 7 + 14;
-    } else {
-      yInterval = "1d";
-      days = Math.ceil(outputsize * 1.6) + 7;
-    }
-    const period1 = new Date(Date.now() - days * 86_400_000);
-    const chart = (await yf.chart(
-      symbol,
-      { period1, interval: yInterval as "1d" },
-      { validateResult: false }
-    )) as unknown as { quotes?: YCandle[] };
-    const rows = Array.isArray(chart.quotes) ? chart.quotes : [];
-    const candles = rows
-      .filter((c) => c.close != null && c.date)
-      .map((c) => {
-        const iso = new Date(c.date as Date | string).toISOString();
-        // Keep full timestamp for intraday (so the x-axis can show times); date only for daily/weekly.
-        return { datetime: intraday ? iso : iso.slice(0, 10), close: Number(c.close) };
-      });
+    const candles = (await getOhlc(symbol, interval, outputsize)).map((candle) => ({
+      datetime: candle.datetime,
+      close: candle.close,
+    }));
 
     if (intraday) {
       // 1D = just the latest session (today's live session while open, else the

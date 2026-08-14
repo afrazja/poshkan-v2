@@ -9,7 +9,8 @@ track holdings and P&L — no real money on the line.
 
 - **Next.js 16** (App Router) + **TypeScript** + **Tailwind CSS v4**
 - **Supabase** — auth (with email confirmation), Postgres, Row-Level Security
-- **Twelve Data** — live market quotes & search (proxied server-side)
+- **Twelve Data** — primary quotes and OHLC history, proxied server-side
+- **Yahoo Finance** — symbol discovery, news, quote enrichment, and automatic fallback
 - **TanStack Query** — live quote polling
 
 ## Setup
@@ -26,12 +27,14 @@ npm install
 2. Open the **SQL Editor** and run the contents of [`supabase/schema.sql`](supabase/schema.sql).
    This creates the tables, RLS policies, the auto-profile trigger, and the
    trading RPC functions.
-3. In **Authentication → Providers → Email**, keep "Confirm email" enabled.
-4. In **Authentication → URL Configuration**, set the production Site URL and add these exact
+3. Run [`supabase/market-data-cache.sql`](supabase/market-data-cache.sql) to enable the shared,
+   service-role-only Twelve Data candle cache.
+4. In **Authentication → Providers → Email**, keep "Confirm email" enabled.
+5. In **Authentication → URL Configuration**, set the production Site URL and add these exact
    redirect URLs (plus the equivalent URL for any other production hostname you serve):
    - `https://www.poshkan.com/auth/callback`
    - `http://localhost:3000/auth/callback`
-5. Run [`supabase/google-auth.sql`](supabase/google-auth.sql) in the SQL Editor. This updates the
+6. Run [`supabase/google-auth.sql`](supabase/google-auth.sql) in the SQL Editor. This updates the
    profile trigger so social-auth users receive a non-email, collision-safe username.
 
 ### 2a. Enable Google sign-in
@@ -60,6 +63,7 @@ Copy `.env.local.example` to `.env.local` and fill in:
 NEXT_PUBLIC_SUPABASE_URL=https://YOUR-REF.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 TWELVE_DATA_API_KEY=your-twelve-data-key
+TWELVE_DATA_CREDITS_PER_MINUTE=8
 NEXT_PUBLIC_SITE_URL=http://localhost:3000
 ```
 
