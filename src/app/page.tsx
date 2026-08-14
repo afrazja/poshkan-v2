@@ -1,16 +1,101 @@
 import Image from "next/image";
+import Link from "next/link";
 import { unstable_cache } from "next/cache";
+import {
+  ArrowRight,
+  BellRing,
+  ChartNoAxesCombined,
+  FlaskConical,
+  ListChecks,
+  Plus,
+  ShieldCheck,
+} from "lucide-react";
 import AuthCard from "@/components/auth/AuthCard";
 import SiteFooter from "@/components/SiteFooter";
 import InstallPwa from "@/components/InstallPwa";
 import RecoveryRedirect from "@/components/auth/RecoveryRedirect";
 import LandingThemeToggle from "@/components/auth/LandingThemeToggle";
+import ScannerIcon, { type ScannerKind } from "@/components/ScannerIcon";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { symbolLabel } from "@/lib/assets";
 
-const TITLE = "Poshkan — Paper trading with strategy scanners for stocks, crypto & forex";
+const TITLE = "Poshkan | Paper Trading and Strategy Lab for Stocks, Crypto & Forex";
 const DESCRIPTION =
-  "Practice stocks, crypto, and forex with virtual money, broker-style orders, strategy scanners, and a live leaderboard. No deposits, no broker connection, no financial advice.";
+  "Build, backtest, and observe trading strategies with virtual money across stocks, crypto, and forex. Start with six built-in templates or create your own rules.";
+
+const LAB_WORKFLOW = [
+  {
+    label: "Define rules",
+    description: "Turn an idea into exact candle and indicator conditions.",
+    Icon: ListChecks,
+  },
+  {
+    label: "Set risk",
+    description: "Choose the stop, target, and maximum holding time.",
+    Icon: ShieldCheck,
+  },
+  {
+    label: "Backtest",
+    description: "Replay the rules on historical candles with trading costs.",
+    Icon: ChartNoAxesCombined,
+  },
+  {
+    label: "Observe",
+    description: "Follow paper alerts and learn where the idea breaks down.",
+    Icon: BellRing,
+  },
+] as const;
+
+const BUILT_IN_STRATEGIES: {
+  href: string;
+  kind: ScannerKind;
+  name: string;
+  summary: string;
+  market: string;
+}[] = [
+  {
+    href: "/strategies/smart-money-concepts",
+    kind: "smc",
+    name: "Smart Money Concepts",
+    summary: "Tests structure breaks, fair value gaps, and confirmed retests.",
+    market: "Crypto + forex",
+  },
+  {
+    href: "/strategies/optimal-trade-entry",
+    kind: "ote",
+    name: "Optimal Trade Entry",
+    summary: "Looks for confirmed pullbacks into the 62-79% Fibonacci zone.",
+    market: "Crypto + forex",
+  },
+  {
+    href: "/strategies/trend-breakout",
+    kind: "trend",
+    name: "Trend Breakout",
+    summary: "Tests breakouts with trend strength and room for the move to continue.",
+    market: "Stocks + crypto + forex",
+  },
+  {
+    href: "/strategies/mean-reversion",
+    kind: "meanrev",
+    name: "Mean Reversion",
+    summary: "Tests whether stretched prices return toward their recent average.",
+    market: "Stocks + crypto + forex",
+  },
+  {
+    href: "/strategies/candle-range",
+    kind: "candlerange",
+    name: "Candle Range",
+    summary: "Looks for confirmed entries near support and resistance inside a range.",
+    market: "Stocks + crypto + forex",
+  },
+  {
+    href: "/strategies/ai-scanner",
+    kind: "ai",
+    name: "AI Scanner",
+    summary: "Evaluates plain-English instructions as an optional paper-trading experiment.",
+    market: "Stocks + crypto + forex",
+  },
+];
 
 export const metadata = {
   title: TITLE,
@@ -176,8 +261,8 @@ export default async function LandingPage({
                 Practice trading. Lose nothing real.
               </h1>
               <p className="mx-auto mt-2 max-w-md text-sm text-muted">
-                Broker-style orders, strategy scanners, backtests, and a leaderboard across stocks,
-                crypto, and forex. 100% virtual money, no card required.
+                Build and backtest trading rules, start from six built-in strategies, and practice
+                across stocks, crypto, and forex with 100% virtual money.
               </p>
             </div>
             {expired && (
@@ -206,18 +291,18 @@ export default async function LandingPage({
               Lose nothing real.
             </h1>
             <p className="mt-6 text-lg text-white/80">
-              Practice stocks, crypto, and forex with market prices, 100% virtual money, and
-              strategy scanners that surface setups or place simulated trades inside limits you set.
+              Turn market ideas into explicit rules, test them on historical candles, and observe
+              the results with 100% virtual money across stocks, crypto, and forex.
             </p>
             <ul className="mt-8 space-y-3 text-white/90">
               <li className="flex items-center gap-3">
-                <Dot /> Six strategy scanners for ideas, alerts, and virtual auto-trades
+                <Dot /> Build your own rules or start with six built-in strategy templates
               </li>
               <li className="flex items-center gap-3">
-                <Dot /> Practice long or short — stocks, crypto &amp; forex, 1–10× virtual leverage
+                <Dot /> Backtest completed candles before observing paper signals
               </li>
               <li className="flex items-center gap-3">
-                <Dot /> An optional AI scanner tests your plain-English rules using your own API key
+                <Dot /> Practice long or short across stocks, crypto, and forex
               </li>
               <li className="flex items-center gap-3">
                 <Dot /> A leaderboard based on percentage returns, not deposits
@@ -227,14 +312,14 @@ export default async function LandingPage({
         </div>
       </main>
 
-      {/* Product proof: a faithful in-CSS mock of the live scanners page */}
+      {/* Product proof: real footage of the practice accounts and Strategy Lab. */}
       <section className="border-t border-border px-6 py-14 sm:px-12">
         <div className="mx-auto max-w-4xl">
           <h2 className="text-center text-2xl font-bold tracking-tight sm:text-3xl">
-            This is what it looks like
+            A real look inside Poshkan
           </h2>
           <p className="mx-auto mt-2 max-w-2xl text-center text-sm text-muted">
-            Scanners running around the clock, signals landing, virtual trades opening.
+            Move between paper accounts, Strategy Lab experiments, live observations, and results.
           </p>
 
           <div className="relative mt-10">
@@ -255,7 +340,7 @@ export default async function LandingPage({
                 loop
                 playsInline
                 className="block w-full"
-                aria-label="A 15-second tour of Poshkan: the accounts dashboard, an account's P&L and holdings, the scanners page with live activity, and the leaderboard."
+                aria-label="A 15-second tour of Poshkan: paper accounts, profit and loss, Strategy Lab activity, and the leaderboard."
               />
             </div>
           </div>
@@ -279,8 +364,8 @@ export default async function LandingPage({
             cta="How it works"
           />
           <TrustPoint
-            title="Bounded automation"
-            text="Auto-trading stays inside your risk caps, and the AI scanner is optional, bring-your-own-key, and still virtual."
+            title="Experiments, not promises"
+            text="Built-in and user-created strategies are tools for testing ideas. Results can be negative, and every trade remains virtual."
           />
         </div>
       </section>
@@ -292,7 +377,7 @@ export default async function LandingPage({
             <div className="grid grid-cols-1 gap-6 text-center sm:grid-cols-3">
               <Counter value={live.trades} label="virtual trades executed" />
               <Counter value={live.signals} label="scanner signals fired" />
-              <Counter value="24/7" label="watching 3 markets, 6 strategies" />
+              <Counter value="6" label="built-in strategy templates" />
             </div>
 
             {live.events.length > 0 && (
@@ -347,50 +432,101 @@ export default async function LandingPage({
         </div>
       </section>
 
-      {/* Scanners — the hero feature: a library across all markets */}
+      {/* Strategy Lab: the core product promise, with scanners as starting templates. */}
       <section className="border-t border-border bg-card px-6 py-14 sm:px-12">
-        <div className="mx-auto max-w-5xl text-center">
-          <span className="inline-block rounded-full bg-primary/15 px-3 py-1 text-xs font-semibold text-primary">
-            ✦ Strategy scanner library
-          </span>
-          <h2 className="mt-3 text-2xl font-bold tracking-tight sm:text-3xl">
-            Six scanners. Three markets. One playground.
-          </h2>
-          <p className="mx-auto mt-3 max-w-2xl text-sm text-muted">
-            Flip a scanner on and it hunts setups around the clock — on US stocks, crypto, or forex —
-            pinging your phone, or trading on its own within the risk limits you set. Pick your symbols,
-            set your strategy, walk away.
-          </p>
-
-          {/* Markets the scanners run on */}
-          <div className="mt-6 flex flex-wrap justify-center gap-2">
-            <MarketChip label="US stocks" />
-            <MarketChip label="Crypto" />
-            <MarketChip label="Forex" />
+        <div className="mx-auto max-w-5xl">
+          <div className="flex flex-col justify-between gap-6 sm:flex-row sm:items-end">
+            <div className="max-w-3xl">
+              <p className="flex items-center gap-2 text-sm font-semibold text-primary">
+                <FlaskConical size={17} aria-hidden /> Strategy Lab
+              </p>
+              <h2 className="mt-3 text-2xl font-bold tracking-tight sm:text-3xl">
+                Build the rule. Test the evidence. Watch it live.
+              </h2>
+              <p className="mt-3 max-w-2xl text-sm leading-6 text-muted sm:text-base">
+                Start from a built-in scanner or create your own candle-based strategy. Poshkan keeps
+                the rules, risk limits, backtest, and paper results together so you can learn what
+                works, what fails, and under which market conditions.
+              </p>
+            </div>
+            <Link
+              href="#signup"
+              className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground transition hover:opacity-90"
+            >
+              Open Strategy Lab <ArrowRight size={16} aria-hidden />
+            </Link>
           </div>
 
-          {/* The library — each tile links to its public strategy explainer */}
-          <div className="mt-8 grid grid-cols-1 gap-4 text-left sm:grid-cols-2 lg:grid-cols-3">
-            <ScannerTile href="/strategies/ai-scanner" icon="🤖" title="AI Scanner" text="Claude checks recent price action against your plain-English rules and proposes virtual trades." />
-            <ScannerTile href="/strategies/smart-money-concepts" icon="📈" title="Smart Money Concepts" text="Order-block and fair-value-gap retests, confirmed before entry." />
-            <ScannerTile href="/strategies/optimal-trade-entry" icon="🎯" title="Optimal Trade Entry" text="Fibonacci pullbacks into the OTE zone of an established trend." />
-            <ScannerTile href="/strategies/trend-breakout" icon="🚀" title="Trend Breakout" text="Confirmed breakouts with ADX strength and room left to run." />
-            <ScannerTile href="/strategies/mean-reversion" icon="↩️" title="Mean Reversion" text="Fades stretched moves back toward the middle of the band." />
-            <ScannerTile href="/strategies/candle-range" icon="📦" title="Candle Range" text="Buys support and sells resistance inside a price box." />
-          </div>
-          <p className="mt-4 text-xs text-muted">
-            Tap any strategy to read how it works in plain English.
-          </p>
+          <ol className="mt-8 grid grid-cols-2 border-y border-border md:grid-cols-4" aria-label="Strategy Lab workflow">
+            {LAB_WORKFLOW.map(({ label, description, Icon }, index) => (
+              <li
+                key={label}
+                className={`min-w-0 py-4 pr-3 ${
+                  index % 2 === 1 ? "border-l border-border pl-4" : ""
+                } ${index >= 2 ? "border-t border-border md:border-t-0" : ""} ${
+                  index > 0 ? "md:border-l md:border-border md:pl-4" : ""
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+                    <Icon size={15} aria-hidden />
+                  </span>
+                  <span className="text-xs font-semibold text-muted">{index + 1}</span>
+                  <h3 className="text-sm font-semibold">{label}</h3>
+                </div>
+                <p className="mt-2 text-xs leading-5 text-muted">{description}</p>
+              </li>
+            ))}
+          </ol>
 
-          {/* Backtest → alert → auto-trade */}
-          <div className="mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-muted">
-            <span>🧪 Backtest it first</span>
-            <span>🔔 Alert your phone</span>
-            <span>⚡ Virtual auto-trade, 1–10× leverage</span>
+          <div className="mt-9 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <h3 className="text-lg font-semibold">Six built-in starting points</h3>
+              <p className="mt-1 text-sm text-muted">
+                Inspect the logic, test the history, then compare it with your own strategy.
+              </p>
+            </div>
+            <Link href="/strategies" className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline">
+              Read the strategy guides <ArrowRight size={14} aria-hidden />
+            </Link>
           </div>
-          <p className="mt-6 text-xs text-muted">
-            New strategies land regularly — and they&apos;re free while we grow the library.
-          </p>
+
+          <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {BUILT_IN_STRATEGIES.map((strategy) => (
+              <Link
+                key={strategy.href}
+                href={strategy.href}
+                className="group rounded-lg border border-border bg-background p-4 transition hover:border-primary/50"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-card">
+                    <ScannerIcon kind={strategy.kind} size={18} />
+                  </span>
+                  <span className="text-[11px] font-semibold uppercase text-muted">Built-in</span>
+                </div>
+                <h4 className="mt-3 font-semibold group-hover:text-primary">{strategy.name}</h4>
+                <p className="mt-1 min-h-10 text-sm leading-5 text-muted">{strategy.summary}</p>
+                <p className="mt-3 border-t border-border pt-3 text-xs text-muted">{strategy.market}</p>
+              </Link>
+            ))}
+          </div>
+
+          <div className="mt-6 flex flex-col justify-between gap-4 border-y border-border py-5 sm:flex-row sm:items-center">
+            <div className="flex items-start gap-3">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+                <Plus size={18} aria-hidden />
+              </span>
+              <div>
+                <h3 className="font-semibold">Your strategy belongs here too</h3>
+                <p className="mt-1 text-sm text-muted">
+                  Combine candle patterns, indicators, symbols, exits, and risk limits without writing code.
+                </p>
+              </div>
+            </div>
+            <Link href="#signup" className="shrink-0 text-sm font-semibold text-primary hover:underline">
+              Create a free account
+            </Link>
+          </div>
         </div>
       </section>
 
@@ -401,7 +537,7 @@ export default async function LandingPage({
             Practice any market, your way
           </h2>
           <p className="mx-auto mt-2 max-w-2xl text-center text-sm text-muted">
-            Not just buy-and-hold. Try the setup by hand, or let a scanner run it virtually.
+            Test a rule by hand, run a built-in template, or create a strategy of your own.
           </p>
           <div className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-3">
             <Feature
@@ -436,9 +572,9 @@ export default async function LandingPage({
 
           <div className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <Feature
-              icon="🤖"
-              title="An AI scanner on watch"
-              text="Claude checks price action on your watchlist and flags setups — alert-only, or virtual auto-trading within the risk limits you set."
+              icon="🧩"
+              title="Rules you can inspect"
+              text="Build entry and exit conditions from candles and indicators instead of trusting an unexplained signal."
             />
             <Feature
               icon="🏆"
@@ -448,17 +584,17 @@ export default async function LandingPage({
             <Feature
               icon="🔔"
               title="Alerts that find you"
-              text="Scanner signals, order fills, and price alerts arrive by push and email — and live in the app's notification center so nothing slips by."
+              text="Strategy matches, order fills, and price alerts arrive by push and email and remain in the notification center."
             />
             <Feature
               icon="🛡️"
               title="Risk guardrails built in"
-              text="Every scanner is capped by your risk %, max open trades, max per day, and a daily loss limit — and never fights itself with opposing trades."
+              text="Every automated strategy is capped by your risk %, max open trades, max per day, and a daily loss limit."
             />
             <Feature
               icon="🧪"
               title="Backtest before you trust it"
-              text="See how a deterministic scanner would've performed on recent history — win rate, net R, and an equity curve — before turning it loose."
+              text="Replay rule-based strategies on recent history and inspect win rate, net R, drawdown, and the equity curve."
             />
             <Feature
               icon="📊"
@@ -498,7 +634,7 @@ export default async function LandingPage({
           </div>
 
           <p className="mx-auto mt-8 max-w-2xl text-center text-base font-medium">
-            Poshkan puts all three in one place — the practice venue, the scanners, and the
+            Poshkan puts all three in one place — the practice venue, the Strategy Lab, and the
             competition — <span className="text-primary">free</span>.
           </p>
         </div>
@@ -513,7 +649,7 @@ export default async function LandingPage({
           <div className="mt-10 grid grid-cols-1 gap-8 text-center sm:grid-cols-3">
             <Step n="1" title="Create a free account" text="Email, username, password. No card, no broker forms, nothing real at stake." />
             <Step n="2" title="Fund it with virtual cash" text="Open stock, crypto, or forex accounts and seed them with as much play money as you like." />
-            <Step n="3" title="Trade — or let a scanner practice" text="Place a virtual order in seconds, or flip on a strategy scanner and watch how its setups play out." />
+            <Step n="3" title="Build or choose a strategy" text="Start with a built-in template or create your own rules, then follow every result with virtual money." />
           </div>
           <div className="mt-10 text-center">
             <a
@@ -568,24 +704,6 @@ function TrustPoint({
         </a>
       )}
     </div>
-  );
-}
-
-function ScannerTile({ href, icon, title, text }: { href: string; icon: string; title: string; text: string }) {
-  return (
-    <a href={href} className="rounded-2xl border border-border bg-background p-5 transition hover:border-primary/50">
-      <div className="text-2xl">{icon}</div>
-      <h3 className="mt-2 font-semibold">{title}</h3>
-      <p className="mt-1 text-sm leading-relaxed text-muted">{text}</p>
-    </a>
-  );
-}
-
-function MarketChip({ label }: { label: string }) {
-  return (
-    <span className="rounded-full border border-border bg-background px-4 py-1.5 text-sm font-medium">
-      {label}
-    </span>
   );
 }
 

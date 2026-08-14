@@ -5,7 +5,7 @@ import Link from "next/link";
 import Modal from "@/components/Modal";
 import { useRouter } from "next/navigation";
 import { deactivateScanner } from "@/app/dashboard/scanners/actions";
-import type { AutoSettings } from "@/components/account/AiScanner";
+import AiScanner, { type AutoSettings } from "@/components/account/AiScanner";
 import SmcScanner from "@/components/account/SmcScanner";
 import OteScanner from "@/components/account/OteScanner";
 import TrendScanner from "@/components/account/TrendScanner";
@@ -104,6 +104,12 @@ const SCANNER_DEFS: ScannerDef[] = [
     name: "Candle Range",
     isEnabledFor: (a) => !!a.candlerangeSettings?.enabled,
     lastRunAt: (accounts) => freshest(accounts, (a) => a.candlerangeSettings?.last_run_at),
+  },
+  {
+    key: "ai",
+    name: "AI Scanner",
+    isEnabledFor: (a) => !!a.autoSettings?.enabled,
+    lastRunAt: () => null,
   },
 ];
 
@@ -420,6 +426,26 @@ export default function ScannersHub({
                   accountType={a.type}
                   initialSettings={a.candlerangeSettings}
                   initialSignals={a.candlerangeSignals}
+                  accountSelector={accountSelector}
+                />
+              )}
+            />
+          </div>
+        )}
+
+        {visible.ai && (
+          <div style={{ order: order.ai }}>
+            <StrategyBlock
+              accounts={accounts}
+              scannerKey="ai"
+              isActive={(a) => !!a.autoSettings?.enabled}
+              render={(a, accountSelector) => (
+                <AiScanner
+                  accountId={a.id}
+                  accountType={a.type}
+                  autoSettings={a.autoSettings}
+                  aiInstruction={a.aiInstruction}
+                  aiSymbols={a.aiSymbols}
                   accountSelector={accountSelector}
                 />
               )}
