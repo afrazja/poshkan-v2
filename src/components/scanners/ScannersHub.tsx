@@ -16,7 +16,17 @@ import CronHealth from "@/components/scanners/CronHealth";
 import ScannerCompare from "@/components/scanners/ScannerCompare";
 import ScannerActivity, { RecentActivitySummary, type ActivityItem } from "@/components/scanners/ScannerActivity";
 import { type ScannerKind } from "@/components/ScannerIcon";
-import { BarChart3, BookOpen, FlaskConical, Plus, Radio } from "lucide-react";
+import {
+  BarChart3,
+  BellRing,
+  BookOpen,
+  ChartNoAxesCombined,
+  FlaskConical,
+  ListChecks,
+  Plus,
+  Radio,
+  ShieldCheck,
+} from "lucide-react";
 import CustomStrategiesPanel, { type CustomStrategySignalSummary } from "@/components/scanners/CustomStrategiesPanel";
 import type { CustomStrategyRow } from "@/lib/custom-strategy-types";
 import ScannerFilterBar, {
@@ -96,6 +106,29 @@ const SCANNER_DEFS: ScannerDef[] = [
     lastRunAt: (accounts) => freshest(accounts, (a) => a.candlerangeSettings?.last_run_at),
   },
 ];
+
+const LAB_WORKFLOW = [
+  {
+    label: "Define rules",
+    description: "Choose symbols, a timeframe, and exact entry conditions.",
+    Icon: ListChecks,
+  },
+  {
+    label: "Set risk",
+    description: "Decide the stop, target, and maximum holding time.",
+    Icon: ShieldCheck,
+  },
+  {
+    label: "Backtest",
+    description: "Replay completed candles with estimated trading costs.",
+    Icon: ChartNoAxesCombined,
+  },
+  {
+    label: "Observe",
+    description: "Watch paper alerts and learn where the idea breaks down.",
+    Icon: BellRing,
+  },
+] as const;
 
 // A scanner passes the filter if its name matches the search AND at least one
 // of the user's accounts satisfies BOTH the asset-class and status filters
@@ -207,23 +240,52 @@ export default function ScannersHub({
   return (
     <div className="space-y-6">
       {onboard && <ScannerOnboard />}
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="flex items-center gap-2 text-xl font-semibold">
-            <FlaskConical size={20} className="text-primary" aria-hidden /> Strategy Lab
-          </h1>
-          <p className="mt-1 text-sm text-muted">
-            Build explicit market rules, test them on historical candles, and observe them with paper
-            alerts. Strategies here are experiments to learn from, not promises of profit.
-          </p>
+      <section className="border-y border-border py-5" aria-labelledby="strategy-lab-title">
+        <div className="flex items-start justify-between gap-4">
+          <div className="max-w-3xl">
+            <h1 id="strategy-lab-title" className="flex items-center gap-2 text-xl font-semibold">
+              <FlaskConical size={20} className="text-primary" aria-hidden /> Strategy Lab
+            </h1>
+            <p className="mt-2 text-sm leading-6 text-foreground sm:text-base">
+              Turn a market idea into explicit rules, test it on historical candles, then observe new
+              matches with virtual money.
+            </p>
+            <p className="mt-1 text-xs leading-5 text-muted">
+              A strategy combines entry rules, risk limits, and exit rules. It is an experiment to
+              measure, not a promise of profit.
+            </p>
+          </div>
+          <Link
+            href="/dashboard/scanners/new"
+            className="inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-lg bg-primary px-3 text-sm font-semibold text-primary-foreground hover:opacity-90"
+          >
+            <Plus size={16} aria-hidden /> <span className="hidden sm:inline">Create strategy</span>
+            <span className="sr-only sm:hidden">Create strategy</span>
+          </Link>
         </div>
-        <Link
-          href="/dashboard/scanners/new"
-          className="inline-flex shrink-0 items-center gap-2 rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90"
-        >
-          <Plus size={16} aria-hidden /> <span className="hidden sm:inline">New strategy</span>
-        </Link>
-      </div>
+
+        <ol className="mt-5 grid grid-cols-2 border-t border-border md:grid-cols-4" aria-label="Strategy workflow">
+          {LAB_WORKFLOW.map(({ label, description, Icon }, index) => (
+            <li
+              key={label}
+              className={`min-w-0 py-4 pr-3 ${
+                index % 2 === 1 ? "border-l border-border pl-4" : ""
+              } ${index >= 2 ? "border-t border-border md:border-t-0" : ""} ${
+                index > 0 ? "md:border-l md:border-border md:pl-4" : ""
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+                  <Icon size={15} aria-hidden />
+                </span>
+                <span className="text-xs font-semibold text-muted">{index + 1}</span>
+                <h2 className="text-sm font-semibold">{label}</h2>
+              </div>
+              <p className="mt-2 text-xs leading-5 text-muted">{description}</p>
+            </li>
+          ))}
+        </ol>
+      </section>
 
       <div className="grid grid-cols-4 border-b border-border" role="tablist" aria-label="Strategy Lab views">
         {([
