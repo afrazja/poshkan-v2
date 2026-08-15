@@ -312,35 +312,33 @@ export default async function LandingPage({
         </div>
       </main>
 
-      {/* Product proof: a real walkthrough of the guided Strategy Lab flow. */}
+      {/* Product proof: two real walkthroughs of the core practice and research flows. */}
       <section className="border-t border-border px-6 py-14 sm:px-12">
         <div className="mx-auto max-w-4xl">
           <h2 className="text-center text-2xl font-bold tracking-tight sm:text-3xl">
-            See Strategy Lab in action
+            See Poshkan in action
           </h2>
           <p className="mx-auto mt-2 max-w-2xl text-center text-sm text-muted">
-            Go from a guided first strategy to readable rules, explicit risk, and evidence you can question.
+            Two short tours through the paper-trading workflow and Strategy Lab.
           </p>
 
-          <div className="relative mt-10">
-            {/* App window: a short tour of the live Strategy Lab experience. */}
-            <div className="overflow-hidden rounded-2xl border border-white/10 bg-[#0b0e14] text-[#e6e8eb] shadow-2xl">
-              {/* Window chrome */}
-              <div className="flex items-center gap-1.5 border-b border-white/10 px-4 py-3">
-                <span className="h-2.5 w-2.5 rounded-full bg-rose-500/80" />
-                <span className="h-2.5 w-2.5 rounded-full bg-amber-500/80" />
-                <span className="h-2.5 w-2.5 rounded-full bg-emerald-500/80" />
-                <span className="ml-3 text-xs text-white/40">poshkan.com/dashboard</span>
-              </div>
-              <video
+          <div className="mt-10">
+            <ProductTourVideo
+              label="Paper trading"
+              title="Practice from account to order"
+              text="Compare virtual accounts, inspect a portfolio, review an order, audit the ledger, and see how percentage returns reach the leaderboard."
+              src="/landing/paper-trading-tour.mp4"
+              poster="/landing/paper-trading-tour-poster.jpg"
+              ariaLabel="A paper-trading walkthrough showing virtual accounts, a portfolio, asset details, an order review, transaction history, and the leaderboard."
+            />
+            <div className="mt-14 border-t border-border pt-14">
+              <ProductTourVideo
+                label="Strategy Lab"
+                title="Turn an idea into testable rules"
+                text="Go from a guided first strategy to readable entry rules, explicit risk, and backtest evidence you can question."
                 src="/landing/strategy-lab-tour.mp4"
                 poster="/landing/strategy-lab-tour-poster.jpg"
-                autoPlay
-                muted
-                loop
-                playsInline
-                className="block w-full"
-                aria-label="A short Strategy Lab walkthrough showing the Lab overview, guided strategy setup, entry rules, risk settings, and backtest interpretation."
+                ariaLabel="A Strategy Lab walkthrough showing the Lab overview, guided strategy setup, entry rules, risk settings, and backtest interpretation."
               />
             </div>
           </div>
@@ -679,6 +677,49 @@ function Alternative({ title, point, catchLine }: { title: string; point: string
         <span className="font-medium text-negative">The catch:</span>{" "}
         <span className="text-muted">{catchLine}</span>
       </p>
+    </div>
+  );
+}
+
+function ProductTourVideo({
+  label,
+  title,
+  text,
+  src,
+  poster,
+  ariaLabel,
+}: {
+  label: string;
+  title: string;
+  text: string;
+  src: string;
+  poster: string;
+  ariaLabel: string;
+}) {
+  return (
+    <div>
+      <p className="text-xs font-semibold uppercase tracking-wide text-primary">{label}</p>
+      <h3 className="mt-1 text-xl font-bold tracking-tight sm:text-2xl">{title}</h3>
+      <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted">{text}</p>
+      <div className="mt-6 overflow-hidden rounded-2xl border border-white/10 bg-[#0b0e14] text-[#e6e8eb] shadow-2xl">
+        <div className="flex items-center gap-1.5 border-b border-white/10 px-4 py-3">
+          <span className="h-2.5 w-2.5 rounded-full bg-rose-500/80" />
+          <span className="h-2.5 w-2.5 rounded-full bg-amber-500/80" />
+          <span className="h-2.5 w-2.5 rounded-full bg-emerald-500/80" />
+          <span className="ml-3 text-xs text-white/40">poshkan.com/dashboard</span>
+        </div>
+        <video
+          src={src}
+          poster={poster}
+          autoPlay
+          muted
+          loop
+          playsInline
+          preload="metadata"
+          className="block w-full"
+          aria-label={ariaLabel}
+        />
+      </div>
     </div>
   );
 }
