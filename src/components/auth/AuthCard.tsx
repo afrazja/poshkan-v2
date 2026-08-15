@@ -17,12 +17,18 @@ function Spinner() {
 // Defaults to the signup tab: the landing page's CTA anchors here and cold
 // visitors are the audience — returning users know where the Log in tab is.
 // Pass defaultTab="login" for flows that know better (e.g. expired session).
-export default function AuthCard({ defaultTab = "signup" }: { defaultTab?: Tab }) {
+export default function AuthCard({
+  defaultTab = "signup",
+  initialEmail = "",
+}: {
+  defaultTab?: Tab;
+  initialEmail?: string;
+}) {
   const router = useRouter();
   const [tab, setTab] = useState<Tab>(defaultTab);
 
   // shared
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(initialEmail);
   const [password, setPassword] = useState("");
   // signup-only
   const [username, setUsername] = useState("");

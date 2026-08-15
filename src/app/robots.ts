@@ -7,7 +7,7 @@ export default function robots(): MetadataRoute.Robots {
       {
         userAgent: "*",
         allow: "/",
-        disallow: ["/dashboard", "/api/", "/auth/", "/admin"],
+        disallow: ["/dashboard", "/api/", "/auth/", "/admin", "/signup"],
       },
     ],
     sitemap: "https://www.poshkan.com/sitemap.xml",

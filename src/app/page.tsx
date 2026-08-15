@@ -1,101 +1,20 @@
 import Image from "next/image";
 import Link from "next/link";
-import { unstable_cache } from "next/cache";
-import {
-  ArrowRight,
-  BellRing,
-  ChartNoAxesCombined,
-  FlaskConical,
-  ListChecks,
-  Plus,
-  ShieldCheck,
-} from "lucide-react";
-import AuthCard from "@/components/auth/AuthCard";
-import SiteFooter from "@/components/SiteFooter";
-import InstallPwa from "@/components/InstallPwa";
+import { Inter } from "next/font/google";
+import { redirect } from "next/navigation";
+import { Check } from "lucide-react";
 import RecoveryRedirect from "@/components/auth/RecoveryRedirect";
-import LandingThemeToggle from "@/components/auth/LandingThemeToggle";
-import ScannerIcon, { type ScannerKind } from "@/components/ScannerIcon";
-import { createAdminClient } from "@/lib/supabase/admin";
-import { symbolLabel } from "@/lib/assets";
+import LandingVideo from "@/components/landing/LandingVideo";
+import SignupCta from "@/components/landing/SignupCta";
+import InstallStrip from "@/components/landing/InstallStrip";
+import { BTN_PRIMARY, BTN_SECONDARY, FADE_RULE, SHADOW_MD } from "@/components/landing/lp";
+
+// Nocturne landing design — Inter throughout, 400 body / 500 headings.
+const inter = Inter({ subsets: ["latin"], weight: ["400", "500"], display: "swap" });
 
 const TITLE = "Poshkan | Paper Trading and Strategy Lab for Stocks, Crypto & Forex";
 const DESCRIPTION =
   "Build, backtest, and observe trading strategies with virtual money across stocks, crypto, and forex. Start with six built-in templates or create your own rules.";
-
-const LAB_WORKFLOW = [
-  {
-    label: "Define rules",
-    description: "Turn an idea into exact candle and indicator conditions.",
-    Icon: ListChecks,
-  },
-  {
-    label: "Set risk",
-    description: "Choose the stop, target, and maximum holding time.",
-    Icon: ShieldCheck,
-  },
-  {
-    label: "Backtest",
-    description: "Replay the rules on historical candles with trading costs.",
-    Icon: ChartNoAxesCombined,
-  },
-  {
-    label: "Observe",
-    description: "Follow paper alerts and learn where the idea breaks down.",
-    Icon: BellRing,
-  },
-] as const;
-
-const BUILT_IN_STRATEGIES: {
-  href: string;
-  kind: ScannerKind;
-  name: string;
-  summary: string;
-  market: string;
-}[] = [
-  {
-    href: "/strategies/smart-money-concepts",
-    kind: "smc",
-    name: "Smart Money Concepts",
-    summary: "Tests structure breaks, fair value gaps, and confirmed retests.",
-    market: "Crypto + forex",
-  },
-  {
-    href: "/strategies/optimal-trade-entry",
-    kind: "ote",
-    name: "Optimal Trade Entry",
-    summary: "Looks for confirmed pullbacks into the 62-79% Fibonacci zone.",
-    market: "Crypto + forex",
-  },
-  {
-    href: "/strategies/trend-breakout",
-    kind: "trend",
-    name: "Trend Breakout",
-    summary: "Tests breakouts with trend strength and room for the move to continue.",
-    market: "Stocks + crypto + forex",
-  },
-  {
-    href: "/strategies/mean-reversion",
-    kind: "meanrev",
-    name: "Mean Reversion",
-    summary: "Tests whether stretched prices return toward their recent average.",
-    market: "Stocks + crypto + forex",
-  },
-  {
-    href: "/strategies/candle-range",
-    kind: "candlerange",
-    name: "Candle Range",
-    summary: "Looks for confirmed entries near support and resistance inside a range.",
-    market: "Stocks + crypto + forex",
-  },
-  {
-    href: "/strategies/ai-scanner",
-    kind: "ai",
-    name: "AI Scanner",
-    summary: "Evaluates plain-English instructions as an optional paper-trading experiment.",
-    market: "Stocks + crypto + forex",
-  },
-];
 
 export const metadata = {
   title: TITLE,
@@ -108,16 +27,11 @@ export const metadata = {
     siteName: "Poshkan",
     type: "website",
   },
-  twitter: {
-    card: "summary_large_image",
-    title: TITLE,
-    description: DESCRIPTION,
-  },
+  twitter: { card: "summary_large_image", title: TITLE, description: DESCRIPTION },
 };
 
 // Rich-result hints for Google. Organization + WebSite establish the brand
-// entity and site structure (prerequisites for sitelinks under brand
-// searches); WebApplication describes the free finance app itself.
+// entity and site structure; WebApplication describes the free finance app.
 const JSON_LD = {
   "@context": "https://schema.org",
   "@graph": [
@@ -148,703 +62,502 @@ const JSON_LD = {
   ],
 };
 
-// Live "activity proof" for the landing page — honest numbers the platform
-// actually generates, not popularity claims. Cached 5 minutes; returns null
-// (section hidden) if the admin key is missing or there's nothing to show.
-interface LiveEvent {
-  icon: string;
-  scanner: string;
-  symbol: string;
-  direction: "LONG" | "SHORT";
-  executed: boolean;
-  createdAt: string;
-}
+// Landing design tokens (Nocturne). The accent is the one theming decision —
+// change --lp-accent (and --lp-accent-300 for link hovers) to retheme.
+const LP_TOKENS = {
+  "--lp-accent": "#9184d9",
+  "--lp-accent-300": "#d2cefd",
+  "--lp-divider": "rgba(233, 233, 237, 0.16)",
+} as React.CSSProperties;
 
-const SIGNAL_TABLES = [
-  { table: "smc_signals", icon: "📈", name: "SMC" },
-  { table: "ote_signals", icon: "🎯", name: "OTE" },
-  { table: "trend_signals", icon: "🚀", name: "Trend" },
-  { table: "meanrev_signals", icon: "↩️", name: "Mean Rev" },
-  { table: "candlerange_signals", icon: "📦", name: "Range" },
-];
+// Page gutter — used by sections and by the hero frame's negative bleed.
+const GUTTER = "clamp(20px, 5vw, 72px)";
+const SECTION = "mx-auto max-w-[1200px]";
 
-const getLiveStats = unstable_cache(
-  async (): Promise<{ trades: number; signals: number; events: LiveEvent[] } | null> => {
-    try {
-      const admin = createAdminClient();
-      const [txRes, fxRes, recents, counts] = await Promise.all([
-        admin.from("transactions").select("id", { count: "exact", head: true }).in("side", ["BUY", "SELL"]),
-        admin.from("fx_positions").select("id", { count: "exact", head: true }),
-        Promise.all(
-          SIGNAL_TABLES.map((t) =>
-            admin
-              .from(t.table)
-              .select("symbol, direction, executed, created_at")
-              .order("created_at", { ascending: false })
-              .limit(3)
-          )
-        ),
-        Promise.all(
-          SIGNAL_TABLES.map((t) => admin.from(t.table).select("id", { count: "exact", head: true }))
-        ),
-      ]);
-      const trades = (txRes.count ?? 0) + (fxRes.count ?? 0);
-      const signals = counts.reduce((s, c) => s + (c.count ?? 0), 0);
-      const events: LiveEvent[] = recents
-        .flatMap((r, i) =>
-          ((r.data ?? []) as { symbol: string; direction: string; executed: boolean; created_at: string }[]).map(
-            (row) => ({
-              icon: SIGNAL_TABLES[i].icon,
-              scanner: SIGNAL_TABLES[i].name,
-              symbol: row.symbol,
-              direction: row.direction as "LONG" | "SHORT",
-              executed: !!row.executed,
-              createdAt: row.created_at,
-            })
-          )
-        )
-        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-        .slice(0, 6);
-      if (!trades && !signals) return null;
-      return { trades, signals, events };
-    } catch {
-      return null;
-    }
-  },
-  ["landing-live-stats"],
-  { revalidate: 300 }
-);
-
-const ago = (iso: string) => {
-  const m = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
-  if (m < 1) return "just now";
-  if (m < 60) return `${m}m ago`;
-  const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h ago`;
-  return `${Math.floor(h / 24)}d ago`;
-};
-
-export default async function LandingPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ expired?: string; error?: string }>;
-}) {
-  const { expired, error } = await searchParams;
-  const live = await getLiveStats();
-  const authError =
-    error === "confirm"
-      ? "That confirmation link is invalid or expired. Please request a new one."
-      : error === "oauth"
-        ? "Google sign-in wasn’t completed. Please try again."
-        : null;
+function Kicker({ children }: { children: React.ReactNode }) {
   return (
-    <div className="relative flex min-h-screen flex-col">
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(JSON_LD) }}
-      />
-      <RecoveryRedirect />
-      <LandingThemeToggle />
-      {/* Above the fold: signup + hero */}
-      <main className="grid grid-cols-1 lg:grid-cols-2">
-        {/* Left: auth */}
-        <div className="flex flex-col justify-center px-6 py-12 sm:px-12 lg:px-16">
-          <div className="mb-8 flex items-center gap-2">
-            <Image src="/icons/icon-192.png" alt="Poshkan" width={36} height={36} className="rounded-lg" />
-            <span className="text-xl font-bold tracking-tight">Poshkan</span>
-          </div>
-          <div id="signup" className="flex flex-1 scroll-mt-8 flex-col items-center justify-center gap-4">
-            {/* Mobile: pitch BEFORE the form — a cold visitor needs the why before the ask.
-                (On lg+ the gradient hero panel on the right carries this instead.) */}
-            <div className="mb-2 text-center lg:hidden">
-              <h1 className="text-2xl font-extrabold tracking-tight">
-                Practice trading. Lose nothing real.
-              </h1>
-              <p className="mx-auto mt-2 max-w-md text-sm text-muted">
-                Build and backtest trading rules, start from six built-in strategies, and practice
-                across stocks, crypto, and forex with 100% virtual money.
-              </p>
-            </div>
-            {expired && (
-              <div className="w-full max-w-md rounded-lg border border-primary/30 bg-primary/10 px-4 py-3 text-sm">
-                Your session expired — please log in again.
-              </div>
-            )}
-            {authError && (
-              <div className="w-full max-w-md rounded-lg border border-negative/30 bg-negative/10 px-4 py-3 text-sm text-negative">
-                {authError}
-              </div>
-            )}
-            <AuthCard defaultTab={expired ? "login" : "signup"} />
-          </div>
-        </div>
-
-        {/* Right: hero */}
-        <div className="relative hidden overflow-hidden bg-gradient-to-br from-[#0b0e14] via-[#101726] to-indigo-950 lg:flex lg:flex-col lg:justify-center lg:px-16 lg:text-white">
-          <div className="pointer-events-none absolute inset-0">
-            <CandleBackdrop />
-          </div>
-          <div className="relative z-10 max-w-lg">
-            <h1 className="text-5xl font-extrabold leading-tight tracking-tight">
-              Practice trading.
-              <br />
-              Lose nothing real.
-            </h1>
-            <p className="mt-6 text-lg text-white/80">
-              Turn market ideas into explicit rules, test them on historical candles, and observe
-              the results with 100% virtual money across stocks, crypto, and forex.
-            </p>
-            <ul className="mt-8 space-y-3 text-white/90">
-              <li className="flex items-center gap-3">
-                <Dot /> Build your own rules or start with six built-in strategy templates
-              </li>
-              <li className="flex items-center gap-3">
-                <Dot /> Backtest completed candles before observing paper signals
-              </li>
-              <li className="flex items-center gap-3">
-                <Dot /> Practice long or short across stocks, crypto, and forex
-              </li>
-              <li className="flex items-center gap-3">
-                <Dot /> A leaderboard based on percentage returns, not deposits
-              </li>
-            </ul>
-          </div>
-        </div>
-      </main>
-
-      {/* Product proof: two real walkthroughs of the core practice and research flows. */}
-      <section className="border-t border-border px-6 py-14 sm:px-12">
-        <div className="mx-auto max-w-4xl">
-          <h2 className="text-center text-2xl font-bold tracking-tight sm:text-3xl">
-            See Poshkan in action
-          </h2>
-          <p className="mx-auto mt-2 max-w-2xl text-center text-sm text-muted">
-            Two short tours through the paper-trading workflow and Strategy Lab.
-          </p>
-
-          <div className="mt-10">
-            <ProductTourVideo
-              label="Paper trading"
-              title="Practice from account to order"
-              text="Compare virtual accounts, inspect a portfolio, review an order, audit the ledger, and see how percentage returns reach the leaderboard."
-              src="/landing/paper-trading-tour.mp4"
-              poster="/landing/paper-trading-tour-poster.jpg"
-              ariaLabel="A paper-trading walkthrough showing virtual accounts, a portfolio, asset details, an order review, transaction history, and the leaderboard."
-            />
-            <div className="mt-14 border-t border-border pt-14">
-              <ProductTourVideo
-                label="Strategy Lab"
-                title="Turn an idea into testable rules"
-                text="Go from a guided first strategy to readable entry rules, explicit risk, and backtest evidence you can question."
-                src="/landing/strategy-lab-tour.mp4"
-                poster="/landing/strategy-lab-tour-poster.jpg"
-                ariaLabel="A Strategy Lab walkthrough showing the Lab overview, guided strategy setup, entry rules, risk settings, and backtest interpretation."
-              />
-            </div>
-          </div>
-          <p className="mt-4 text-center text-xs text-muted">
-            Demo data, 100% virtual money. No result shown here is a promise of future performance.
-          </p>
-        </div>
-      </section>
-
-      {/* Trust basics: answer the credibility questions before the feature tour gets too exciting. */}
-      <section className="border-t border-border bg-card px-6 py-10 sm:px-12">
-        <div className="mx-auto grid max-w-5xl grid-cols-1 gap-4 sm:grid-cols-3">
-          <TrustPoint
-            title="Virtual money only"
-            text="No deposits, withdrawals, broker connection, or real-money prize pool. Every balance and trade is simulated."
-          />
-          <TrustPoint
-            title="Transparent simulation"
-            text="Market data can be delayed or missing, and fills are broker-style estimates. The mechanics are published in plain English."
-            href="/how-it-works"
-            cta="How it works"
-          />
-          <TrustPoint
-            title="Experiments, not promises"
-            text="Built-in and user-created strategies are tools for testing ideas. Results can be negative, and every trade remains virtual."
-          />
-        </div>
-      </section>
-
-      {/* Activity proof: honest live numbers + the platform's real recent signals. */}
-      {live && (
-        <section className="border-t border-border bg-card px-6 py-12 sm:px-12">
-          <div className="mx-auto max-w-5xl">
-            <div className="grid grid-cols-1 gap-6 text-center sm:grid-cols-3">
-              <Counter value={live.trades} label="virtual trades executed" />
-              <Counter value={live.signals} label="scanner signals fired" />
-              <Counter value="6" label="built-in strategy templates" />
-            </div>
-
-            {live.events.length > 0 && (
-              <>
-                <div className="mt-8 flex flex-wrap justify-center gap-2">
-                  {live.events.map((e, i) => (
-                    <span
-                      key={i}
-                      className="flex items-center gap-1.5 rounded-full border border-border bg-background px-3 py-1.5 text-xs"
-                    >
-                      {e.icon} {e.scanner} ·{" "}
-                      <span className={e.direction === "LONG" ? "font-medium text-positive" : "font-medium text-negative"}>
-                        {e.direction}
-                      </span>{" "}
-                      {symbolLabel(e.symbol)}
-                      {e.executed ? (
-                        <span className="rounded bg-positive/15 px-1.5 py-0.5 text-positive">traded</span>
-                      ) : (
-                        <span className="rounded bg-muted/20 px-1.5 py-0.5 text-muted">alert</span>
-                      )}
-                      <span className="text-muted">{ago(e.createdAt)}</span>
-                    </span>
-                  ))}
-                </div>
-                <p className="mt-3 text-center text-xs text-muted">
-                  Live from the platform — real scanner activity, 100% virtual money.
-                </p>
-              </>
-            )}
-          </div>
-        </section>
-      )}
-
-      {/* Real words from real traders on the leaderboard */}
-      <section className="border-t border-border px-6 py-14 sm:px-12">
-        <div className="mx-auto max-w-4xl">
-          <h2 className="text-center text-2xl font-bold tracking-tight sm:text-3xl">
-            What early traders say
-          </h2>
-          <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Quote
-              text="The most complete and easy-to-use platform I've found for practicing trading and honestly evaluating my skills."
-              name="Vahid Alizadeh"
-              role="forex trader on the leaderboard"
-            />
-            <Quote
-              text="The scanners are the best part — set one loose on your watchlist and experimenting with strategies becomes the whole game."
-              name="Masoud Nikkhah"
-              role="early Poshkan trader"
-            />
-          </div>
-        </div>
-      </section>
-
-      {/* Strategy Lab: the core product promise, with scanners as starting templates. */}
-      <section className="border-t border-border bg-card px-6 py-14 sm:px-12">
-        <div className="mx-auto max-w-5xl">
-          <div className="flex flex-col justify-between gap-6 sm:flex-row sm:items-end">
-            <div className="max-w-3xl">
-              <p className="flex items-center gap-2 text-sm font-semibold text-primary">
-                <FlaskConical size={17} aria-hidden /> Strategy Lab
-              </p>
-              <h2 className="mt-3 text-2xl font-bold tracking-tight sm:text-3xl">
-                Build the rule. Test the evidence. Watch it live.
-              </h2>
-              <p className="mt-3 max-w-2xl text-sm leading-6 text-muted sm:text-base">
-                Start from a built-in scanner or create your own candle-based strategy. Poshkan keeps
-                the rules, risk limits, backtest, and paper results together so you can learn what
-                works, what fails, and under which market conditions.
-              </p>
-            </div>
-            <Link
-              href="#signup"
-              className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground transition hover:opacity-90"
-            >
-              Open Strategy Lab <ArrowRight size={16} aria-hidden />
-            </Link>
-          </div>
-
-          <ol className="mt-8 grid grid-cols-2 border-y border-border md:grid-cols-4" aria-label="Strategy Lab workflow">
-            {LAB_WORKFLOW.map(({ label, description, Icon }, index) => (
-              <li
-                key={label}
-                className={`min-w-0 py-4 pr-3 ${
-                  index % 2 === 1 ? "border-l border-border pl-4" : ""
-                } ${index >= 2 ? "border-t border-border md:border-t-0" : ""} ${
-                  index > 0 ? "md:border-l md:border-border md:pl-4" : ""
-                }`}
-              >
-                <div className="flex items-center gap-2">
-                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
-                    <Icon size={15} aria-hidden />
-                  </span>
-                  <span className="text-xs font-semibold text-muted">{index + 1}</span>
-                  <h3 className="text-sm font-semibold">{label}</h3>
-                </div>
-                <p className="mt-2 text-xs leading-5 text-muted">{description}</p>
-              </li>
-            ))}
-          </ol>
-
-          <div className="mt-9 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <h3 className="text-lg font-semibold">Six built-in starting points</h3>
-              <p className="mt-1 text-sm text-muted">
-                Inspect the logic, test the history, then compare it with your own strategy.
-              </p>
-            </div>
-            <Link href="/strategies" className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline">
-              Read the strategy guides <ArrowRight size={14} aria-hidden />
-            </Link>
-          </div>
-
-          <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {BUILT_IN_STRATEGIES.map((strategy) => (
-              <Link
-                key={strategy.href}
-                href={strategy.href}
-                className="group rounded-lg border border-border bg-background p-4 transition hover:border-primary/50"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-card">
-                    <ScannerIcon kind={strategy.kind} size={18} />
-                  </span>
-                  <span className="text-[11px] font-semibold uppercase text-muted">Built-in</span>
-                </div>
-                <h4 className="mt-3 font-semibold group-hover:text-primary">{strategy.name}</h4>
-                <p className="mt-1 min-h-10 text-sm leading-5 text-muted">{strategy.summary}</p>
-                <p className="mt-3 border-t border-border pt-3 text-xs text-muted">{strategy.market}</p>
-              </Link>
-            ))}
-          </div>
-
-          <div className="mt-6 flex flex-col justify-between gap-4 border-y border-border py-5 sm:flex-row sm:items-center">
-            <div className="flex items-start gap-3">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
-                <Plus size={18} aria-hidden />
-              </span>
-              <div>
-                <h3 className="font-semibold">Your strategy belongs here too</h3>
-                <p className="mt-1 text-sm text-muted">
-                  Combine candle patterns, indicators, symbols, exits, and risk limits without writing code.
-                </p>
-              </div>
-            </div>
-            <Link href="#signup" className="shrink-0 text-sm font-semibold text-primary hover:underline">
-              Create a free account
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      {/* Practice any market, your way */}
-      <section className="border-t border-border px-6 py-14 sm:px-12">
-        <div className="mx-auto max-w-5xl">
-          <h2 className="text-center text-2xl font-bold tracking-tight sm:text-3xl">
-            Practice any market, your way
-          </h2>
-          <p className="mx-auto mt-2 max-w-2xl text-center text-sm text-muted">
-            Test a rule by hand, run a built-in template, or create a strategy of your own.
-          </p>
-          <div className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-3">
-            <Feature
-              icon="💵"
-              title="Spot — own it"
-              text="Buy and hold US stocks, ETFs, and crypto with virtual cash. Realized and unrealized P&amp;L tracked on every position."
-            />
-            <Feature
-              icon="🔀"
-              title="Long or short, with leverage"
-              text="Go long or short on stocks, crypto, and forex — pick 1–10× leverage per trade, with stop-loss, take-profit, stop-out, and timed auto-close."
-            />
-            <Feature
-              icon="⚡"
-              title="Real order types"
-              text="Market and limit orders, Day/GTC, forex entry orders — simulated 24/7 by background workers, even while you sleep."
-            />
-          </div>
-        </div>
-      </section>
-
-      {/* Feature grid */}
-      <section className="border-t border-border px-6 py-14 sm:px-12">
-        <div className="mx-auto max-w-5xl">
-          <h2 className="text-center text-2xl font-bold tracking-tight sm:text-3xl">
-            Broker-style tools, without real money at stake
-          </h2>
-          <p className="mx-auto mt-2 max-w-2xl text-center text-sm text-muted">
-            Poshkan is built for practice: realistic mechanics, explicit limits, and mistakes that
-            cost virtual money instead of rent money.
-          </p>
-
-          <div className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <Feature
-              icon="🧩"
-              title="Rules you can inspect"
-              text="Build entry and exit conditions from candles and indicators instead of trusting an unexplained signal."
-            />
-            <Feature
-              icon="🏆"
-              title="Compete with friends"
-              text="Every account is ranked by % return on a live leaderboard. Fair math: deposits don't buy rank, resets restart your history."
-            />
-            <Feature
-              icon="🔔"
-              title="Alerts that find you"
-              text="Strategy matches, order fills, and price alerts arrive by push and email and remain in the notification center."
-            />
-            <Feature
-              icon="🛡️"
-              title="Risk guardrails built in"
-              text="Every automated strategy is capped by your risk %, max open trades, max per day, and a daily loss limit."
-            />
-            <Feature
-              icon="🧪"
-              title="Backtest before you trust it"
-              text="Replay rule-based strategies on recent history and inspect win rate, net R, drawdown, and the equity curve."
-            />
-            <Feature
-              icon="📊"
-              title="Honest performance tracking"
-              text="Daily snapshots build your performance history — including a 'you vs. the S&P 500' chart that keeps you honest."
-            />
-          </div>
-        </div>
-      </section>
-
-      {/* Positioning: why not the alternatives */}
-      <section className="border-t border-border px-6 py-14 sm:px-12">
-        <div className="mx-auto max-w-5xl">
-          <h2 className="text-center text-2xl font-bold tracking-tight sm:text-3xl">
-            Why not just use a broker&apos;s demo?
-          </h2>
-          <p className="mx-auto mt-2 max-w-2xl text-center text-sm text-muted">
-            Fair question. Here&apos;s the honest comparison.
-          </p>
-
-          <div className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-3">
-            <Alternative
-              title="Broker demo accounts"
-              point="High-fidelity simulations of real platforms."
-              catchLine="Built to convert you into a paying customer — cockpit UIs that intimidate beginners, and zero feedback on why you lose."
-            />
-            <Alternative
-              title="Classroom simulators"
-              point="Simple stock-picking games with leaderboards."
-              catchLine="Usually stocks-only, dated interfaces, delayed data, shallow order types — and no coaching of any kind."
-            />
-            <Alternative
-              title="Signal services"
-              point="Trade calls delivered to your inbox or Discord."
-              catchLine="Cost $50–100 a month, explain nothing, and give you no safe place to test whether the calls are any good."
-            />
-          </div>
-
-          <p className="mx-auto mt-8 max-w-2xl text-center text-base font-medium">
-            Poshkan puts all three in one place — the practice venue, the Strategy Lab, and the
-            competition — <span className="text-primary">free</span>.
-          </p>
-        </div>
-      </section>
-
-      {/* How it works */}
-      <section className="border-t border-border bg-card px-6 py-14 sm:px-12">
-        <div className="mx-auto max-w-4xl">
-          <h2 className="text-center text-2xl font-bold tracking-tight">
-            Practicing in three minutes
-          </h2>
-          <div className="mt-10 grid grid-cols-1 gap-8 text-center sm:grid-cols-3">
-            <Step n="1" title="Create a free account" text="Email, username, password. No card, no broker forms, nothing real at stake." />
-            <Step n="2" title="Fund it with virtual cash" text="Open stock, crypto, or forex accounts and seed them with as much play money as you like." />
-            <Step n="3" title="Build or choose a strategy" text="Start with a built-in template or create your own rules, then follow every result with virtual money." />
-          </div>
-          <div className="mt-10 text-center">
-            <a
-              href="#signup"
-              className="inline-block rounded-xl bg-primary px-8 py-3 text-base font-semibold text-primary-foreground shadow-sm transition hover:opacity-90"
-            >
-              Create your free account
-            </a>
-            <p className="mt-2 text-xs text-muted">Takes a minute — no card, nothing real at stake.</p>
-          </div>
-        </div>
-      </section>
-
-      <InstallPwa />
-
-      <SiteFooter />
-    </div>
+    <p className="mb-6 flex items-center gap-[14px] text-[13px] uppercase tracking-[0.06em] text-[var(--lp-accent)]">
+      <span className="h-px w-11 bg-[var(--lp-accent)]" aria-hidden />
+      {children}
+    </p>
   );
 }
 
-function Alternative({ title, point, catchLine }: { title: string; point: string; catchLine: string }) {
-  return (
-    <div className="rounded-2xl border border-border bg-card p-5">
-      <h3 className="font-semibold">{title}</h3>
-      <p className="mt-1 text-sm text-muted">{point}</p>
-      <p className="mt-2 text-sm leading-relaxed">
-        <span className="font-medium text-negative">The catch:</span>{" "}
-        <span className="text-muted">{catchLine}</span>
-      </p>
-    </div>
-  );
-}
-
-function ProductTourVideo({
-  label,
-  title,
-  text,
-  src,
-  poster,
-  ariaLabel,
-}: {
-  label: string;
-  title: string;
-  text: string;
-  src: string;
-  poster: string;
-  ariaLabel: string;
-}) {
+function Stat({ figure, label }: { figure: string; label: React.ReactNode }) {
   return (
     <div>
-      <p className="text-xs font-semibold uppercase tracking-wide text-primary">{label}</p>
-      <h3 className="mt-1 text-xl font-bold tracking-tight sm:text-2xl">{title}</h3>
-      <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted">{text}</p>
-      <div className="mt-6 overflow-hidden rounded-2xl border border-white/10 bg-[#0b0e14] text-[#e6e8eb] shadow-2xl">
-        <div className="flex items-center gap-1.5 border-b border-white/10 px-4 py-3">
-          <span className="h-2.5 w-2.5 rounded-full bg-rose-500/80" />
-          <span className="h-2.5 w-2.5 rounded-full bg-amber-500/80" />
-          <span className="h-2.5 w-2.5 rounded-full bg-emerald-500/80" />
-          <span className="ml-3 text-xs text-white/40">poshkan.com/dashboard</span>
-        </div>
-        <video
-          src={src}
-          poster={poster}
-          autoPlay
-          muted
-          loop
-          playsInline
-          preload="metadata"
-          className="block w-full"
-          aria-label={ariaLabel}
-        />
-      </div>
+      <p className="mb-[14px] ml-[-0.055em] text-[clamp(36px,3.4vw,50px)] font-medium leading-[1.1]">{figure}</p>
+      <p className="m-0 text-[13px] uppercase leading-5 tracking-[0.06em] text-[#e9e9edad]">{label}</p>
     </div>
   );
 }
 
-function TrustPoint({
-  title,
-  text,
-  href,
-  cta,
-}: {
-  title: string;
-  text: string;
-  href?: string;
-  cta?: string;
-}) {
-  return (
-    <div className="rounded-2xl border border-border bg-background p-5">
-      <h3 className="font-semibold">{title}</h3>
-      <p className="mt-1 text-sm leading-relaxed text-muted">{text}</p>
-      {href && cta && (
-        <a href={href} className="mt-3 inline-block text-sm font-medium text-primary hover:underline">
-          {cta}
-        </a>
-      )}
-    </div>
-  );
-}
-
-function Feature({ icon, title, text }: { icon: string; title: string; text: string }) {
-  return (
-    <div className="rounded-2xl border border-border bg-card p-5">
-      <div className="text-2xl">{icon}</div>
-      <h3 className="mt-2 font-semibold">{title}</h3>
-      <p className="mt-1 text-sm leading-relaxed text-muted">{text}</p>
-    </div>
-  );
-}
-
-function Step({ n, title, text }: { n: string; title: string; text: string }) {
+function LabStep({ n, title, text }: { n: string; title: string; text: string }) {
   return (
     <div>
-      <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-primary text-lg font-bold text-primary-foreground">
-        {n}
-      </div>
-      <h3 className="mt-3 font-semibold">{title}</h3>
-      <p className="mt-1 text-sm leading-relaxed text-muted">{text}</p>
+      <p className="mb-2.5 text-[14px] tabular-nums text-[var(--lp-accent)]">{n}</p>
+      <h3 className="mb-2 text-[19px] font-medium leading-[26px]">{title}</h3>
+      <p className="m-0 text-[15px] leading-[25px] text-[#e9e9edbd]">{text}</p>
     </div>
   );
 }
 
-function Dot() {
-  return <span className="h-2 w-2 rounded-full bg-white/80" />;
+function ScanBullet({ children }: { children: React.ReactNode }) {
+  return (
+    <li className="flex items-baseline gap-2.5 text-[15.5px] leading-[25px]">
+      <Check size={15} className="shrink-0 translate-y-0.5 text-[var(--lp-accent)]" aria-hidden />
+      {children}
+    </li>
+  );
 }
 
-function Quote({ text, name, role }: { text: string; name: string; role: string }) {
+function CompareRow({ label, cells }: { label: string; cells: [string, string, string, string] }) {
   return (
-    <figure className="rounded-2xl border border-border bg-card p-6">
-      <div aria-hidden className="text-3xl leading-none text-primary/40">“</div>
-      <blockquote className="mt-1 text-sm leading-relaxed">{text}</blockquote>
-      <figcaption className="mt-4 text-xs text-muted">
-        <span className="font-semibold text-foreground">{name}</span> · {role}
-      </figcaption>
+    <tr
+      style={{
+        backgroundImage:
+          "linear-gradient(to right, transparent, var(--lp-divider) 48px, var(--lp-divider) calc(100% - 48px), transparent)",
+        backgroundSize: "100% 1px",
+        backgroundPosition: "bottom",
+        backgroundRepeat: "no-repeat",
+      }}
+    >
+      <td className="px-2 py-3.5 align-top text-[#e9e9eda8]">{label}</td>
+      <td className="bg-[color-mix(in_srgb,var(--lp-accent)_9%,transparent)] px-2 py-3.5 align-top">{cells[0]}</td>
+      <td className="px-2 py-3.5 align-top text-[#e9e9edbd]">{cells[1]}</td>
+      <td className="px-2 py-3.5 align-top text-[#e9e9edbd]">{cells[2]}</td>
+      <td className="px-2 py-3.5 align-top text-[#e9e9edbd]">{cells[3]}</td>
+    </tr>
+  );
+}
+
+function Quote({ text, name }: { text: string; name: string }) {
+  return (
+    <figure className="m-0">
+      <blockquote className="m-0 max-w-[30ch] text-[clamp(21px,2vw,26px)] font-medium leading-[1.42] tracking-[-0.01em]">
+        “{text}”
+      </blockquote>
+      <figcaption className="mt-6 text-[15px] leading-[26px] text-[#e9e9ed9e]">— {name}</figcaption>
     </figure>
   );
 }
 
-function Counter({ value, label }: { value: number | string; label: string }) {
-  return (
-    <div>
-      <div className="text-3xl font-extrabold tracking-tight">
-        {typeof value === "number" ? value.toLocaleString("en-US") : value}
-      </div>
-      <div className="mt-1 text-sm text-muted">{label}</div>
-    </div>
-  );
-}
+export default async function LandingPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ expired?: string }>;
+}) {
+  const { expired } = await searchParams;
+  // The sign-up flow (and the expired-session recovery) lives on /signup now.
+  if (expired) redirect("/signup?expired=1");
 
-// Neon candlestick backdrop for the hero — pure CSS, echoing a dark trading
-// aesthetic without shipping any image assets.
-const CANDLES: { left: number; top: number; h: number; up: boolean }[] = [
-  { left: 4, top: 58, h: 90, up: true },
-  { left: 12, top: 44, h: 130, up: false },
-  { left: 20, top: 52, h: 100, up: true },
-  { left: 28, top: 30, h: 150, up: true },
-  { left: 36, top: 42, h: 110, up: false },
-  { left: 44, top: 22, h: 170, up: true },
-  { left: 52, top: 36, h: 120, up: false },
-  { left: 60, top: 18, h: 180, up: true },
-  { left: 68, top: 30, h: 140, up: true },
-  { left: 76, top: 14, h: 160, up: false },
-  { left: 84, top: 24, h: 190, up: true },
-  { left: 92, top: 10, h: 150, up: true },
-];
-
-function CandleBackdrop() {
   return (
-    <div className="relative h-full w-full opacity-50">
-      {CANDLES.map((c, i) => {
-        const color = c.up ? "rgba(34,197,94," : "rgba(239,68,68,";
-        return (
-          <div key={i} className="absolute" style={{ left: `${c.left}%`, top: `${c.top}%` }}>
-            {/* wick */}
-            <div
-              className="absolute left-1/2 -translate-x-1/2"
-              style={{
-                width: 2,
-                height: c.h * 1.6,
-                top: -(c.h * 0.3),
-                background: `${color}0.35)`,
-              }}
-            />
-            {/* body with glow */}
-            <div
-              className="relative rounded-[3px]"
-              style={{
-                width: 14,
-                height: c.h,
-                background: `${color}0.28)`,
-                border: `1px solid ${color}0.55)`,
-                boxShadow: `0 0 22px ${color}0.45), 0 0 60px ${color}0.18)`,
-              }}
+    <div
+      className={`${inter.className} relative min-h-screen overflow-x-clip text-[16.5px] leading-[28px] text-[#e9e9ed]`}
+      style={{
+        ...LP_TOKENS,
+        background:
+          "radial-gradient(1200px 720px at 82% -160px, rgba(43,39,65,0.78), transparent 60%), radial-gradient(1100px 800px at -10% 100%, rgba(0,0,0,0.3), transparent 55%), #161826",
+      }}
+    >
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(JSON_LD) }} />
+      <RecoveryRedirect />
+
+      {/* ── Nav ── */}
+      <nav
+        className={`${SECTION} flex flex-wrap items-center gap-x-7 gap-y-3 py-5`}
+        style={{ paddingLeft: GUTTER, paddingRight: GUTTER }}
+      >
+        <span className="flex items-center gap-2.5 text-[19px] font-medium">
+          <Image src="/icons/icon-192.png" alt="" width={27} height={27} className="rounded-[7px]" />
+          Poshkan
+        </span>
+        <div className="hidden items-center gap-7 text-[14px] md:flex">
+          <a href="#tour" className="text-[#e9e9ed] hover:text-[var(--lp-accent-300)]">Tour</a>
+          <a href="#lab" className="text-[#e9e9ed] hover:text-[var(--lp-accent-300)]">Strategy Lab</a>
+          <a href="#record" className="text-[#e9e9ed] hover:text-[var(--lp-accent-300)]">Your record</a>
+          <a href="#compare" className="text-[#e9e9ed] hover:text-[var(--lp-accent-300)]">Compare</a>
+        </div>
+        <div className="ml-auto flex items-center gap-5">
+          <Link href="/signup?tab=login" className="text-[14px] text-[#e9e9edad] hover:text-[var(--lp-accent-300)]">
+            Log in
+          </Link>
+          <a href="#start" className={`${BTN_PRIMARY} px-4 py-2 text-[14px]`}>
+            Create a free account
+          </a>
+        </div>
+      </nav>
+
+      {/* ── Hero ── */}
+      <section
+        className={`${SECTION} grid grid-cols-1 items-center gap-14 pb-16 pt-[68px] lg:grid-cols-[minmax(0,1.14fr)_minmax(0,1fr)]`}
+        style={{ paddingLeft: GUTTER, paddingRight: GUTTER }}
+      >
+        <div>
+          <h1 className="mb-7 ml-[-0.06em] text-[clamp(37px,4.9vw,74px)] font-medium leading-[1.08] tracking-[-0.018em]">
+            <span className="block">Practice trading.</span>
+            <span className="block text-[#e9e9eda8]">Lose nothing real.</span>
+          </h1>
+          <p className="mb-7 max-w-[46ch] text-[17.5px] leading-[30px] text-[#e9e9edd1]">
+            A paper-trading platform for US stocks, crypto and forex. Live prices, broker-style order
+            mechanics, virtual money — and an honest record of every decision you make.
+          </p>
+          <div className="flex flex-wrap items-center gap-3">
+            <a href="#start" className={`${BTN_PRIMARY} px-[22px] py-3 text-[15px]`}>
+              Create a free account
+            </a>
+            <a href="#lab" className={`${BTN_SECONDARY} px-[22px] py-3 text-[15px]`}>
+              See how a strategy is built
+            </a>
+          </div>
+          <p className="mt-5 text-[13.5px] leading-[22px] text-[#e9e9ed9e]">
+            Free while Poshkan is in beta. No card, no broker connection, no deposits.
+          </p>
+        </div>
+
+        <figure className="relative m-0" style={{ marginRight: `calc(${GUTTER} * -1)` }}>
+          <div
+            aria-hidden
+            className="pointer-events-none absolute blur-[28px]"
+            style={{
+              inset: "-12% -6% -18% 6%",
+              background:
+                "radial-gradient(60% 60% at 50% 40%, color-mix(in srgb, var(--lp-accent) 22%, transparent), transparent 70%)",
+            }}
+          />
+          <div
+            className="relative overflow-hidden rounded-[14px] bg-[#161826]"
+            style={{ aspectRatio: "16 / 10.4", boxShadow: SHADOW_MD }}
+          >
+            {/* Intentional zoom crop: 152% wide, top-left anchored. */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/landing/accounts.png"
+              alt="Poshkan dashboard: paper accounts across stocks, crypto and forex"
+              className="block"
+              style={{ width: "152%", maxWidth: "none" }}
             />
           </div>
-        );
-      })}
+        </figure>
+      </section>
+
+      {/* ── Stat band (full-bleed) ── */}
+      <section
+        aria-label="Poshkan at a glance"
+        style={{
+          background:
+            "radial-gradient(900px 420px at 85% -40%, color-mix(in srgb, #353b80 70%, transparent), transparent 64%), #262a60",
+        }}
+      >
+        <div
+          className={`${SECTION} grid grid-cols-2 gap-x-7 gap-y-[42px] py-[52px] md:grid-cols-4 md:justify-between`}
+          style={{ paddingLeft: GUTTER, paddingRight: GUTTER }}
+        >
+          <Stat figure="3" label={<>Markets — stocks,<br />crypto, forex</>} />
+          <Stat figure="6" label={<>Strategy templates<br />you can inspect</>} />
+          <Stat figure="1–10×" label={<>Simulated leverage,<br />per trade</>} />
+          <Stat figure="0" label={<>Deposits, withdrawals<br />or prize pools</>} />
+        </div>
+      </section>
+
+      {/* ── Tour ── */}
+      <section id="tour" className={`${SECTION} pt-[68px]`} style={{ paddingLeft: GUTTER, paddingRight: GUTTER }}>
+        <div className="grid grid-cols-1 items-start gap-x-14 gap-y-5 pb-10 lg:grid-cols-2">
+          <div>
+            <Kicker>The live app</Kicker>
+            <h2 className="m-0 max-w-[20ch] text-[clamp(28px,2.8vw,38px)] font-medium leading-[1.16] tracking-[-0.013em]">
+              Fifteen seconds inside Poshkan
+            </h2>
+          </div>
+          <p className="m-0 text-[16.5px] leading-[28px] text-[#e9e9edcc]">
+            Paper accounts across three markets, profit and loss moving in real time, Strategy Lab
+            activity and the leaderboard. No narration, no mock-ups — this is the product as it runs.
+          </p>
+        </div>
+        <figure className="m-0 max-w-[1000px]">
+          <div className="overflow-hidden rounded-[14px] bg-[#161826]" style={{ boxShadow: SHADOW_MD }}>
+            <LandingVideo
+              src="/landing/paper-trading-tour.mp4"
+              poster="/landing/paper-trading-tour-poster.jpg"
+              ariaLabel="A tour of Poshkan: paper accounts across stocks, crypto and forex, profit and loss, and the leaderboard."
+            />
+          </div>
+          <figcaption className="mt-4 max-w-[56ch] text-[13.5px] leading-[22px] text-[#e9e9ed9e]">
+            Real footage of the live app. Every number in it is virtual money.
+          </figcaption>
+        </figure>
+      </section>
+
+      {/* ── Strategy Lab ── */}
+      <section id="lab" className={`${SECTION} pt-[68px]`} style={{ paddingLeft: GUTTER, paddingRight: GUTTER }}>
+        <Kicker>Strategy Lab</Kicker>
+        <h2 className="mb-6 max-w-[24ch] text-[clamp(32px,3.4vw,46px)] font-medium leading-[1.14] tracking-[-0.015em]">
+          Write the rule. Let the market answer.
+        </h2>
+        <p className="mb-14 max-w-[62ch] text-[17px] leading-[30px] text-[#e9e9edcc]">
+          State an idea as explicit entry, exit and risk rules — or start from one of six built-in
+          strategies and change what you disagree with. Poshkan replays the rules over completed
+          candles, then runs them forward on a paper account so you can see which part of the idea
+          actually held.
+        </p>
+
+        <div className="grid grid-cols-2 gap-x-9 gap-y-7 pb-11 md:grid-cols-4">
+          <LabStep n="01" title="Define rules" text="Candle patterns, indicators, symbols and timeframe. No code." />
+          <LabStep n="02" title="Set risk" text="Stop, target, maximum holding time and risk per trade." />
+          <LabStep n="03" title="Backtest" text="Replay the rules on history, with trading costs applied." />
+          <LabStep n="04" title="Observe" text="Follow it forward on paper and see where it breaks down." />
+        </div>
+
+        <figure className="m-0 max-w-[780px]">
+          <div className="overflow-hidden rounded-[14px] bg-[#161826]" style={{ boxShadow: SHADOW_MD }}>
+            <LandingVideo
+              src="/landing/strategy-lab-tour.mp4"
+              poster="/landing/strategy-lab-tour-poster.jpg"
+              ariaLabel="Building a strategy in the Strategy Lab: setup, entry rules, exit and risk, then the test."
+            />
+          </div>
+          <figcaption className="mt-4 max-w-[60ch] text-[13.5px] leading-[22px] text-[#e9e9ed9e]">
+            Four steps, and a rule summary that restates your logic in plain English before anything runs.
+          </figcaption>
+        </figure>
+      </section>
+
+      {/* ── Scanners ── */}
+      <section id="automation" className={`${SECTION} pt-[68px]`} style={{ paddingLeft: GUTTER, paddingRight: GUTTER }}>
+        <div className="grid grid-cols-1 items-start gap-x-14 gap-y-7 lg:grid-cols-2">
+          <div>
+            <Kicker>Scanners</Kicker>
+            <h2 className="m-0 max-w-[22ch] text-[clamp(28px,2.8vw,38px)] font-medium leading-[1.16] tracking-[-0.013em]">
+              Rules that watch the market while you sleep
+            </h2>
+          </div>
+          <div>
+            <p className="mb-5 text-[16.5px] leading-[28px] text-[#e9e9edcc]">
+              Point a scanner at a watchlist and decide what happens when the setup appears: alert
+              you, or open the paper position itself. Risk per trade, maximum position size and a
+              daily loss limit are hard caps — the scanner stops when they are hit.
+            </p>
+            <ul className="m-0 grid list-none gap-2.5 p-0">
+              <ScanBullet>Alert-only, or auto-trade inside your limits</ScanBullet>
+              <ScanBullet>Push and email when a rule matches or an order fills</ScanBullet>
+              <ScanBullet>Every scanner explains its own logic before you enable it</ScanBullet>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Your record ── */}
+      <section id="record" className={`${SECTION} pt-[68px]`} style={{ paddingLeft: GUTTER, paddingRight: GUTTER }}>
+        <div className="grid grid-cols-1 items-start gap-12 lg:grid-cols-[minmax(0,366px)_minmax(0,1fr)]">
+          <figure className="m-0">
+            <div className="overflow-hidden rounded-[14px] bg-[#161826]" style={{ boxShadow: SHADOW_MD }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/landing/trade.png"
+                alt="A closed EUR/USD trade replayed on its chart with entry, stop-loss, take-profit and reward-to-risk"
+                className="block w-full"
+              />
+            </div>
+            <figcaption className="mt-4 text-[13.5px] leading-[22px] text-[#e9e9ed9e]">
+              Every closed trade replays on its own chart — entry, stop, target, and the
+              reward-to-risk the plan asked for.
+            </figcaption>
+          </figure>
+          <div>
+            <Kicker>Your record</Kicker>
+            <h2 className="mb-6 max-w-[20ch] text-[clamp(30px,3vw,42px)] font-medium leading-[1.15] tracking-[-0.014em]">
+              Every trade gets graded
+            </h2>
+            <p className="mb-10 max-w-[52ch] text-[16.5px] leading-[28px] text-[#e9e9edcc]">
+              Poshkan keeps the score a demo account never shows you: win rate, profit factor,
+              expectancy per trade, how many exits were stops and how many were you changing your
+              mind.
+            </p>
+            <div className="flex flex-wrap items-start gap-7">
+              <figure className="m-0 max-w-[375px]">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src="/landing/stats.png"
+                  alt="Performance panel: average win, average loss, expectancy per trade, outcomes and best and worst trade"
+                  className="block w-full rounded-[10px]"
+                />
+                <figcaption className="mt-3 text-[13px] leading-[21px] text-[#e9e9ed9e]">
+                  Expectancy and outcome mix, per account.
+                </figcaption>
+              </figure>
+              <figure className="m-0 max-w-[375px]">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src="/landing/coach.png"
+                  alt="Coach panel reading the last twenty closed trades: stops used, typical risk, average win to loss"
+                  className="block w-full rounded-[10px]"
+                />
+                <figcaption className="mt-3 text-[13px] leading-[21px] text-[#e9e9ed9e]">
+                  Coach reads your last twenty closed trades for habits, not opinions.
+                </figcaption>
+              </figure>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Leaderboard ── */}
+      <section id="leaderboard" className={`${SECTION} pt-[68px]`} style={{ paddingLeft: GUTTER, paddingRight: GUTTER }}>
+        <div className="grid grid-cols-1 items-start gap-x-14 gap-y-7 pb-12 lg:grid-cols-2">
+          <div>
+            <Kicker>Leaderboard</Kicker>
+            <h2 className="m-0 max-w-[22ch] text-[clamp(28px,2.8vw,38px)] font-medium leading-[1.16] tracking-[-0.013em]">
+              Ranked by percentage return, not by deposits
+            </h2>
+          </div>
+          <p className="m-0 text-[16.5px] leading-[28px] text-[#e9e9edcc]">
+            Every account is scored on percentage return on the money put into it, at live prices.
+            Seeding an account with a million virtual dollars buys nothing but a bigger denominator.
+            Reset your history whenever you like — the rank resets with it.
+          </p>
+        </div>
+        <figure className="m-0 max-w-[720px]">
+          <div className="overflow-hidden rounded-[14px] bg-[#161826]" style={{ boxShadow: SHADOW_MD }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/landing/leaderboard.png"
+              alt="Leaderboard: traders ranked by their best account's percentage return at live prices"
+              className="block w-full"
+            />
+          </div>
+          <figcaption className="mt-4 max-w-[56ch] text-[13.5px] leading-[22px] text-[#e9e9ed9e]">
+            Top per trader, or every account — a $13,600 crypto account outranks a $92,000 one on
+            percentage return.
+          </figcaption>
+        </figure>
+
+        <div className="grid grid-cols-1 gap-14 pt-14 sm:grid-cols-[repeat(auto-fit,minmax(300px,1fr))]">
+          <Quote
+            text="The most complete and easy-to-use platform I've found for practicing trading and honestly evaluating my skills."
+            name="Vahid Alizadeh, forex trader on the leaderboard"
+          />
+          <Quote
+            text="The scanners are the best part — set one loose on your watchlist and experimenting with strategies becomes the whole game."
+            name="Masoud Nikkhah, early Poshkan trader"
+          />
+        </div>
+      </section>
+
+      {/* ── Comparison ── */}
+      <section id="compare" className={`${SECTION} pt-[68px]`} style={{ paddingLeft: GUTTER, paddingRight: GUTTER }}>
+        <div className="mb-[52px]" style={FADE_RULE} />
+        <h2 className="mb-5 max-w-[26ch] text-[clamp(28px,2.8vw,38px)] font-medium leading-[1.16] tracking-[-0.013em]">
+          Why not just use a broker&apos;s demo?
+        </h2>
+        <p className="mb-12 max-w-[58ch] text-[16.5px] leading-[28px] text-[#e9e9edcc]">
+          Fair question. There are three usual ways to practise, and each of them stops somewhere.
+        </p>
+
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[680px] border-collapse text-left text-[14.5px]">
+            <thead>
+              <tr
+                style={{
+                  backgroundImage:
+                    "linear-gradient(to right, transparent, var(--lp-divider) 48px, var(--lp-divider) calc(100% - 48px), transparent)",
+                  backgroundSize: "100% 1px",
+                  backgroundPosition: "bottom",
+                  backgroundRepeat: "no-repeat",
+                }}
+              >
+                <th className="w-[17%] px-2 pb-3 font-normal" />
+                <th className="w-[23%] px-2 pb-3 text-[12px] font-medium uppercase tracking-[0.05em] text-[var(--lp-accent)]">
+                  Poshkan
+                </th>
+                <th className="w-[20%] px-2 pb-3 text-[12px] font-medium uppercase tracking-[0.05em] text-[#e9e9edad]">
+                  Broker demo
+                </th>
+                <th className="w-[20%] px-2 pb-3 text-[12px] font-medium uppercase tracking-[0.05em] text-[#e9e9edad]">
+                  Course simulator
+                </th>
+                <th className="w-[20%] px-2 pb-3 text-[12px] font-medium uppercase tracking-[0.05em] text-[#e9e9edad]">
+                  Signal group
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <CompareRow
+                label="Markets"
+                cells={[
+                  "US stocks, crypto and forex in one account",
+                  "Whatever that one broker sells",
+                  "Usually stocks only",
+                  "Whatever gets called out",
+                ]}
+              />
+              <CompareRow
+                label="Your own rules"
+                cells={[
+                  "Built from candles and indicators, no code",
+                  "Not supported",
+                  "Not supported",
+                  "Someone else's, unexplained",
+                ]}
+              />
+              <CompareRow
+                label="Risk limits"
+                cells={[
+                  "Per trade, per position and per day — enforced",
+                  "Your discretion",
+                  "None",
+                  "None",
+                ]}
+              />
+              <CompareRow
+                label="What it's built for"
+                cells={[
+                  "Practice, and finding out what your idea does",
+                  "Turning you into a funded customer",
+                  "Coursework",
+                  "Following someone else",
+                ]}
+              />
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      {/* ── Close ── */}
+      <section id="start" className={`${SECTION} pt-[68px]`} style={{ paddingLeft: GUTTER, paddingRight: GUTTER }}>
+        <div className="mb-[52px]" style={FADE_RULE} />
+        <h2 className="mb-5 max-w-[22ch] text-[clamp(30px,3vw,42px)] font-medium leading-[1.15] tracking-[-0.014em]">
+          Start practising
+        </h2>
+        <p className="mb-10 max-w-[54ch] text-[16.5px] leading-[28px] text-[#e9e9edcc]">
+          An email and a password is the whole sign-up. Open a paper account for stocks, crypto or
+          forex, and place your first order or start a strategy in the Lab.
+        </p>
+        <SignupCta />
+        <p className="mt-[18px] text-[13.5px] leading-[22px] text-[#e9e9ed9e]">
+          Takes about a minute. Free while Poshkan is in beta — no card, nothing real at stake.
+        </p>
+        <InstallStrip />
+      </section>
+
+      {/* ── Footer ── */}
+      <footer className={`${SECTION} pb-14 pt-16`} style={{ paddingLeft: GUTTER, paddingRight: GUTTER }}>
+        <div className="mb-8" style={FADE_RULE} />
+        <p className="mb-5 max-w-[88ch] text-[13.5px] leading-[23px] text-[#e9e9eda8]">
+          <strong className="font-medium text-[#e9e9ede0]">Poshkan is a paper-trading simulator.</strong>{" "}
+          All money, trades and returns are 100% virtual — nothing is real, nothing can be won or
+          lost, and nothing here is financial advice. Market data may be delayed or inaccurate.
+        </p>
+        <div className="flex flex-wrap gap-x-6 gap-y-2.5 text-[13.5px]">
+          <Link href="/how-it-works" className="text-[var(--lp-accent)] hover:text-[var(--lp-accent-300)]">How it works</Link>
+          <Link href="/strategies" className="text-[var(--lp-accent)] hover:text-[var(--lp-accent-300)]">Strategies</Link>
+          <Link href="/learn" className="text-[var(--lp-accent)] hover:text-[var(--lp-accent-300)]">Learn</Link>
+          <Link href="/tools" className="text-[var(--lp-accent)] hover:text-[var(--lp-accent-300)]">Calculators</Link>
+          <Link href="/scans" className="text-[var(--lp-accent)] hover:text-[var(--lp-accent-300)]">Daily scans</Link>
+          <Link href="/help" className="text-[var(--lp-accent)] hover:text-[var(--lp-accent-300)]">Help</Link>
+          <Link href="/terms" className="text-[var(--lp-accent)] hover:text-[var(--lp-accent-300)]">Terms</Link>
+          <Link href="/privacy" className="text-[var(--lp-accent)] hover:text-[var(--lp-accent-300)]">Privacy</Link>
+        </div>
+      </footer>
     </div>
   );
 }
