@@ -312,18 +312,18 @@ export default async function LandingPage({
         </div>
       </main>
 
-      {/* Product proof: real footage of the practice accounts and Strategy Lab. */}
+      {/* Product proof: a real walkthrough of the guided Strategy Lab flow. */}
       <section className="border-t border-border px-6 py-14 sm:px-12">
         <div className="mx-auto max-w-4xl">
           <h2 className="text-center text-2xl font-bold tracking-tight sm:text-3xl">
-            A real look inside Poshkan
+            See Strategy Lab in action
           </h2>
           <p className="mx-auto mt-2 max-w-2xl text-center text-sm text-muted">
-            Move between paper accounts, Strategy Lab experiments, live observations, and results.
+            Go from a guided first strategy to readable rules, explicit risk, and evidence you can question.
           </p>
 
           <div className="relative mt-10">
-            {/* App window: a real 15-second tour of the live product */}
+            {/* App window: a short tour of the live Strategy Lab experience. */}
             <div className="overflow-hidden rounded-2xl border border-white/10 bg-[#0b0e14] text-[#e6e8eb] shadow-2xl">
               {/* Window chrome */}
               <div className="flex items-center gap-1.5 border-b border-white/10 px-4 py-3">
@@ -333,19 +333,19 @@ export default async function LandingPage({
                 <span className="ml-3 text-xs text-white/40">poshkan.com/dashboard</span>
               </div>
               <video
-                src="/landing/poshkan-tour.mp4"
-                poster="/landing/poshkan-tour-poster.jpg"
+                src="/landing/strategy-lab-tour.mp4"
+                poster="/landing/strategy-lab-tour-poster.jpg"
                 autoPlay
                 muted
                 loop
                 playsInline
                 className="block w-full"
-                aria-label="A 15-second tour of Poshkan: paper accounts, profit and loss, Strategy Lab activity, and the leaderboard."
+                aria-label="A short Strategy Lab walkthrough showing the Lab overview, guided strategy setup, entry rules, risk settings, and backtest interpretation."
               />
             </div>
           </div>
           <p className="mt-4 text-center text-xs text-muted">
-            Real footage of the live app — every number is virtual money.
+            Demo data, 100% virtual money. No result shown here is a promise of future performance.
           </p>
         </div>
       </section>
