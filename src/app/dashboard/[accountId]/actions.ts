@@ -7,6 +7,7 @@ import { encryptSecret, decryptSecret } from "@/lib/crypto";
 import { getQuote } from "@/lib/marketdata";
 import { assetTypeError } from "@/lib/assets";
 import { marginFor, sltpError, autoCloseReason, clampTradeLeverage } from "@/lib/forex";
+import { marketClosedError } from "@/lib/market-hours";
 
 // Server-side guard: does this symbol belong in this account's asset class?
 async function checkAccountAsset(
@@ -40,6 +41,10 @@ export async function executeTradeAction(input: {
     const typeErr = await checkAccountAsset(supabase, input.accountId, input.symbol);
     if (typeErr) return { error: typeErr };
   }
+
+  // Like a real broker: no market orders while the market is closed.
+  const closed = await marketClosedError(input.symbol);
+  if (closed) return { error: closed };
 
   let price: number;
   try {
@@ -121,6 +126,10 @@ export async function fillLimitOrderAction(
     .single();
   if (!order) return { filled: false };
 
+  // Limit orders queue while the market is closed and fill only in session —
+  // extended-hours prints must not trigger a fill.
+  if (await marketClosedError(order.symbol)) return { filled: false };
+
   let price: number;
   try {
     price = (await getQuote(order.symbol)).price;
@@ -188,6 +197,10 @@ export async function openFxPositionAction(input: {
   const typeErr = assetTypeError(account.type, input.symbol);
   if (typeErr) return { error: typeErr };
 
+  // Like a real broker: no opening positions while the market is closed.
+  const closed = await marketClosedError(input.symbol);
+  if (closed) return { error: closed };
+
   let rate: number;
   try {
     rate = (await getQuote(input.symbol)).price;
@@ -235,6 +248,10 @@ export async function closeFxPositionAction(
     .eq("status", "open")
     .single();
   if (!pos) return { error: "Position not found" };
+
+  // Like a real broker: a closed market can't fill your exit either.
+  const closed = await marketClosedError(pos.symbol);
+  if (closed) return { error: closed };
 
   let rate: number;
   try {
@@ -412,6 +429,9 @@ export async function fillFxOrderAction(
     revalidatePath(`/dashboard/${accountId}`);
     return { filled: false };
   }
+
+  // Pending entries queue while the market is closed and fill only in session.
+  if (await marketClosedError(o.symbol)) return { filled: false };
 
   let rate: number;
   try {

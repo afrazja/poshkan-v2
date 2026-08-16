@@ -12,6 +12,7 @@ import EquitySpark from "./EquitySpark";
 import { TextSkeleton } from "@/components/Skeleton";
 import LeveragePanel from "./LeveragePanel";
 import TradeCoach from "./TradeCoach";
+import MarketStatusBadge from "./MarketStatusBadge";
 import AiScanner, { type AutoSettings } from "./AiScanner";
 import SmcScanner from "./SmcScanner";
 import OteScanner from "./OteScanner";
@@ -369,8 +370,11 @@ export default function AccountView({
                   formatCurrency(isForex ? fxEquity : totalValue + fxMargin + fxFloating)
                 )}
               </div>
-              <div className="text-xs capitalize text-muted">
-                {account.type} account · {isForex ? "equity" : "total value"}
+              <div className="flex items-center gap-2 text-xs capitalize text-muted">
+                <span>
+                  {account.type} account · {isForex ? "equity" : "total value"}
+                </span>
+                <MarketStatusBadge market={account.type} />
               </div>
             </div>
             <EquitySpark accountId={account.id} />
