@@ -42,6 +42,15 @@ export default function AccountsGrid({
   const [err, setErr] = useState<string | null>(null);
   const [order, setOrder] = useState<string[]>(accounts.map((a) => a.id));
   const [dragId, setDragId] = useState<string | null>(null);
+  const [view, setView] = useState<"grouped" | "custom">("grouped");
+
+  // Restore the saved view choice (defaults to grouped; SSR renders grouped, so
+  // read after mount to avoid a hydration mismatch).
+  useEffect(() => {
+    try {
+      if (localStorage.getItem("poshkan-account-view") === "custom") setView("custom");
+    } catch {}
+  }, []);
 
   // Restore a saved card order (per-browser), reconciled with current accounts:
   // new accounts append, removed ones drop.
@@ -276,11 +285,43 @@ export default function AccountsGrid({
     .filter((g) => g.list.length > 0);
   const other = orderedAccounts.filter((a) => !groupDefs.some((g) => g.type === a.type));
   if (other.length) groups.push({ type: "other", label: "Other", list: other });
-  const useGroups = groups.length > 1 && orderedAccounts.length > 3;
+  // Grouping organizes by market type, which caps drag-reorder at within-group
+  // moves — so it's a VIEW the user can switch, not a mandate. "My order" is
+  // the flat grid where dragging works across every card.
+  const groupingAvailable = groups.length > 1 && orderedAccounts.length > 3;
+  const useGroups = groupingAvailable && view === "grouped";
   const totalFor = (acc: Account) => Number(acc.cash_balance) + (summary[acc.id]?.marketValue ?? 0);
 
   return (
     <>
+      {groupingAvailable && (
+        <div className="mb-3 flex justify-end">
+          <div className="flex gap-1 rounded-lg border border-border bg-background p-1 text-xs">
+            {(
+              [
+                { key: "grouped", label: "Grouped" },
+                { key: "custom", label: "My order" },
+              ] as const
+            ).map((v) => (
+              <button
+                key={v.key}
+                onClick={() => {
+                  setView(v.key);
+                  try {
+                    localStorage.setItem("poshkan-account-view", v.key);
+                  } catch {}
+                }}
+                title={v.key === "custom" ? "Flat grid — drag cards to arrange them in any order" : "Group accounts by market"}
+                className={`rounded-md px-2.5 py-1 font-medium transition ${
+                  view === v.key ? "bg-card shadow-sm" : "text-muted hover:text-foreground"
+                }`}
+              >
+                {v.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
       {useGroups ? (
         <div className="space-y-8">
           {groups.map((g) => (
