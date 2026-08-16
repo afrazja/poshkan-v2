@@ -97,12 +97,19 @@ export interface WatchlistItem {
 export interface Quote {
   symbol: string;
   name: string;
+  // The LATEST traded price: regular session while the market is open,
+  // otherwise the freshest pre-market / after-hours print when one exists.
   price: number;
   previousClose: number;
   change: number;
   percentChange: number;
   currency: string;
   isMarketOpen: boolean;
+  // Extended-hours detail (stocks): which session `price` came from, the
+  // regular-session price it moved from, and the extended move itself.
+  extendedSession?: "pre" | "post";
+  regularPrice?: number;
+  extendedChangePercent?: number;
   // Extended stats (optional — shown in the stock detail popup).
   open?: number;
   dayHigh?: number;

@@ -74,6 +74,10 @@ interface YQuote {
   regularMarketChangePercent?: number;
   currency?: string;
   marketState?: string;
+  preMarketPrice?: number;
+  preMarketChangePercent?: number;
+  postMarketPrice?: number;
+  postMarketChangePercent?: number;
   regularMarketOpen?: number;
   regularMarketDayHigh?: number;
   regularMarketDayLow?: number;
@@ -116,9 +120,28 @@ export async function searchSymbols(query: string): Promise<SymbolSearchResult[]
 }
 
 function toQuote(q: YQuote): Quote {
-  const price = Number(q.regularMarketPrice ?? 0);
-  const previousClose = Number(q.regularMarketPreviousClose ?? price);
-  const change = Number(q.regularMarketChange ?? price - previousClose);
+  const regularPrice = Number(q.regularMarketPrice ?? 0);
+  const previousClose = Number(q.regularMarketPreviousClose ?? regularPrice);
+  const change = Number(q.regularMarketChange ?? regularPrice - previousClose);
+
+  // Outside regular hours the latest actual trade is the extended-session
+  // print (Yahoo: marketState PRE / POST / POSTPOST / CLOSED plus pre/post
+  // prices). Surface it as `price` so holdings and watchlists keep moving
+  // with pre-market and after-hours action instead of freezing at the close.
+  let price = regularPrice;
+  let extendedSession: "pre" | "post" | undefined;
+  let extendedChangePercent: number | undefined;
+  const state = q.marketState ?? "";
+  if (state === "PRE" && Number(q.preMarketPrice) > 0) {
+    price = Number(q.preMarketPrice);
+    extendedSession = "pre";
+    extendedChangePercent = Number(q.preMarketChangePercent ?? 0);
+  } else if (state !== "REGULAR" && Number(q.postMarketPrice) > 0) {
+    price = Number(q.postMarketPrice);
+    extendedSession = "post";
+    extendedChangePercent = Number(q.postMarketChangePercent ?? 0);
+  }
+
   return {
     symbol: q.symbol,
     name: q.longName ?? q.shortName ?? q.displayName ?? q.symbol,
@@ -128,6 +151,9 @@ function toQuote(q: YQuote): Quote {
     percentChange: Number(q.regularMarketChangePercent ?? 0),
     currency: q.currency ?? "USD",
     isMarketOpen: q.marketState === "REGULAR",
+    extendedSession,
+    regularPrice: extendedSession ? regularPrice : undefined,
+    extendedChangePercent,
     open: q.regularMarketOpen,
     dayHigh: q.regularMarketDayHigh,
     dayLow: q.regularMarketDayLow,
@@ -168,7 +194,7 @@ async function getYahooQuotes(symbols: string[]): Promise<Record<string, Quote>>
 
 function enrichTwelveQuote(primary: Quote, yahoo: Quote | null): Quote {
   if (!yahoo) return primary;
-  return {
+  const merged: Quote = {
     ...yahoo,
     ...primary,
     marketCap: yahoo.marketCap,
@@ -178,6 +204,15 @@ function enrichTwelveQuote(primary: Quote, yahoo: Quote | null): Quote {
     fiftyTwoWeekHigh: primary.fiftyTwoWeekHigh ?? yahoo.fiftyTwoWeekHigh,
     fiftyTwoWeekLow: primary.fiftyTwoWeekLow ?? yahoo.fiftyTwoWeekLow,
   };
+  // Twelve Data carries the regular session only — outside it, Yahoo's
+  // pre/post print is the latest actual trade, so it wins the price field.
+  if (yahoo.extendedSession) {
+    merged.price = yahoo.price;
+    merged.extendedSession = yahoo.extendedSession;
+    merged.regularPrice = yahoo.regularPrice ?? primary.price;
+    merged.extendedChangePercent = yahoo.extendedChangePercent;
+  }
+  return merged;
 }
 
 export async function getQuote(symbol: string): Promise<Quote> {
@@ -213,7 +248,15 @@ export async function getQuotes(symbols: string[]): Promise<Record<string, Quote
 
   if (isTwelveDataConfigured()) {
     try {
-      Object.assign(out, await getTwelveQuotes(missing));
+      // Yahoo rides along in the batch too: it carries the pre/after-hours
+      // prints and fundamentals that Twelve Data's regular-session quotes lack.
+      const [twelve, yahoo] = await Promise.all([
+        getTwelveQuotes(missing),
+        getYahooQuotes(missing).catch(() => ({}) as Record<string, Quote>),
+      ]);
+      for (const [sym, q] of Object.entries(twelve)) {
+        out[sym] = enrichTwelveQuote(q, yahoo[sym] ?? null);
+      }
     } catch (error) {
       logTwelveFallback(error);
     }

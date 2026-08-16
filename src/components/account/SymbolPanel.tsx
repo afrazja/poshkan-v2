@@ -69,9 +69,19 @@ export default function SymbolPanel({
               <div className={`text-sm font-medium ${changeColor(quote.percentChange)}`}>
                 {formatCurrency(quote.change)} ({formatPercent(quote.percentChange)}) today
               </div>
+              {quote.extendedSession && quote.extendedChangePercent != null && (
+                <div className={`text-xs font-medium ${changeColor(quote.extendedChangePercent)}`}>
+                  {formatPercent(quote.extendedChangePercent)}{" "}
+                  {quote.extendedSession === "pre" ? "pre-market" : "after hours"}
+                </div>
+              )}
               <div className="mt-0.5 text-xs">
                 {quote.isMarketOpen ? (
                   <span className="text-positive">● Live price</span>
+                ) : quote.extendedSession ? (
+                  <span className="text-primary">
+                    ◐ {quote.extendedSession === "pre" ? "Pre-market" : "After-hours"} price
+                  </span>
                 ) : (
                   <span className="text-muted">○ Market closed · last close shown</span>
                 )}
