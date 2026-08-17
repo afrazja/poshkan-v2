@@ -147,6 +147,49 @@ export default async function DashboardPage() {
     (sparks[s.account_id] ??= []).push(Number(s.total_value));
   }
 
+  // Last BUY/SELL per account — the tiebreak for the "Activity" sort. Funding
+  // rows (OPENING_BALANCE, DEPOSIT, RESET) aren't trades and don't count.
+  const lastTrade: Record<string, string> = {};
+  for (const [id, list] of Object.entries(txByAccount)) {
+    for (const t of list) {
+      if (t.side !== "BUY" && t.side !== "SELL") continue;
+      if (!lastTrade[id] || t.created_at > lastTrade[id]) lastTrade[id] = t.created_at;
+    }
+  }
+
+  // Portfolio band totals. Aggregated here so the client component only renders
+  // them. An account is IDLE when nothing is open and cash is the whole value —
+  // derived, never stored.
+  const accountRows = (accounts ?? []) as Account[];
+  const band = accountRows.reduce(
+    (b, a) => {
+      const s = summary[a.id];
+      const cash = Number(a.cash_balance);
+      const value = cash + (s?.marketValue ?? 0);
+      const open = (s?.holdings ?? 0) + (s?.fxOpen ?? 0);
+      b.totalValue += value;
+      b.totalCash += cash;
+      b.todayPnl += s?.todayPnl ?? 0;
+      b.prevValue += s?.prevValue ?? 0;
+      b.unrealized += s?.unrealized ?? 0;
+      b.realized += s?.realized ?? 0;
+      b.openPositions += open;
+      if (open === 0 && Math.abs(value - cash) < 0.01) b.idleIds.push(a.id);
+      return b;
+    },
+    {
+      totalValue: 0,
+      totalCash: 0,
+      todayPnl: 0,
+      prevValue: 0,
+      unrealized: 0,
+      realized: 0,
+      openPositions: 0,
+      idleIds: [] as string[],
+      totalAccounts: accountRows.length,
+    }
+  );
+
   return (
     <div>
       <div className="mb-6">
@@ -157,7 +200,13 @@ export default async function DashboardPage() {
       </div>
       {checks.hasAccount ? <GettingStarted checks={checks} /> : <WelcomeHero />}
       <AlertsCard alerts={(alerts ?? []) as Alert[]} />
-      <AccountsGrid accounts={(accounts ?? []) as Account[]} summary={summary} sparks={sparks} />
+      <AccountsGrid
+        accounts={accountRows}
+        summary={summary}
+        sparks={sparks}
+        band={band}
+        lastTrade={lastTrade}
+      />
     </div>
   );
 }

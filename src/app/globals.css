@@ -54,6 +54,72 @@ body {
   font-family: var(--font-sans), system-ui, Arial, sans-serif;
 }
 
+/* Nocturne — the accounts page (/dashboard) palette.
+   The design system is dark-only, so `.dark` carries the exact handoff values
+   and is the fidelity target. Light mode is not in the spec: rather than invent
+   a second palette, the same variable names fall back to the app's own tokens
+   so the page stays coherent for anyone who opts out of dark. */
+[data-nocturne] {
+  --n-ground: var(--background);
+  --n-cell: var(--card);
+  --n-card-1: var(--card);
+  --n-card-2: var(--card);
+  --n-idle: var(--input);
+  --n-border-1: var(--border);
+  --n-border-2: var(--border);
+  --n-rule: var(--border);
+  --n-text: var(--foreground);
+  --n-text-2: var(--foreground);
+  --n-text-3: var(--muted);
+  --n-mute: var(--muted);
+  --n-label: var(--muted);
+  --n-faint: var(--muted);
+  --n-accent: var(--primary);
+  --n-accent-on: var(--primary);
+  --n-accent-fill: color-mix(in srgb, var(--primary) 12%, transparent);
+  --n-accent-border: color-mix(in srgb, var(--primary) 45%, transparent);
+  --n-market-1: var(--primary);
+  --n-market-2: var(--primary);
+  --n-gain: var(--positive);
+  --n-loss: var(--negative);
+}
+
+.dark [data-nocturne] {
+  --n-ground: #161826;
+  --n-cell: #1b1d2b;
+  --n-card-1: #232532;
+  --n-card-2: #1e2030;
+  --n-idle: #1a1c29;
+  --n-border-1: #3f424d;
+  --n-border-2: #292b31;
+  --n-rule: #21232f;
+  --n-text: #e9e9ed;
+  --n-text-2: #b2b6ca;
+  --n-text-3: #cfd3e5;
+  --n-mute: #9397ab;
+  --n-label: #75798c;
+  --n-faint: #595d6c;
+  --n-accent: #968ae0;
+  --n-accent-on: #b5abfc;
+  --n-accent-fill: #2b2741;
+  --n-accent-border: #5d5294;
+  --n-market-1: #9690c9;
+  --n-market-2: #7972a9;
+  --n-gain: #5cb98d;
+  --n-loss: #d9736e;
+}
+
+/* Nothing on this page goes above weight 500 — hierarchy is size and space. */
+[data-nocturne] :is(h1, h2, h3, strong, th) {
+  font-weight: 500;
+}
+
+/* Never the browser default focus ring. */
+[data-nocturne] :is(a, button, [tabindex]):focus-visible {
+  outline: 2px solid var(--n-accent);
+  outline-offset: 2px;
+}
+
 /* Skeleton loading placeholder — a soft block with a sweeping shimmer. */
 @keyframes shimmer {
   100% {
