@@ -12,42 +12,35 @@ import {
   setAccountNotifyAction,
 } from "@/app/dashboard/[accountId]/actions";
 import PortfolioBand from "./PortfolioBand";
-import SortRow from "./SortRow";
 import AccountsTable from "./AccountsTable";
 import AccountCards from "./AccountCards";
-import IdleStrip from "./IdleStrip";
+import NewAccountButton from "./NewAccountButton";
 import {
   buildRows,
-  sortRows,
-  ORDER_KEY,
-  SORT_KEY,
   VIEW_KEY,
   type AccountSummary,
   type BandTotals,
-  type SortKey,
+  type MarketGroup,
   type ViewMode,
 } from "./nocturne";
 
 export default function AccountsGrid({
   accounts,
   summary,
-  sparks = {},
   band,
-  lastTrade = {},
+  groups,
 }: {
   accounts: Account[];
   summary: Record<string, AccountSummary>;
-  sparks?: Record<string, number[]>;
   band: BandTotals;
-  lastTrade?: Record<string, string>;
+  groups: MarketGroup[];
 }) {
   const router = useRouter();
 
   const [view, setView] = useState<ViewMode>("table");
-  const [sort, setSort] = useState<SortKey>("value");
-  const [order, setOrder] = useState<string[]>(accounts.map((a) => a.id));
-  const [dragId, setDragId] = useState<string | null>(null);
-  const [idleExpanded, setIdleExpanded] = useState(false);
+  // One flag per market group, every group expanded until the user says
+  // otherwise. Deliberately not persisted.
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
 
   const [showCreate, setShowCreate] = useState(false);
   const [menuFor, setMenuFor] = useState<string | null>(null);
@@ -58,70 +51,18 @@ export default function AccountsGrid({
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
-  // Saved view and sort. SSR renders the defaults, so these are read after
-  // mount to keep hydration matched.
+  // Saved view. SSR renders the default, so this is read after mount to keep
+  // hydration matched.
   useEffect(() => {
     try {
       const v = localStorage.getItem(VIEW_KEY);
       if (v === "cards" || v === "table") setView(v);
-      const s = localStorage.getItem(SORT_KEY);
-      if (s && ["value", "today", "unrealized", "activity", "custom"].includes(s)) {
-        setSort(s as SortKey);
-      }
     } catch {}
   }, []);
 
-  // The strip is noise next to a dense table but reads as part of the set in
-  // the card view, so its default follows the view.
-  useEffect(() => setIdleExpanded(view === "cards"), [view]);
+  const rows = useMemo(() => buildRows(accounts, summary), [accounts, summary]);
 
-  // Saved drag order, reconciled with the current accounts: new ones append,
-  // deleted ones drop out.
-  useEffect(() => {
-    const ids = accounts.map((a) => a.id);
-    let saved: string[] = [];
-    try {
-      saved = JSON.parse(localStorage.getItem(ORDER_KEY) || "[]");
-    } catch {}
-    setOrder([...saved.filter((id) => ids.includes(id)), ...ids.filter((id) => !saved.includes(id))]);
-  }, [accounts]);
-
-  function persist(key: string, value: string) {
-    try {
-      localStorage.setItem(key, value);
-    } catch {}
-  }
-
-  function persistOrder(next: string[]) {
-    setOrder(next);
-    persist(ORDER_KEY, JSON.stringify(next));
-  }
-
-  function dropOn(targetId: string) {
-    if (!dragId || dragId === targetId) return;
-    const next = [...order];
-    const from = next.indexOf(dragId);
-    const to = next.indexOf(targetId);
-    if (from === -1 || to === -1) return;
-    next.splice(from, 1);
-    next.splice(to, 0, dragId);
-    persistOrder(next);
-  }
-
-  const { activeRows, idleRows } = useMemo(() => {
-    const rows = buildRows(accounts, summary, band.idleIds, lastTrade);
-    // Custom order is the saved drag sequence; every other sort ignores it.
-    const base =
-      sort === "custom"
-        ? order.map((id) => rows.find((r) => r.acc.id === id)).filter((r): r is NonNullable<typeof r> => !!r)
-        : rows;
-    return {
-      activeRows: sortRows(base.filter((r) => !r.idle), sort),
-      idleRows: base.filter((r) => r.idle),
-    };
-  }, [accounts, summary, band.idleIds, lastTrade, order, sort]);
-
-  const draggable = sort === "custom";
+  const toggleGroup = (key: string) => setOpenGroups((g) => ({ ...g, [key]: g[key] === false }));
 
   async function doRename() {
     if (!renameFor) return;
@@ -169,12 +110,11 @@ export default function AccountsGrid({
     },
   });
 
-  const shared = {
-    draggable,
-    dragId,
-    onDragStart: setDragId,
-    onDragEnd: () => setDragId(null),
-    onDropOn: dropOn,
+  const listProps = {
+    groups,
+    rows,
+    openGroups,
+    onToggleGroup: toggleGroup,
     onOpen: (id: string) => router.push(`/dashboard/${id}`),
     menuFor,
     menuProps,
@@ -245,22 +185,12 @@ export default function AccountsGrid({
     </>
   );
 
-  // No accounts yet: WelcomeHero carries the page and points down at this
-  // tile ("…or scroll down to build your own"), so the tile stays even though
-  // the band and sort row have nothing to summarise.
+  // No accounts yet: the band has nothing to summarise, but WelcomeHero points
+  // down at this action, so the primary action itself stays.
   if (accounts.length === 0) {
     return (
       <div data-nocturne>
-        <button
-          type="button"
-          onClick={() => setShowCreate(true)}
-          className="flex min-h-[132px] w-full flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-[var(--n-border-1)] transition hover:border-[var(--n-accent-border)] sm:max-w-xs"
-        >
-          <span className="flex h-[30px] w-[30px] items-center justify-center rounded-full border border-[var(--n-accent-border)] text-[17px] leading-none text-[var(--n-accent-on)]">
-            +
-          </span>
-          <span className="text-[12px] text-[var(--n-mute)]">New account</span>
-        </button>
+        <NewAccountButton onClick={() => setShowCreate(true)} />
         {modals}
       </div>
     );
@@ -268,41 +198,50 @@ export default function AccountsGrid({
 
   return (
     <div data-nocturne>
-      <PortfolioBand
-        band={band}
-        view={view}
-        onNewAccount={() => setShowCreate(true)}
-        onViewChange={(v) => {
-          setView(v);
-          persist(VIEW_KEY, v);
-        }}
-      />
+      <PortfolioBand band={band} onNewAccount={() => setShowCreate(true)} />
 
-      <SortRow
-        sort={sort}
-        onSortChange={(s) => {
-          setSort(s);
-          persist(SORT_KEY, s);
-        }}
-        onNewAccount={() => setShowCreate(true)}
-      />
+      {/* Its own row, right-aligned, directly above the list. Desktop only:
+          below 900px there is no table to switch to. */}
+      <div className="mt-6 mb-3 hidden justify-end min-[900px]:flex">
+        <div
+          role="group"
+          aria-label="List view"
+          className="flex gap-0.5 rounded-lg border border-[var(--n-border-2)] bg-[var(--n-cell)] p-0.5"
+        >
+          {(["table", "cards"] as const).map((v) => (
+            <button
+              key={v}
+              type="button"
+              onClick={() => {
+                setView(v);
+                try {
+                  localStorage.setItem(VIEW_KEY, v);
+                } catch {}
+              }}
+              aria-pressed={view === v}
+              className={`rounded-md px-3 py-1.5 text-[12px] capitalize transition ${
+                view === v
+                  ? "bg-[var(--n-text-2)] font-medium text-[var(--n-ground)]"
+                  : "font-normal text-[var(--n-mute)] hover:text-[var(--n-text-2)]"
+              }`}
+            >
+              {v}
+            </button>
+          ))}
+        </div>
+      </div>
 
-      {view === "table" ? (
-        <AccountsTable rows={activeRows} idleRows={idleRows} {...shared} />
-      ) : (
-        <AccountCards
-          rows={activeRows}
-          sparks={sparks}
-          onNewAccount={() => setShowCreate(true)}
-          {...shared}
-        />
+      {/* Which layout shows is decided in CSS, not JS: the cards are always
+          rendered and simply hidden on desktop when Table is selected, so the
+          server and client markup always agree. */}
+      {view === "table" && (
+        <div className="mt-4 hidden min-[900px]:block">
+          <AccountsTable {...listProps} />
+        </div>
       )}
-
-      <IdleStrip
-        rows={idleRows}
-        expanded={idleExpanded}
-        onToggle={() => setIdleExpanded((v) => !v)}
-      />
+      <div className={`mt-4 ${view === "table" ? "min-[900px]:hidden" : ""}`}>
+        <AccountCards {...listProps} />
+      </div>
 
       {modals}
     </div>

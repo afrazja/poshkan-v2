@@ -14,22 +14,34 @@ export type AccountSummary = {
 // Portfolio-wide totals, reduced on the server — the client never aggregates.
 export type BandTotals = {
   totalValue: number;
-  totalCash: number;
+  cashAvailable: number;
   todayPnl: number;
   prevValue: number;
   unrealized: number;
   realized: number;
   openPositions: number;
-  idleIds: string[];
   totalAccounts: number;
+  activeAccounts: number;
 };
 
-export type SortKey = "value" | "today" | "unrealized" | "activity" | "custom";
+// One market section, also built on the server: membership and subtotal.
+export type MarketGroup = {
+  key: string;
+  label: string;
+  ids: string[];
+  subtotal: number;
+};
+
 export type ViewMode = "table" | "cards";
 
 export const VIEW_KEY = "poshkan-accounts-view";
-export const SORT_KEY = "poshkan-accounts-sort";
-export const ORDER_KEY = "poshkan-account-order";
+
+/** Market order is the only ordering in this design — there is no sort control. */
+export const MARKET_GROUPS: { key: AccountType; label: string }[] = [
+  { key: "stocks", label: "Stocks" },
+  { key: "crypto", label: "Crypto" },
+  { key: "forex", label: "Forex" },
+];
 
 export const EMPTY_SUMMARY: AccountSummary = {
   marketValue: 0,
@@ -41,7 +53,7 @@ export const EMPTY_SUMMARY: AccountSummary = {
   prevValue: 0,
 };
 
-// One account, flattened with everything the views need to render or sort.
+// One account, flattened with everything the views need to render.
 export type Row = {
   acc: Account;
   s: AccountSummary;
@@ -50,21 +62,7 @@ export type Row = {
   open: number;
   idle: boolean;
   todayPct: number | null; // null when there's no previous close to divide by
-  lastTrade: string | null;
 };
-
-export const MARKET_LABEL: Record<AccountType | "other", string> = {
-  stocks: "Stocks",
-  crypto: "Crypto",
-  forex: "Forex",
-  other: "Other",
-};
-
-export const MARKET_ORDER: (AccountType | "other")[] = ["stocks", "crypto", "forex", "other"];
-
-export function marketOf(acc: Account): AccountType | "other" {
-  return MARKET_ORDER.includes(acc.type) ? acc.type : "other";
-}
 
 /** Green/red are only ever applied to P&L numbers — never borders, fills or icons. */
 export function pnlColor(value: number): string {
@@ -73,54 +71,30 @@ export function pnlColor(value: number): string {
   return "text-[var(--n-text-2)]";
 }
 
-/** The market label is redundant when the account name already says it. */
-export function needsMarketLabel(acc: Account): boolean {
-  const label = MARKET_LABEL[marketOf(acc)].toLowerCase();
-  return !acc.name.toLowerCase().includes(label) && !acc.name.toLowerCase().includes(acc.type);
-}
-
+/**
+ * An account is idle when nothing is open and its cash is the whole value.
+ * Derived here rather than stored — idle accounts are NOT separated out, they
+ * just render em dashes in place of figures that would otherwise read $0.00.
+ */
 export function buildRows(
   accounts: Account[],
-  summary: Record<string, AccountSummary>,
-  idleIds: string[],
-  lastTrade: Record<string, string>
-): Row[] {
-  const idle = new Set(idleIds);
-  return accounts.map((acc) => {
+  summary: Record<string, AccountSummary>
+): Record<string, Row> {
+  const rows: Record<string, Row> = {};
+  for (const acc of accounts) {
     const s = summary[acc.id] ?? EMPTY_SUMMARY;
     const cash = Number(acc.cash_balance);
-    return {
+    const value = cash + s.marketValue;
+    const open = s.holdings + s.fxOpen;
+    rows[acc.id] = {
       acc,
       s,
       cash,
-      value: cash + s.marketValue,
-      open: s.holdings + s.fxOpen,
-      idle: idle.has(acc.id),
+      value,
+      open,
+      idle: open === 0 && Math.abs(value - cash) < 0.01,
       todayPct: s.prevValue > 0 ? (s.todayPnl / s.prevValue) * 100 : null,
-      lastTrade: lastTrade[acc.id] ?? null,
     };
-  });
-}
-
-/**
- * Sorts are descending on the money columns; Activity ranks by how much is open
- * and then by how recently the account traded. `custom` keeps the caller's
- * drag order untouched.
- */
-export function sortRows(rows: Row[], sort: SortKey): Row[] {
-  if (sort === "custom") return rows;
-  const next = [...rows];
-  next.sort((a, b) => {
-    switch (sort) {
-      case "value":
-        return b.value - a.value;
-      case "today":
-        return b.s.todayPnl - a.s.todayPnl;
-      case "unrealized":
-        return b.s.unrealized - a.s.unrealized;
-      case "activity":
-        return b.open - a.open || (b.lastTrade ?? "").localeCompare(a.lastTrade ?? "");
-    }
-  });
-  return next;
+  }
+  return rows;
 }

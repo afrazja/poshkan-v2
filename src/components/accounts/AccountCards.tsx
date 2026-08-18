@@ -3,225 +3,148 @@
 import type { Account } from "@/lib/types";
 import { formatCurrency, formatPercent, formatSignedCurrency } from "@/lib/format";
 import AccountMenu from "./AccountMenu";
-import AccountSparkline from "./AccountSparkline";
-import { MARKET_LABEL, marketOf, needsMarketLabel, pnlColor, type Row } from "./nocturne";
+import GroupHeader from "./GroupHeader";
+import { pnlColor, type MarketGroup, type Row } from "./nocturne";
 
-const TIER_1_MIN = 20_000;
+type MenuProps = (acc: Account) => Omit<React.ComponentProps<typeof AccountMenu>, "acc" | "open">;
 
-type Shared = {
-  draggable: boolean;
-  dragId: string | null;
-  onDragStart: (id: string) => void;
-  onDragEnd: () => void;
-  onDropOn: (id: string) => void;
+/**
+ * The card treatment: two per row on desktop, one per row below 900px, always
+ * inside its market group. Every card is the same size — there are no tiers,
+ * no sparklines and no new-account tile in the grid.
+ */
+export default function AccountCards({
+  groups,
+  rows,
+  openGroups,
+  onToggleGroup,
+  onOpen,
+  menuFor,
+  menuProps,
+}: {
+  groups: MarketGroup[];
+  rows: Record<string, Row>;
+  openGroups: Record<string, boolean>;
+  onToggleGroup: (key: string) => void;
   onOpen: (id: string) => void;
   menuFor: string | null;
-  menuProps: (acc: Account) => Omit<React.ComponentProps<typeof AccountMenu>, "acc" | "open">;
-};
-
-export default function AccountCards({
-  rows,
-  sparks,
-  onNewAccount,
-  ...shared
-}: Shared & {
-  rows: Row[];
-  sparks: Record<string, number[]>;
-  onNewAccount: () => void;
+  menuProps: MenuProps;
 }) {
-  // Value order across every market — this view drops the market grouping.
-  const byValue = [...rows].sort((a, b) => b.value - a.value);
-  const tier1 = byValue.filter((r) => r.value >= TIER_1_MIN);
-  const tier2 = byValue.filter((r) => r.value < TIER_1_MIN);
-
   return (
-    <div>
-      {tier1.length > 0 && (
-        <div className="grid grid-cols-1 gap-4 min-[900px]:grid-cols-2">
-          {tier1.map((r) => (
-            <TierOneCard key={r.acc.id} row={r} spark={sparks[r.acc.id] ?? []} {...shared} />
-          ))}
-        </div>
-      )}
-      <div
-        className={`grid grid-cols-1 gap-[14px] min-[900px]:grid-cols-3 ${tier1.length ? "mt-[14px]" : ""}`}
-      >
-        {tier2.map((r) => (
-          <TierTwoCard key={r.acc.id} row={r} {...shared} />
-        ))}
-        <NewAccountTile onClick={onNewAccount} />
-      </div>
-    </div>
-  );
-}
-
-/** Drag/click plumbing every card shares. */
-function cardHandlers(
-  id: string,
-  { draggable, dragId, onDragStart, onDragEnd, onDropOn, onOpen }: Shared
-) {
-  return {
-    draggable,
-    onDragStart: () => draggable && onDragStart(id),
-    onDragEnd,
-    onDragOver: (e: React.DragEvent) => draggable && e.preventDefault(),
-    onDrop: () => draggable && onDropOn(id),
-    onPointerUp: (e: React.PointerEvent) => {
-      if (e.button !== 0 || dragId || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;
-      if ((e.target as HTMLElement).closest("button")) return;
-      onOpen(id);
-    },
-  };
-}
-
-function TierOneCard({ row, spark, ...shared }: Shared & { row: Row; spark: number[] }) {
-  const { acc, s, cash, value, open, todayPct } = row;
-  const isForex = acc.type === "forex";
-  const dayValue = isForex ? s.unrealized : s.todayPnl;
-  const hasDay = isForex ? s.unrealized !== 0 : todayPct !== null;
-  // Whichever P&L figure is the bigger story leads; the other drops to the footer.
-  const unrealizedLeads = Math.abs(s.unrealized) >= Math.abs(s.realized);
-  const leadLabel = unrealizedLeads ? "Unrealized" : "Realized";
-  const leadValue = unrealizedLeads ? s.unrealized : s.realized;
-  const otherLabel = unrealizedLeads ? "Realized" : "Unrealized";
-  const otherValue = unrealizedLeads ? s.realized : s.unrealized;
-
-  return (
-    <div
-      {...cardHandlers(acc.id, shared)}
-      className={`cursor-pointer rounded-lg border border-[var(--n-border-1)] bg-[var(--n-card-1)] p-4 transition hover:border-[var(--n-faint)] min-[900px]:px-[22px] min-[900px]:py-5 ${
-        shared.dragId === acc.id ? "opacity-40" : ""
-      }`}
-    >
-      <div className="flex items-center gap-2">
-        <h3 className="truncate text-[16px] font-medium text-[var(--n-text)]">{acc.name}</h3>
-        {needsMarketLabel(acc) && (
-          <span className="text-[10.5px] uppercase tracking-[0.08em] text-[var(--n-market-1)]">
-            {MARKET_LABEL[marketOf(acc)]}
-          </span>
-        )}
-        <span className="ml-auto">
-          <AccountMenu acc={acc} open={shared.menuFor === acc.id} {...shared.menuProps(acc)} />
-        </span>
-      </div>
-
-      <div className="mt-[14px] flex items-start justify-between gap-4">
-        <div>
-          <div className="text-[26px] font-medium leading-none tracking-[-0.02em] text-[var(--n-text)] min-[900px]:text-[32px]">
-            {formatCurrency(value)}
-          </div>
-          <div className="mt-[7px] text-[12.5px]">
-            {hasDay ? (
-              <span className={pnlColor(dayValue)}>
-                {formatSignedCurrency(dayValue)}{" "}
-                <span className="text-[var(--n-label)]">
-                  {isForex ? "floating" : `${formatPercent(todayPct ?? 0)} today`}
-                </span>
-              </span>
-            ) : (
-              <span className="text-[var(--n-label)]">no change today</span>
+    <div className="flex flex-col gap-5">
+      {groups.map((g) => {
+        const open = openGroups[g.key] !== false;
+        return (
+          <section key={g.key}>
+            <GroupHeader
+              label={g.label}
+              count={g.ids.length}
+              subtotal={g.subtotal}
+              open={open}
+              onToggle={() => onToggleGroup(g.key)}
+            />
+            {open && (
+              <div className="mt-3 grid grid-cols-1 gap-3 min-[900px]:grid-cols-2 min-[900px]:gap-[14px]">
+                {g.ids.map((id) =>
+                  rows[id] ? (
+                    <AccountCard
+                      key={id}
+                      row={rows[id]}
+                      onOpen={onOpen}
+                      menuOpen={menuFor === id}
+                      menuProps={menuProps}
+                    />
+                  ) : null
+                )}
+              </div>
             )}
-          </div>
-        </div>
-        {/* On mobile this figure moves down into the footer so the card reads
-            top-to-bottom instead of splitting the eye left and right. */}
-        <div className="hidden text-right min-[900px]:block">
-          <div className="text-[11px] text-[var(--n-label)]">{leadLabel}</div>
-          <div className={`text-[20px] font-medium ${pnlColor(leadValue)}`}>
-            {formatSignedCurrency(leadValue)}
-          </div>
-        </div>
-      </div>
-
-      <div className="mt-[18px] mb-[14px] h-px bg-[var(--n-border-1)]" />
-
-      <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-2 min-[900px]:justify-start min-[900px]:gap-[34px]">
-        <Stat label="Cash" value={formatCurrency(cash)} />
-        <Stat
-          label={isForex || s.fxOpen > 0 ? "Open" : "Holdings"}
-          value={String(isForex || s.fxOpen > 0 ? open : s.holdings)}
-        />
-        <Stat
-          label={otherLabel}
-          value={formatSignedCurrency(otherValue)}
-          className={pnlColor(otherValue)}
-        />
-        <div className="min-[900px]:hidden">
-          <Stat
-            label={leadLabel}
-            value={formatSignedCurrency(leadValue)}
-            className={pnlColor(leadValue)}
-          />
-        </div>
-        {/* Sparklines are dropped on mobile: at this width they compete with
-            the value for the eye and say nothing the percentage does not. */}
-        <div className="ml-auto hidden min-[900px]:block">
-          <AccountSparkline values={spark} />
-        </div>
-      </div>
+          </section>
+        );
+      })}
     </div>
   );
 }
 
-function TierTwoCard({ row, ...shared }: Shared & { row: Row }) {
-  const { acc, s, cash, value, open, todayPct } = row;
+function AccountCard({
+  row,
+  onOpen,
+  menuOpen,
+  menuProps,
+}: {
+  row: Row;
+  onOpen: (id: string) => void;
+  menuOpen: boolean;
+  menuProps: MenuProps;
+}) {
+  const { acc, s, cash, value, open, idle, todayPct } = row;
   const isForex = acc.type === "forex";
   const dayValue = isForex ? s.unrealized : s.todayPnl;
-  const hasDay = isForex ? s.unrealized !== 0 : todayPct !== null;
+  const hasDay = !idle && (isForex ? s.unrealized !== 0 : todayPct !== null);
+  // Mobile collapses the 2x2 footer to one line, so it shows whichever P&L
+  // figure actually says something about this account.
+  const leadIsUnrealized = s.unrealized !== 0;
+  const leadValue = leadIsUnrealized ? s.unrealized : s.realized;
+  const leadLabel = leadIsUnrealized ? "Unrealized" : "Realized";
 
   return (
     <div
-      {...cardHandlers(acc.id, shared)}
-      className={`cursor-pointer rounded-lg border border-[var(--n-border-2)] bg-[var(--n-card-2)] px-4 py-[14px] transition hover:border-[var(--n-border-1)] min-[900px]:px-[18px] min-[900px]:py-4 ${
-        shared.dragId === acc.id ? "opacity-40" : ""
-      }`}
+      onPointerUp={(e) => {
+        if (e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;
+        if ((e.target as HTMLElement).closest("button")) return;
+        onOpen(acc.id);
+      }}
+      className="cursor-pointer rounded-lg border border-[var(--n-border-2)] bg-[var(--n-card-2)] px-4 py-[14px] transition hover:border-[var(--n-border-1)] min-[900px]:px-[18px] min-[900px]:py-4"
     >
       <div className="flex items-center gap-2">
+        {/* No market chip — the group header already carries the market. */}
         <h3 className="truncate text-[13.5px] font-medium text-[var(--n-text)]">{acc.name}</h3>
-        {needsMarketLabel(acc) && (
-          <span className="text-[10px] uppercase tracking-[0.08em] text-[var(--n-market-2)]">
-            {MARKET_LABEL[marketOf(acc)]}
-          </span>
-        )}
         <span className="ml-auto">
-          <AccountMenu
-            acc={acc}
-            open={shared.menuFor === acc.id}
-            tone="faint"
-            {...shared.menuProps(acc)}
-          />
+          <AccountMenu acc={acc} open={menuOpen} tone="faint" {...menuProps(acc)} />
         </span>
       </div>
 
-      <div className="mt-3 text-[20px] font-medium text-[var(--n-text)] min-[900px]:text-[22px]">
+      <div className="mt-[9px] text-[20px] font-medium leading-none text-[var(--n-text)] min-[900px]:mt-3 min-[900px]:text-[22px]">
         {formatCurrency(value)}
       </div>
-      <div className="mt-1.5 text-[12px]">
+
+      <div className="mt-[5px] text-[11.5px] min-[900px]:mt-1.5 min-[900px]:text-[12px]">
         {hasDay ? (
           <span className={pnlColor(dayValue)}>
             {formatSignedCurrency(dayValue)}{" "}
             <span className="text-[var(--n-label)]">{isForex ? "floating" : "today"}</span>
           </span>
         ) : (
-          <span className="text-[var(--n-label)]">no change today</span>
+          <span className="text-[var(--n-label)]">{idle ? "no activity" : "no change today"}</span>
         )}
       </div>
 
-      <div className="mt-[14px] mb-[11px] h-px bg-[var(--n-border-2)]" />
+      <div className="mt-[11px] mb-[9px] h-px bg-[var(--n-border-2)] min-[900px]:mt-[14px] min-[900px]:mb-[11px]" />
 
-      {/* One space-between row on mobile, a 2x2 grid once there is width for it. */}
-      <div className="flex flex-wrap justify-between gap-x-3 gap-y-1.5 text-[11.5px] text-[var(--n-label)] min-[900px]:grid min-[900px]:grid-cols-2 min-[900px]:gap-y-2">
+      {/* Mobile: one line — the figure that matters, and the position count. */}
+      <div className="flex items-center justify-between text-[11px] text-[var(--n-label)] min-[900px]:hidden">
+        <span>
+          {leadLabel}{" "}
+          {idle ? <Dash /> : <span className={pnlColor(leadValue)}>{formatSignedCurrency(leadValue)}</span>}
+        </span>
+        <span>
+          {open} open position{open === 1 ? "" : "s"}
+        </span>
+      </div>
+
+      {/* Desktop: the full 2x2. */}
+      <div className="hidden grid-cols-2 gap-x-3 gap-y-2 text-[11.5px] text-[var(--n-label)] min-[900px]:grid">
         <span>
           Unrealized{" "}
-          <span className={pnlColor(s.unrealized)}>{formatSignedCurrency(s.unrealized)}</span>
+          {idle ? <Dash /> : <span className={pnlColor(s.unrealized)}>{formatSignedCurrency(s.unrealized)}</span>}
         </span>
-        <span className="min-[900px]:text-right">
-          Realized <span className={pnlColor(s.realized)}>{formatSignedCurrency(s.realized)}</span>
+        <span className="text-right">
+          Realized{" "}
+          {idle ? <Dash /> : <span className={pnlColor(s.realized)}>{formatSignedCurrency(s.realized)}</span>}
         </span>
         <span>
           Cash <span className="text-[var(--n-text-2)]">{formatCurrency(cash)}</span>
         </span>
-        <span className="text-[var(--n-text-2)] min-[900px]:text-right">
+        <span className="text-right text-[var(--n-text-2)]">
           {open} open position{open === 1 ? "" : "s"}
         </span>
       </div>
@@ -229,35 +152,6 @@ function TierTwoCard({ row, ...shared }: Shared & { row: Row }) {
   );
 }
 
-function Stat({
-  label,
-  value,
-  className = "text-[var(--n-text-2)]",
-}: {
-  label: string;
-  value: string;
-  className?: string;
-}) {
-  return (
-    <div>
-      <div className="text-[10.5px] text-[var(--n-label)]">{label}</div>
-      <div className={`text-[13px] ${className}`}>{value}</div>
-    </div>
-  );
-}
-
-/** A row on mobile, a tile at the end of the tier-2 grid on desktop. */
-function NewAccountTile({ onClick }: { onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="flex min-h-[56px] flex-row items-center justify-center gap-2 rounded-lg border border-dashed border-[var(--n-border-1)] transition hover:border-[var(--n-accent-border)] min-[900px]:min-h-[132px] min-[900px]:flex-col"
-    >
-      <span className="flex h-[30px] w-[30px] items-center justify-center rounded-full border border-[var(--n-accent-border)] text-[17px] leading-none text-[var(--n-accent-on)]">
-        +
-      </span>
-      <span className="text-[12px] text-[var(--n-mute)]">New account</span>
-    </button>
-  );
+function Dash() {
+  return <span className="text-[var(--n-label)]">—</span>;
 }

@@ -3,6 +3,7 @@ import { getQuotes } from "@/lib/marketdata";
 import { realizedPnl } from "@/lib/pnl";
 import { floatingPnl } from "@/lib/forex";
 import AccountsGrid from "@/components/accounts/AccountsGrid";
+import { MARKET_GROUPS } from "@/components/accounts/nocturne";
 import AlertsCard from "@/components/accounts/AlertsCard";
 import GettingStarted from "@/components/accounts/GettingStarted";
 import WelcomeHero from "@/components/accounts/WelcomeHero";
@@ -135,60 +136,58 @@ export default async function DashboardPage() {
     ensure(id).realized += realizedPnl(list);
   }
 
-  // 14-day equity sparkline per account, from the nightly snapshots.
-  const sparkCutoff = new Date(Date.now() - 14 * 86_400_000).toISOString().slice(0, 10);
-  const { data: sparkSnaps } = await supabase
-    .from("account_snapshots")
-    .select("account_id, snapshot_date, total_value")
-    .gte("snapshot_date", sparkCutoff)
-    .order("snapshot_date", { ascending: true });
-  const sparks: Record<string, number[]> = {};
-  for (const s of (sparkSnaps ?? []) as { account_id: string; total_value: number }[]) {
-    (sparks[s.account_id] ??= []).push(Number(s.total_value));
-  }
-
-  // Last BUY/SELL per account — the tiebreak for the "Activity" sort. Funding
-  // rows (OPENING_BALANCE, DEPOSIT, RESET) aren't trades and don't count.
-  const lastTrade: Record<string, string> = {};
-  for (const [id, list] of Object.entries(txByAccount)) {
-    for (const t of list) {
-      if (t.side !== "BUY" && t.side !== "SELL") continue;
-      if (!lastTrade[id] || t.created_at > lastTrade[id]) lastTrade[id] = t.created_at;
-    }
-  }
-
-  // Portfolio band totals. Aggregated here so the client component only renders
-  // them. An account is IDLE when nothing is open and cash is the whole value —
-  // derived, never stored.
+  // Portfolio band totals, reduced here so the client component only renders
+  // them. "Cash available" is the money NOT in the market — the dollar figure
+  // and its share of the portfolio, not the deployed inverse.
   const accountRows = (accounts ?? []) as Account[];
   const band = accountRows.reduce(
     (b, a) => {
       const s = summary[a.id];
-      const cash = Number(a.cash_balance);
-      const value = cash + (s?.marketValue ?? 0);
       const open = (s?.holdings ?? 0) + (s?.fxOpen ?? 0);
-      b.totalValue += value;
-      b.totalCash += cash;
+      b.totalValue += Number(a.cash_balance) + (s?.marketValue ?? 0);
+      b.cashAvailable += Number(a.cash_balance);
       b.todayPnl += s?.todayPnl ?? 0;
       b.prevValue += s?.prevValue ?? 0;
       b.unrealized += s?.unrealized ?? 0;
       b.realized += s?.realized ?? 0;
       b.openPositions += open;
-      if (open === 0 && Math.abs(value - cash) < 0.01) b.idleIds.push(a.id);
+      if (open > 0) b.activeAccounts += 1;
       return b;
     },
     {
       totalValue: 0,
-      totalCash: 0,
+      cashAvailable: 0,
       todayPnl: 0,
       prevValue: 0,
       unrealized: 0,
       realized: 0,
       openPositions: 0,
-      idleIds: [] as string[],
       totalAccounts: accountRows.length,
+      activeAccounts: 0,
     }
   );
+
+  // Stocks, then Crypto, then Forex — each with its members and subtotal.
+  // Market order is the page's only ordering, so nothing is left to sort
+  // client-side. The trailing bucket catches any account whose type falls
+  // outside the three known markets, so it can never silently vanish.
+  const valueOf = (a: Account) => Number(a.cash_balance) + (summary[a.id]?.marketValue ?? 0);
+  const known = new Set(MARKET_GROUPS.map((g) => g.key as string));
+  const groups = [
+    ...MARKET_GROUPS.map((g) => ({
+      key: g.key as string,
+      label: g.label,
+      members: accountRows.filter((a) => a.type === g.key),
+    })),
+    { key: "other", label: "Other", members: accountRows.filter((a) => !known.has(a.type)) },
+  ]
+    .filter((g) => g.members.length > 0)
+    .map((g) => ({
+      key: g.key,
+      label: g.label,
+      ids: g.members.map((a) => a.id),
+      subtotal: g.members.reduce((sum, a) => sum + valueOf(a), 0),
+    }));
 
   return (
     <div>
@@ -200,13 +199,7 @@ export default async function DashboardPage() {
       </div>
       {checks.hasAccount ? <GettingStarted checks={checks} /> : <WelcomeHero />}
       <AlertsCard alerts={(alerts ?? []) as Alert[]} />
-      <AccountsGrid
-        accounts={accountRows}
-        summary={summary}
-        sparks={sparks}
-        band={band}
-        lastTrade={lastTrade}
-      />
+      <AccountsGrid accounts={accountRows} summary={summary} band={band} groups={groups} />
     </div>
   );
 }
