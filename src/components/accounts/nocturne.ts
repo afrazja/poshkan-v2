@@ -98,3 +98,16 @@ export function buildRows(
   }
   return rows;
 }
+
+export const ORDER_KEY = "poshkan-account-order";
+
+/**
+ * Saved drag order for one market group, reconciled against the accounts that
+ * actually exist: anything deleted drops out, anything new lands at the end.
+ * Reordering is scoped to a group — cards never move between markets.
+ */
+export function applyOrder(ids: string[], saved: string[] | undefined): string[] {
+  if (!saved?.length) return ids;
+  const known = new Set(ids);
+  return [...saved.filter((id) => known.has(id)), ...ids.filter((id) => !saved.includes(id))];
+}

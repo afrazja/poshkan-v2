@@ -16,7 +16,9 @@ import AccountsTable from "./AccountsTable";
 import AccountCards from "./AccountCards";
 import NewAccountButton from "./NewAccountButton";
 import {
+  applyOrder,
   buildRows,
+  ORDER_KEY,
   VIEW_KEY,
   type AccountSummary,
   type BandTotals,
@@ -41,6 +43,10 @@ export default function AccountsGrid({
   // One flag per market group, every group expanded until the user says
   // otherwise. Deliberately not persisted.
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
+  // Per-group card order, saved per browser. Dragging happens in the card
+  // view, but the order it produces is the account order — so the table
+  // follows it too rather than the two views disagreeing.
+  const [order, setOrder] = useState<Record<string, string[]>>({});
 
   const [showCreate, setShowCreate] = useState(false);
   const [menuFor, setMenuFor] = useState<string | null>(null);
@@ -57,10 +63,27 @@ export default function AccountsGrid({
     try {
       const v = localStorage.getItem(VIEW_KEY);
       if (v === "cards" || v === "table") setView(v);
+      const saved = JSON.parse(localStorage.getItem(ORDER_KEY) || "{}");
+      if (saved && typeof saved === "object" && !Array.isArray(saved)) setOrder(saved);
     } catch {}
   }, []);
 
   const rows = useMemo(() => buildRows(accounts, summary), [accounts, summary]);
+
+  // Market order from the server, with the saved drag order laid over each
+  // group's members.
+  const orderedGroups = useMemo(
+    () => groups.map((g) => ({ ...g, ids: applyOrder(g.ids, order[g.key]) })),
+    [groups, order]
+  );
+
+  function reorder(groupKey: string, ids: string[]) {
+    const next = { ...order, [groupKey]: ids };
+    setOrder(next);
+    try {
+      localStorage.setItem(ORDER_KEY, JSON.stringify(next));
+    } catch {}
+  }
 
   const toggleGroup = (key: string) => setOpenGroups((g) => ({ ...g, [key]: g[key] === false }));
 
@@ -111,7 +134,7 @@ export default function AccountsGrid({
   });
 
   const listProps = {
-    groups,
+    groups: orderedGroups,
     rows,
     openGroups,
     onToggleGroup: toggleGroup,
@@ -240,7 +263,7 @@ export default function AccountsGrid({
         </div>
       )}
       <div className={`mt-4 ${view === "table" ? "min-[900px]:hidden" : ""}`}>
-        <AccountCards {...listProps} />
+        <AccountCards {...listProps} onReorder={reorder} />
       </div>
 
       {modals}
