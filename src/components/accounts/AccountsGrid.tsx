@@ -271,6 +271,7 @@ export default function AccountsGrid({
       <PortfolioBand
         band={band}
         view={view}
+        onNewAccount={() => setShowCreate(true)}
         onViewChange={(v) => {
           setView(v);
           persist(VIEW_KEY, v);

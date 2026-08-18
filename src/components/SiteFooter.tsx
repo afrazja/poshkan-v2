@@ -3,11 +3,15 @@ import Link from "next/link";
 // Persistent simulator disclaimer + legal links, shown on every page.
 export default function SiteFooter() {
   return (
-    <footer className="border-t border-border px-4 py-4 text-center text-xs text-muted">
+    <footer className="border-t border-border px-4 py-4 text-center text-[11px] text-muted min-[900px]:text-xs">
       <p>
-        <strong className="text-foreground">Poshkan is a paper-trading simulator.</strong> All
-        money, trades, and returns are 100% virtual — nothing is real, nothing can be won or
-        lost, and nothing here is financial advice.
+        <strong className="text-foreground">Poshkan is a paper-trading simulator.</strong>
+        {/* Below the accounts-page breakpoint the disclaimer shortens to its
+            first sentence */}
+        <span className="hidden min-[900px]:inline">
+          {" "}All money, trades, and returns are 100% virtual — nothing is real, nothing
+          can be won or lost, and nothing here is financial advice.
+        </span>
       </p>
       <p className="mt-1">
         Market data may be delayed or inaccurate ·{" "}

@@ -81,11 +81,15 @@ function TierOneCard({ row, spark, ...shared }: Shared & { row: Row; spark: numb
   const hasDay = isForex ? s.unrealized !== 0 : todayPct !== null;
   // Whichever P&L figure is the bigger story leads; the other drops to the footer.
   const unrealizedLeads = Math.abs(s.unrealized) >= Math.abs(s.realized);
+  const leadLabel = unrealizedLeads ? "Unrealized" : "Realized";
+  const leadValue = unrealizedLeads ? s.unrealized : s.realized;
+  const otherLabel = unrealizedLeads ? "Realized" : "Unrealized";
+  const otherValue = unrealizedLeads ? s.realized : s.unrealized;
 
   return (
     <div
       {...cardHandlers(acc.id, shared)}
-      className={`cursor-pointer rounded-lg border border-[var(--n-border-1)] bg-[var(--n-card-1)] px-[22px] py-5 transition hover:border-[var(--n-faint)] ${
+      className={`cursor-pointer rounded-lg border border-[var(--n-border-1)] bg-[var(--n-card-1)] p-4 transition hover:border-[var(--n-faint)] min-[900px]:px-[22px] min-[900px]:py-5 ${
         shared.dragId === acc.id ? "opacity-40" : ""
       }`}
     >
@@ -103,7 +107,7 @@ function TierOneCard({ row, spark, ...shared }: Shared & { row: Row; spark: numb
 
       <div className="mt-[14px] flex items-start justify-between gap-4">
         <div>
-          <div className="text-[32px] font-medium leading-none tracking-[-0.02em] text-[var(--n-text)]">
+          <div className="text-[26px] font-medium leading-none tracking-[-0.02em] text-[var(--n-text)] min-[900px]:text-[32px]">
             {formatCurrency(value)}
           </div>
           <div className="mt-[7px] text-[12.5px]">
@@ -119,32 +123,39 @@ function TierOneCard({ row, spark, ...shared }: Shared & { row: Row; spark: numb
             )}
           </div>
         </div>
-        <div className="text-right">
-          <div className="text-[11px] text-[var(--n-label)]">
-            {unrealizedLeads ? "Unrealized" : "Realized"}
-          </div>
-          <div
-            className={`text-[20px] font-medium ${pnlColor(unrealizedLeads ? s.unrealized : s.realized)}`}
-          >
-            {formatSignedCurrency(unrealizedLeads ? s.unrealized : s.realized)}
+        {/* On mobile this figure moves down into the footer so the card reads
+            top-to-bottom instead of splitting the eye left and right. */}
+        <div className="hidden text-right min-[900px]:block">
+          <div className="text-[11px] text-[var(--n-label)]">{leadLabel}</div>
+          <div className={`text-[20px] font-medium ${pnlColor(leadValue)}`}>
+            {formatSignedCurrency(leadValue)}
           </div>
         </div>
       </div>
 
       <div className="mt-[18px] mb-[14px] h-px bg-[var(--n-border-1)]" />
 
-      <div className="flex items-end gap-[34px]">
+      <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-2 min-[900px]:justify-start min-[900px]:gap-[34px]">
         <Stat label="Cash" value={formatCurrency(cash)} />
         <Stat
           label={isForex || s.fxOpen > 0 ? "Open" : "Holdings"}
           value={String(isForex || s.fxOpen > 0 ? open : s.holdings)}
         />
         <Stat
-          label={unrealizedLeads ? "Realized" : "Unrealized"}
-          value={formatSignedCurrency(unrealizedLeads ? s.realized : s.unrealized)}
-          className={pnlColor(unrealizedLeads ? s.realized : s.unrealized)}
+          label={otherLabel}
+          value={formatSignedCurrency(otherValue)}
+          className={pnlColor(otherValue)}
         />
-        <div className="ml-auto">
+        <div className="min-[900px]:hidden">
+          <Stat
+            label={leadLabel}
+            value={formatSignedCurrency(leadValue)}
+            className={pnlColor(leadValue)}
+          />
+        </div>
+        {/* Sparklines are dropped on mobile: at this width they compete with
+            the value for the eye and say nothing the percentage does not. */}
+        <div className="ml-auto hidden min-[900px]:block">
           <AccountSparkline values={spark} />
         </div>
       </div>
@@ -161,7 +172,7 @@ function TierTwoCard({ row, ...shared }: Shared & { row: Row }) {
   return (
     <div
       {...cardHandlers(acc.id, shared)}
-      className={`cursor-pointer rounded-lg border border-[var(--n-border-2)] bg-[var(--n-card-2)] px-[18px] py-4 transition hover:border-[var(--n-border-1)] ${
+      className={`cursor-pointer rounded-lg border border-[var(--n-border-2)] bg-[var(--n-card-2)] px-4 py-[14px] transition hover:border-[var(--n-border-1)] min-[900px]:px-[18px] min-[900px]:py-4 ${
         shared.dragId === acc.id ? "opacity-40" : ""
       }`}
     >
@@ -182,7 +193,9 @@ function TierTwoCard({ row, ...shared }: Shared & { row: Row }) {
         </span>
       </div>
 
-      <div className="mt-3 text-[22px] font-medium text-[var(--n-text)]">{formatCurrency(value)}</div>
+      <div className="mt-3 text-[20px] font-medium text-[var(--n-text)] min-[900px]:text-[22px]">
+        {formatCurrency(value)}
+      </div>
       <div className="mt-1.5 text-[12px]">
         {hasDay ? (
           <span className={pnlColor(dayValue)}>
@@ -196,17 +209,19 @@ function TierTwoCard({ row, ...shared }: Shared & { row: Row }) {
 
       <div className="mt-[14px] mb-[11px] h-px bg-[var(--n-border-2)]" />
 
-      <div className="grid grid-cols-2 gap-x-3 gap-y-2 text-[11.5px] text-[var(--n-label)]">
+      {/* One space-between row on mobile, a 2x2 grid once there is width for it. */}
+      <div className="flex flex-wrap justify-between gap-x-3 gap-y-1.5 text-[11.5px] text-[var(--n-label)] min-[900px]:grid min-[900px]:grid-cols-2 min-[900px]:gap-y-2">
         <span>
-          Unrealized <span className={pnlColor(s.unrealized)}>{formatSignedCurrency(s.unrealized)}</span>
+          Unrealized{" "}
+          <span className={pnlColor(s.unrealized)}>{formatSignedCurrency(s.unrealized)}</span>
         </span>
-        <span className="text-right">
+        <span className="min-[900px]:text-right">
           Realized <span className={pnlColor(s.realized)}>{formatSignedCurrency(s.realized)}</span>
         </span>
         <span>
           Cash <span className="text-[var(--n-text-2)]">{formatCurrency(cash)}</span>
         </span>
-        <span className="text-right text-[var(--n-text-2)]">
+        <span className="text-[var(--n-text-2)] min-[900px]:text-right">
           {open} open position{open === 1 ? "" : "s"}
         </span>
       </div>
@@ -231,12 +246,13 @@ function Stat({
   );
 }
 
+/** A row on mobile, a tile at the end of the tier-2 grid on desktop. */
 function NewAccountTile({ onClick }: { onClick: () => void }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="flex min-h-[132px] flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-[var(--n-border-1)] transition hover:border-[var(--n-accent-border)]"
+      className="flex min-h-[56px] flex-row items-center justify-center gap-2 rounded-lg border border-dashed border-[var(--n-border-1)] transition hover:border-[var(--n-accent-border)] min-[900px]:min-h-[132px] min-[900px]:flex-col"
     >
       <span className="flex h-[30px] w-[30px] items-center justify-center rounded-full border border-[var(--n-accent-border)] text-[17px] leading-none text-[var(--n-accent-on)]">
         +
