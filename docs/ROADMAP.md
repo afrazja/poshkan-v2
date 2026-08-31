@@ -14,16 +14,22 @@ execution path underneath it has to be reliable.
 
 ## P0 — The things that are still broken
 
-1. **Wick-aware TP/SL closes.** Unchanged and still the top item. `market-check` closes on the
-   *spot price at cron-run time*, so a price that touches TP/SL between runs and retraces is
-   missed. Close on each symbol's **candle high/low since the last run** (real bracket-order
-   behavior). This closer is scanner-agnostic — it handles manual, forex, AI and custom-strategy
-   positions alike — so removing the built-ins did nothing to shrink it. *Highest-value
-   reliability fix.*
+1. ~~**Wick-aware triggers.**~~ **Done, August 2026.** A cron only sees prices when it runs, so
+   comparing a resting level against spot-at-run-time missed anything the price touched and
+   retraced from between runs — the "hit my TP but never closed" bug. Forex position SL/TP was
+   already wick-aware; the fix extended the same treatment to every other price trigger in
+   `market-check`: forex entry orders, scaled take-profit levels, spot limit orders and price
+   alerts. All five now test the resting level against the **candle high/low since the last run**
+   (widened to include the live price) and fill **at the level**, matching `bracketHit`.
+   *Remaining limit:* the window is 6×5-minute candles (~30 min). If the pinger stalls longer than
+   that, levels touched in the gap are still missed — which makes item 2 below the real
+   dependency now.
 2. **Point the pinger at the surviving cron.** `/api/cron/scanners` now bundles three handlers
    (custom strategies, AI scanner, `market-check`) instead of eight. The five
    `/api/cron/<name>-scan` URLs are deleted and will 404. Confirm the external pinger hits the
-   bundle every ~1–2 min, document it, and add a health indicator when a run hasn't landed.
+   bundle every ~1–2 min, document it, and add a health indicator when a run hasn't landed. With
+   item 1 done this is the top reliability item: the wick window only covers ~30 minutes, so a
+   stalled pinger is now the single way a bracket gets missed.
 3. **Honest backtest numbers.** Promoted from the old P2.9, because a lab whose backtest flatters
    the user is worse than no lab. Walk-forward / out-of-sample windows and basic cost modeling
    (spread, slippage) so a strategy that only worked on the sample says so.
@@ -79,9 +85,10 @@ execution path underneath it has to be reliable.
 
 ## Suggested next step
 
-Ship **P0.1 (wick-aware closes)** — it directly ends the "didn't close at TP" class of bugs and is
-the single biggest trust win, and it was never scanner-specific. Then **P0.2** (a five-minute
-check that the pinger is aimed at the right URL, which the removal just made urgent) and **P0.3**.
+P0.1 is done, so the next thing is **P0.2** — confirm the external pinger is aimed at
+`/api/cron/scanners` and not at one of the five deleted URLs. It is a five-minute check, the
+scanner removal just made it urgent, and it is now the *only* remaining way a bracket gets missed
+(the wick window is ~30 minutes wide, so a stalled cron is the one gap left). Then **P0.3**.
 
 After that, **P2.9 (starter templates)** is likely higher leverage than more backtest depth: the
 lab is now the entire value proposition for a new user, and right now it greets them with an empty

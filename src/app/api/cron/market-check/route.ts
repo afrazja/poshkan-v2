@@ -67,6 +67,38 @@ export async function GET(request: Request) {
   }
 
   const quotes = await getQuotes(symbols);
+
+  // Wick-aware triggers. A cron only sees prices when it runs, so comparing a
+  // resting level against spot-at-run-time misses anything the price touched and
+  // retraced from between runs — the "hit my TP but never closed" bug. Pull the
+  // recent candle range for every symbol in play instead, so a level the wick
+  // reached still fires. Covers open positions, brackets AND resting orders.
+  const ranges: Record<string, { high: number; low: number }> = {};
+  await Promise.all(
+    symbols.map(async (sym) => {
+      try {
+        const cs = await getOhlc(sym, "5min", 6); // ~last 30 min, including the live bar
+        if (cs.length) {
+          ranges[sym] = {
+            high: Math.max(...cs.map((c) => c.high)),
+            low: Math.min(...cs.map((c) => c.low)),
+          };
+        }
+      } catch {
+        // no candles for this symbol — falls back to spot-only below
+      }
+    })
+  );
+
+  // The band a symbol actually traded through: recent candles widened to include
+  // the live price. A resting level inside it was hit. Fills happen AT the level,
+  // never at the extreme of the wick — a real resting order gets its own price,
+  // not the best tick of the spike.
+  const rangeFor = (symbol: string, spot: number) => {
+    const r = ranges[symbol.toUpperCase()];
+    return { hi: Math.max(r?.high ?? spot, spot), lo: Math.min(r?.low ?? spot, spot) };
+  };
+
   let filled = 0;
   let triggered = 0;
   let stopped = 0;
@@ -81,8 +113,9 @@ export async function GET(request: Request) {
     }
     const q = quotes[o.symbol.toUpperCase()];
     if (!q?.price) continue;
-    const meets =
-      o.trigger_when === "AT_OR_BELOW" ? q.price <= Number(o.entry_rate) : q.price >= Number(o.entry_rate);
+    const entry = Number(o.entry_rate);
+    const { hi, lo } = rangeFor(o.symbol, q.price);
+    const meets = o.trigger_when === "AT_OR_BELOW" ? lo <= entry : hi >= entry;
     if (!meets) continue;
     // Per-trade leverage stored on the order (defaults to 1× if unset).
     const lev = clampTradeLeverage((o as { leverage?: number }).leverage);
@@ -91,8 +124,8 @@ export async function GET(request: Request) {
       p_symbol: o.symbol,
       p_direction: o.direction,
       p_units: Number(o.units),
-      p_rate: q.price,
-      p_margin: marginFor(Number(o.units), q.price, lev, o.symbol),
+      p_rate: entry,
+      p_margin: marginFor(Number(o.units), entry, lev, o.symbol),
       p_stop_loss: o.stop_loss,
       p_take_profit: o.take_profit,
     });
@@ -103,7 +136,7 @@ export async function GET(request: Request) {
     }
     await db
       .from("fx_orders")
-      .update({ status: "filled", filled_at: new Date().toISOString(), filled_rate: q.price })
+      .update({ status: "filled", filled_at: new Date().toISOString(), filled_rate: entry })
       .eq("id", o.id)
       .eq("status", "pending");
     fxFilled++;
@@ -113,7 +146,7 @@ export async function GET(request: Request) {
       void sendPushToUser(ownerId, {
         title: `✅ Forex filled: ${o.direction} ${fmtPair(o.symbol)}`,
         body:
-          `${Number(o.units).toLocaleString()} units @ ${fmtRate(q.price)}` +
+          `${Number(o.units).toLocaleString()} units @ ${fmtRate(entry)}` +
           (o.stop_loss ? ` · SL ${fmtRate(Number(o.stop_loss))}` : "") +
           (o.take_profit ? ` · TP ${fmtRate(Number(o.take_profit))}` : ""),
       });
@@ -128,7 +161,9 @@ export async function GET(request: Request) {
     if (!info || info.status !== "open") continue;
     const q = quotes[(info.symbol ?? "").toUpperCase()];
     if (!q?.price) continue;
-    const meets = info.direction === "LONG" ? q.price >= Number(l.price) : q.price <= Number(l.price);
+    const level = Number(l.price);
+    const { hi, lo } = rangeFor(info.symbol ?? "", q.price);
+    const meets = info.direction === "LONG" ? hi >= level : lo <= level;
     if (!meets) continue;
     const { data: claimed } = await db
       .from("fx_tp_levels")
@@ -140,7 +175,7 @@ export async function GET(request: Request) {
     const { error } = await db.rpc("fx_close_partial", {
       p_position_id: l.position_id,
       p_close_units: Number(l.close_units),
-      p_rate: q.price,
+      p_rate: level,
       p_reason: "tp",
     });
     if (!error) {
@@ -149,29 +184,11 @@ export async function GET(request: Request) {
       if (ownerId) {
         void sendPushToUser(ownerId, {
           title: `🎯 Take-profit (partial): ${fmtPair(info.symbol ?? "")}`,
-          body: `Closed ${Number(l.close_units).toLocaleString()} units @ ${fmtRate(q.price)}`,
+          body: `Closed ${Number(l.close_units).toLocaleString()} units @ ${fmtRate(level)}`,
         });
       }
     }
   }
-
-  // Wick-aware brackets: pull the recent candle range per open-position symbol so
-  // a TP/SL the price *touched* between runs still triggers (not just spot now).
-  const ranges: Record<string, { high: number; low: number }> = {};
-  const posSyms = Array.from(new Set((fxPositions ?? []).map((p) => p.symbol.toUpperCase())));
-  await Promise.all(
-    posSyms.map(async (sym) => {
-      try {
-        const cs = await getOhlc(sym, "5min", 6); // ~last 30 min, including the live bar
-        if (cs.length) {
-          ranges[sym] = {
-            high: Math.max(...cs.map((c) => c.high)),
-            low: Math.min(...cs.map((c) => c.low)),
-          };
-        }
-      } catch {}
-    })
-  );
 
   // Forex auto-close: timed exit, then margin stop-out / stop-loss / take-profit.
   for (const p of fxPositions ?? []) {
@@ -202,9 +219,7 @@ export async function GET(request: Request) {
     if (floating <= -Number(p.margin)) {
       reason = "stopped";
     } else {
-      const r = ranges[p.symbol.toUpperCase()];
-      const hi = Math.max(r?.high ?? q.price, q.price);
-      const lo = Math.min(r?.low ?? q.price, q.price);
+      const { hi, lo } = rangeFor(p.symbol, q.price);
       const b = bracketHit(p, hi, lo);
       if (b) {
         reason = b.reason;
@@ -236,17 +251,18 @@ export async function GET(request: Request) {
   for (const o of orders ?? []) {
     const q = quotes[o.symbol.toUpperCase()];
     if (!q?.price) continue;
-    const meets =
-      o.side === "BUY" ? q.price <= Number(o.limit_price) : q.price >= Number(o.limit_price);
+    const limit = Number(o.limit_price);
+    const { hi, lo } = rangeFor(o.symbol, q.price);
+    const meets = o.side === "BUY" ? lo <= limit : hi >= limit;
     if (!meets) continue;
-    const { data } = await db.rpc("system_fill_order", { p_order_id: o.id, p_price: q.price });
+    const { data } = await db.rpc("system_fill_order", { p_order_id: o.id, p_price: limit });
     if (data === "filled") {
       filled++;
       const ownerId = (o as { accounts?: { user_id?: string } }).accounts?.user_id;
       if (ownerId) {
         void sendPushToUser(ownerId, {
           title: `✅ Order filled: ${o.side} ${symbolLabel(o.symbol)}`,
-          body: `${Number(o.quantity)} ${symbolLabel(o.symbol)} @ $${q.price.toFixed(2)} (limit $${Number(o.limit_price).toFixed(2)})`,
+          body: `${Number(o.quantity)} ${symbolLabel(o.symbol)} @ $${limit.toFixed(2)}`,
         });
       }
     }
@@ -255,12 +271,15 @@ export async function GET(request: Request) {
   for (const a of alerts ?? []) {
     const q = quotes[a.symbol.toUpperCase()];
     if (!q?.price) continue;
-    const hit =
-      a.condition === "ABOVE" ? q.price >= Number(a.target_price) : q.price <= Number(a.target_price);
+    const target = Number(a.target_price);
+    const { hi, lo } = rangeFor(a.symbol, q.price);
+    // An alert the price touched and retraced from still fired — the user asked
+    // to be told when it got there, not whether it stayed.
+    const hit = a.condition === "ABOVE" ? hi >= target : lo <= target;
     if (!hit) continue;
     const { data: claimed, error } = await db
       .from("alerts")
-      .update({ status: "triggered", triggered_at: new Date().toISOString(), triggered_price: q.price })
+      .update({ status: "triggered", triggered_at: new Date().toISOString(), triggered_price: target })
       .eq("id", a.id)
       .eq("status", "active")
       .select("id");
@@ -274,12 +293,12 @@ export async function GET(request: Request) {
       if (email) {
         await sendEmail(
           email,
-          `🔔 ${symbolLabel(a.symbol)} ${a.condition === "ABOVE" ? "rose to" : "dropped to"} $${q.price.toFixed(2)}`,
+          `🔔 ${symbolLabel(a.symbol)} ${a.condition === "ABOVE" ? "rose to" : "dropped to"} $${target.toFixed(2)}`,
           alertEmailHtml({
             symbol: a.symbol,
             condition: a.condition as "ABOVE" | "BELOW",
-            targetPrice: Number(a.target_price),
-            triggeredPrice: q.price,
+            targetPrice: target,
+            triggeredPrice: target,
             appUrl: new URL(request.url).origin,
           })
         );
@@ -289,7 +308,7 @@ export async function GET(request: Request) {
     }
     void sendPushToUser(a.user_id, {
       title: `🔔 ${symbolLabel(a.symbol)} alert`,
-      body: `${symbolLabel(a.symbol)} ${a.condition === "ABOVE" ? "rose to" : "dropped to"} $${q.price.toFixed(2)} (target $${Number(a.target_price).toFixed(2)})`,
+      body: `${symbolLabel(a.symbol)} ${a.condition === "ABOVE" ? "rose to" : "dropped to"} $${target.toFixed(2)} · now $${q.price.toFixed(2)}`,
     });
   }
 
