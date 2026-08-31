@@ -1,8 +1,7 @@
 import "server-only";
 
 import type { OhlcCandle } from "./marketdata";
-import { atr } from "./smc";
-import { rsi, sma } from "./indicators";
+import { atr, rsi, sma } from "./indicators";
 import { describeRule, type CustomRule, type CustomStrategyInput } from "./custom-strategy-types";
 
 export interface CustomRuleRead {

@@ -1,11 +1,6 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import AccountView from "@/components/account/AccountView";
-import { getSmcData } from "./smc-actions";
-import { getOteData } from "./ote-actions";
-import { getTrendData } from "./trend-actions";
-import { getMeanRevData } from "./meanrev-actions";
-import { getCandleRangeData } from "./candlerange-actions";
 import type { Account, Position, WatchlistItem, Transaction, Order, FxPosition, FxOrder, FxTpLevel } from "@/lib/types";
 
 export default async function AccountPage({
@@ -70,15 +65,7 @@ export default async function AccountPage({
     .eq("fx_positions.account_id", accountId)
     .eq("status", "pending");
 
-  // Scanner config for this account (powers the active indicators + their popups).
   const acc = account as Account;
-  const [smc, ote, trend, meanrev, candlerange] = await Promise.all([
-    getSmcData(accountId),
-    getOteData(accountId),
-    getTrendData(accountId),
-    getMeanRevData(accountId),
-    getCandleRangeData(accountId),
-  ]);
   const autoSettings = {
     enabled: !!acc.auto_trade_enabled,
     riskPct: (acc.auto_risk_pct ?? 0.01) * 100,
@@ -102,16 +89,6 @@ export default async function AccountPage({
       initialFxTpLevels={(fxTpLevels ?? []) as unknown as FxTpLevel[]}
       autoSettings={autoSettings}
       aiInstruction={acc.ai_instruction ?? null}
-      smcSettings={smc?.settings ?? null}
-      smcSignals={smc?.signals ?? []}
-      oteSettings={ote?.settings ?? null}
-      oteSignals={ote?.signals ?? []}
-      trendSettings={trend?.settings ?? null}
-      trendSignals={trend?.signals ?? []}
-      meanrevSettings={meanrev?.settings ?? null}
-      meanrevSignals={meanrev?.signals ?? []}
-      candlerangeSettings={candlerange?.settings ?? null}
-      candlerangeSignals={candlerange?.signals ?? []}
     />
   );
 }

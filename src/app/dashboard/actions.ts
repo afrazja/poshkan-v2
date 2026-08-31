@@ -61,27 +61,6 @@ export async function createDemoAccountAction(): Promise<{ accountId?: string; e
   if (error) return { error: error.message };
   const accountId = data as string;
 
-  // Pre-enable the SMC scanner on the big-three majors (best-effort — if the
-  // smc-scanner migration isn't run yet the account is still created fine).
-  if (accountId) {
-    await supabase.from("smc_settings").upsert(
-      {
-        account_id: accountId,
-        enabled: true,
-        mode: "alert",
-        symbols: ["BTC-USD", "ETH-USD", "SOL-USD"],
-        risk_pct: 0.01,
-        tp_rr: 2,
-        sl_mode: "swing",
-        max_open: 3,
-        max_per_day: 2,
-        daily_loss_pct: 0.03,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "account_id" }
-    );
-  }
-
   revalidatePath("/dashboard");
   return { accountId };
 }

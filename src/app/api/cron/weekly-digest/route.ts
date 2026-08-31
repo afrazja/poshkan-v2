@@ -104,11 +104,6 @@ export async function GET(request: Request) {
 
   // Signal volume per account across every scanner.
   const signalTables: Array<[string, string]> = [
-    ["smc_signals", "created_at"],
-    ["ote_signals", "created_at"],
-    ["trend_signals", "created_at"],
-    ["meanrev_signals", "created_at"],
-    ["candlerange_signals", "created_at"],
     ["fx_scan_alerts", "alerted_at"],
   ];
   const signalRows = (

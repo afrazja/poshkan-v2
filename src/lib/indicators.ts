@@ -1,3 +1,5 @@
+import type { OhlcCandle } from "./marketdata";
+
 // Lightweight technical indicators computed from a series of closing prices.
 // Pure functions — no external data, easy to test.
 
@@ -39,4 +41,40 @@ export function support(lows: number[], lookback = 20): number {
 }
 export function resistance(highs: number[], lookback = 20): number {
   return Math.max(...highs.slice(-lookback));
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Candle helpers. These lived in lib/smc.ts until the built-in scanners were
+// removed; they are generic, and the OHLC endpoint and the custom-strategy
+// engine still depend on them.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Keep only fully-closed, grid-aligned candles. Yahoo appends a live "snapshot"
+// bar (O=H=L=C, datetime off-grid) — judging a signal on that bar reads a
+// half-formed candle as a finished one, so it is dropped here for good.
+export function realBars(cs: OhlcCandle[], stepMin: number): OhlcCandle[] {
+  return cs.filter((c) => {
+    const d = new Date(c.datetime);
+    if (isNaN(d.getTime())) return false;
+    // The live snapshot bar lands on the current wall-clock (non-zero seconds);
+    // every real closed bar is on an exact boundary. seconds===0 drops it.
+    if (d.getUTCSeconds() !== 0) return false;
+    // Intraday must sit on the step grid. Hourly bars differ by market (crypto/
+    // forex at :00 UTC, US stocks at :30), so only require a whole-minute bar.
+    return stepMin >= 60 ? true : d.getUTCMinutes() % stepMin === 0;
+  });
+}
+
+// Average true range over the last `n` bars.
+export function atr(c: OhlcCandle[], n: number): number {
+  if (c.length < 2) return 0;
+  const trs: number[] = [];
+  for (let i = 1; i < c.length; i++) {
+    const h = c[i].high;
+    const l = c[i].low;
+    const pc = c[i - 1].close;
+    trs.push(Math.max(h - l, Math.abs(h - pc), Math.abs(l - pc)));
+  }
+  const last = trs.slice(-n);
+  return last.reduce((a, b) => a + b, 0) / (last.length || 1);
 }

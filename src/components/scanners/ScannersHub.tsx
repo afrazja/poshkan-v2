@@ -6,15 +6,8 @@ import Modal from "@/components/Modal";
 import { useRouter } from "next/navigation";
 import { deactivateScanner } from "@/app/dashboard/scanners/actions";
 import AiScanner, { type AutoSettings } from "@/components/account/AiScanner";
-import SmcScanner from "@/components/account/SmcScanner";
-import OteScanner from "@/components/account/OteScanner";
-import TrendScanner from "@/components/account/TrendScanner";
-import MeanRevScanner from "@/components/account/MeanRevScanner";
-import CandleRangeScanner from "@/components/account/CandleRangeScanner";
 import ScannerOnboard from "@/components/scanners/ScannerOnboard";
 import CronHealth from "@/components/scanners/CronHealth";
-import ScannerCompare from "@/components/scanners/ScannerCompare";
-import ScannerActivity, { RecentActivitySummary, type ActivityItem } from "@/components/scanners/ScannerActivity";
 import { type ScannerKind } from "@/components/ScannerIcon";
 import {
   BarChart3,
@@ -34,11 +27,6 @@ import ScannerFilterBar, {
   type ScannerAssetFilter,
   type ScannerSort,
 } from "@/components/scanners/ScannerFilterBar";
-import type { SmcSettings, SmcSignal } from "@/app/dashboard/[accountId]/smc-actions";
-import type { OteSettings, OteSignal } from "@/app/dashboard/[accountId]/ote-actions";
-import type { TrendSettings, TrendSignal } from "@/app/dashboard/[accountId]/trend-actions";
-import type { MeanRevSettings, MeanRevSignal } from "@/app/dashboard/[accountId]/meanrev-actions";
-import type { CandleRangeSettings, CandleRangeSignal } from "@/app/dashboard/[accountId]/candlerange-actions";
 
 export interface ScanAcct {
   id: string;
@@ -47,16 +35,6 @@ export interface ScanAcct {
   autoSettings: AutoSettings;
   aiInstruction: string | null;
   aiSymbols: string[] | null;
-  smcSettings: SmcSettings | null;
-  smcSignals: SmcSignal[];
-  oteSettings: OteSettings | null;
-  oteSignals: OteSignal[];
-  trendSettings: TrendSettings | null;
-  trendSignals: TrendSignal[];
-  meanrevSettings: MeanRevSettings | null;
-  meanrevSignals: MeanRevSignal[];
-  candlerangeSettings: CandleRangeSettings | null;
-  candlerangeSignals: CandleRangeSignal[];
 }
 
 // One entry per scanner CARD (not per account) — drives the filter bar, search,
@@ -75,36 +53,6 @@ function freshest(accounts: ScanAcct[], pick: (a: ScanAcct) => string | null | u
 }
 
 const SCANNER_DEFS: ScannerDef[] = [
-  {
-    key: "smc",
-    name: "SMC Scanner",
-    isEnabledFor: (a) => !!a.smcSettings?.enabled,
-    lastRunAt: (accounts) => freshest(accounts, (a) => a.smcSettings?.last_run_at),
-  },
-  {
-    key: "ote",
-    name: "OTE Scanner",
-    isEnabledFor: (a) => !!a.oteSettings?.enabled,
-    lastRunAt: (accounts) => freshest(accounts, (a) => a.oteSettings?.last_run_at),
-  },
-  {
-    key: "trend",
-    name: "Trend Breakout",
-    isEnabledFor: (a) => !!a.trendSettings?.enabled,
-    lastRunAt: (accounts) => freshest(accounts, (a) => a.trendSettings?.last_run_at),
-  },
-  {
-    key: "meanrev",
-    name: "Mean Reversion",
-    isEnabledFor: (a) => !!a.meanrevSettings?.enabled,
-    lastRunAt: (accounts) => freshest(accounts, (a) => a.meanrevSettings?.last_run_at),
-  },
-  {
-    key: "candlerange",
-    name: "Candle Range",
-    isEnabledFor: (a) => !!a.candlerangeSettings?.enabled,
-    lastRunAt: (accounts) => freshest(accounts, (a) => a.candlerangeSettings?.last_run_at),
-  },
   {
     key: "ai",
     name: "AI Scanner",
@@ -172,42 +120,6 @@ export default function ScannersHub({
   customStrategies: CustomStrategyRow[];
   customSignals: CustomStrategySignalSummary[];
 }) {
-  // One chronological activity feed, built from the signals already loaded above.
-  type Sig = {
-    id: string;
-    symbol: string;
-    direction: "LONG" | "SHORT";
-    entry: number | null;
-    take_profit: number | null;
-    reason: string | null;
-    executed: boolean;
-    created_at: string;
-  };
-  const activity: ActivityItem[] = accounts.flatMap((a) => {
-    const groups: { arr: Sig[]; kind: ScannerKind; name: string }[] = [
-      { arr: a.smcSignals as unknown as Sig[], kind: "smc", name: "SMC" },
-      { arr: a.oteSignals as unknown as Sig[], kind: "ote", name: "OTE" },
-      { arr: a.trendSignals as unknown as Sig[], kind: "trend", name: "Trend" },
-      { arr: a.meanrevSignals as unknown as Sig[], kind: "meanrev", name: "Mean Rev" },
-      { arr: a.candlerangeSignals as unknown as Sig[], kind: "candlerange", name: "Range" },
-    ];
-    return groups.flatMap((g) =>
-      (g.arr ?? []).map((sig) => ({
-        id: `${g.name}-${sig.id}`,
-        createdAt: sig.created_at,
-        accountName: a.name,
-        kind: g.kind,
-        scanner: g.name,
-        symbol: sig.symbol,
-        direction: sig.direction,
-        executed: sig.executed,
-        entry: sig.entry,
-        takeProfit: sig.take_profit,
-        reason: sig.reason,
-      }))
-    );
-  });
-
   // Search / filter / sort over the scanner CARDS (not the accounts) — updates
   // live as the user types/clicks, no submit step.
   const [search, setSearch] = useState("");
@@ -322,9 +234,7 @@ export default function ScannersHub({
           <div className="border-l-2 border-primary pl-3 text-sm text-muted">
             Start from a researched rule set, inspect how it works, then use what you learn to build your own experiment.
           </div>
-      <RecentActivitySummary items={activity} />
 
-      <ScannerCompare accounts={accounts.map((a) => ({ id: a.id, name: a.name, type: a.type }))} />
 
       <ScannerFilterBar
         search={search}
@@ -338,100 +248,10 @@ export default function ScannersHub({
       />
 
       <div className="flex flex-col gap-6">
-        {visible.smc && (
-          <div style={{ order: order.smc }}>
-            <StrategyBlock
-              accounts={accounts}
-              scannerKey="smc"
-              isActive={(a) => !!a.smcSettings?.enabled}
-              render={(a, accountSelector) => (
-                <SmcScanner
-                  accountId={a.id}
-                  accountType={a.type}
-                  initialSettings={a.smcSettings}
-                  initialSignals={a.smcSignals}
-                  accountSelector={accountSelector}
-                />
-              )}
-            />
-          </div>
-        )}
 
-        {visible.ote && (
-          <div style={{ order: order.ote }}>
-            <StrategyBlock
-              accounts={accounts}
-              scannerKey="ote"
-              isActive={(a) => !!a.oteSettings?.enabled}
-              render={(a, accountSelector) => (
-                <OteScanner
-                  accountId={a.id}
-                  accountType={a.type}
-                  initialSettings={a.oteSettings}
-                  initialSignals={a.oteSignals}
-                  accountSelector={accountSelector}
-                />
-              )}
-            />
-          </div>
-        )}
 
-        {visible.trend && (
-          <div style={{ order: order.trend }}>
-            <StrategyBlock
-              accounts={accounts}
-              scannerKey="trend"
-              isActive={(a) => !!a.trendSettings?.enabled}
-              render={(a, accountSelector) => (
-                <TrendScanner
-                  accountId={a.id}
-                  accountType={a.type}
-                  initialSettings={a.trendSettings}
-                  initialSignals={a.trendSignals}
-                  accountSelector={accountSelector}
-                />
-              )}
-            />
-          </div>
-        )}
 
-        {visible.meanrev && (
-          <div style={{ order: order.meanrev }}>
-            <StrategyBlock
-              accounts={accounts}
-              scannerKey="meanrev"
-              isActive={(a) => !!a.meanrevSettings?.enabled}
-              render={(a, accountSelector) => (
-                <MeanRevScanner
-                  accountId={a.id}
-                  accountType={a.type}
-                  initialSettings={a.meanrevSettings}
-                  initialSignals={a.meanrevSignals}
-                  accountSelector={accountSelector}
-                />
-              )}
-            />
-          </div>
-        )}
 
-        {visible.candlerange && (
-          <div style={{ order: order.candlerange }}>
-            <StrategyBlock
-              accounts={accounts}
-              scannerKey="candlerange"
-              isActive={(a) => !!a.candlerangeSettings?.enabled}
-              render={(a, accountSelector) => (
-                <CandleRangeScanner
-                  accountId={a.id}
-                  accountType={a.type}
-                  initialSettings={a.candlerangeSettings}
-                  initialSignals={a.candlerangeSignals}
-                  accountSelector={accountSelector}
-                />
-              )}
-            />
-          </div>
-        )}
 
         {visible.ai && (
           <div style={{ order: order.ai }}>
@@ -460,7 +280,6 @@ export default function ScannersHub({
         )}
       </div>
 
-      <ScannerActivity items={activity} />
         </>
       )}
 
@@ -505,7 +324,6 @@ export default function ScannersHub({
             signals={customSignals}
             accounts={accounts}
           />
-          <ScannerCompare accounts={accounts.map((a) => ({ id: a.id, name: a.name, type: a.type }))} />
         </div>
       )}
     </div>

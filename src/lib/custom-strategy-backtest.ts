@@ -1,7 +1,7 @@
 import "server-only";
 
 import { getOhlc, type OhlcCandle } from "./marketdata";
-import { realBars } from "./smc";
+import { realBars } from "./indicators";
 import { costInR } from "./trading-costs";
 import { evaluateCustomStrategyAt, minimumBarsForStrategy } from "./custom-strategy";
 import type {

@@ -14,16 +14,6 @@ import LeveragePanel from "./LeveragePanel";
 import TradeCoach from "./TradeCoach";
 import MarketStatusBadge from "./MarketStatusBadge";
 import AiScanner, { type AutoSettings } from "./AiScanner";
-import SmcScanner from "./SmcScanner";
-import OteScanner from "./OteScanner";
-import TrendScanner from "./TrendScanner";
-import MeanRevScanner from "./MeanRevScanner";
-import CandleRangeScanner from "./CandleRangeScanner";
-import type { SmcSettings, SmcSignal } from "@/app/dashboard/[accountId]/smc-actions";
-import type { OteSettings, OteSignal } from "@/app/dashboard/[accountId]/ote-actions";
-import type { TrendSettings, TrendSignal } from "@/app/dashboard/[accountId]/trend-actions";
-import type { MeanRevSettings, MeanRevSignal } from "@/app/dashboard/[accountId]/meanrev-actions";
-import type { CandleRangeSettings, CandleRangeSignal } from "@/app/dashboard/[accountId]/candlerange-actions";
 import { useQuotes } from "@/lib/useQuotes";
 import { useSymbolSparks } from "@/lib/useSymbolSparks";
 import { realizedPnl } from "@/lib/pnl";
@@ -65,16 +55,6 @@ export default function AccountView({
   initialFxTpLevels = [],
   autoSettings,
   aiInstruction = null,
-  smcSettings = null,
-  smcSignals = [],
-  oteSettings = null,
-  oteSignals = [],
-  trendSettings = null,
-  trendSignals = [],
-  meanrevSettings = null,
-  meanrevSignals = [],
-  candlerangeSettings = null,
-  candlerangeSignals = [],
 }: {
   account: Account;
   initialPositions: Position[];
@@ -86,16 +66,6 @@ export default function AccountView({
   initialFxTpLevels?: FxTpLevel[];
   autoSettings?: AutoSettings;
   aiInstruction?: string | null;
-  smcSettings?: SmcSettings | null;
-  smcSignals?: SmcSignal[];
-  oteSettings?: OteSettings | null;
-  oteSignals?: OteSignal[];
-  trendSettings?: TrendSettings | null;
-  trendSignals?: TrendSignal[];
-  meanrevSettings?: MeanRevSettings | null;
-  meanrevSignals?: MeanRevSignal[];
-  candlerangeSettings?: CandleRangeSettings | null;
-  candlerangeSignals?: CandleRangeSignal[];
 }) {
   const router = useRouter();
   const [selected, setSelected] = useState<{ symbol: string; name: string } | null>(null);
@@ -103,14 +73,9 @@ export default function AccountView({
   const [cashModal, setCashModal] = useState<"DEPOSIT" | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
   const [scannerModal, setScannerModal] = useState<
-    "ai" | "smc" | "ote" | "trend" | "meanrev" | "candlerange" | null
+    "ai" | null
   >(null);
   const aiActive = !!autoSettings?.enabled;
-  const smcActive = !!smcSettings?.enabled;
-  const oteActive = !!oteSettings?.enabled;
-  const trendActive = !!trendSettings?.enabled;
-  const meanrevActive = !!meanrevSettings?.enabled;
-  const candlerangeActive = !!candlerangeSettings?.enabled;
   const [metricChart, setMetricChart] = useState<"holdings" | "pnl" | null>(null);
   const [tab, setTab] = useState<Tab>("holdings");
 
@@ -329,18 +294,13 @@ export default function AccountView({
       </div>
 
       {/* Active scanners on this account — tap to configure/disable in place */}
-      {(aiActive || smcActive || oteActive || trendActive || meanrevActive || candlerangeActive) && (
+      {aiActive && (
         <div className="flex flex-wrap items-center gap-2 text-xs">
           <span className="text-muted">Active scanners</span>
           {(
             [
               [aiActive, "ai", "AI Scanner"],
-              [smcActive, "smc", "SMC Scanner"],
-              [oteActive, "ote", "OTE Scanner"],
-              [trendActive, "trend", "Trend Breakout"],
-              [meanrevActive, "meanrev", "Mean Reversion"],
-              [candlerangeActive, "candlerange", "Candle Range"],
-            ] as [boolean, "ai" | "smc" | "ote" | "trend" | "meanrev" | "candlerange", string][]
+            ] as [boolean, "ai", string][]
           ).map(
             ([active, kind, label]) =>
               active && (
@@ -690,61 +650,6 @@ export default function AccountView({
             autoSettings={autoSettings}
             aiInstruction={aiInstruction}
             aiSymbols={account.ai_symbols}
-            defaultOpen
-          />
-        </Modal>
-      )}
-      {scannerModal === "smc" && (
-        <Modal title={`${account.name} · scanner`} onClose={() => setScannerModal(null)} wide>
-          <SmcScanner
-            accountId={account.id}
-            accountType={account.type}
-            initialSettings={smcSettings}
-            initialSignals={smcSignals}
-            defaultOpen
-          />
-        </Modal>
-      )}
-      {scannerModal === "ote" && (
-        <Modal title={`${account.name} · scanner`} onClose={() => setScannerModal(null)} wide>
-          <OteScanner
-            accountId={account.id}
-            accountType={account.type}
-            initialSettings={oteSettings}
-            initialSignals={oteSignals}
-            defaultOpen
-          />
-        </Modal>
-      )}
-      {scannerModal === "trend" && (
-        <Modal title={`${account.name} · scanner`} onClose={() => setScannerModal(null)} wide>
-          <TrendScanner
-            accountId={account.id}
-            accountType={account.type}
-            initialSettings={trendSettings}
-            initialSignals={trendSignals}
-            defaultOpen
-          />
-        </Modal>
-      )}
-      {scannerModal === "meanrev" && (
-        <Modal title={`${account.name} · scanner`} onClose={() => setScannerModal(null)} wide>
-          <MeanRevScanner
-            accountId={account.id}
-            accountType={account.type}
-            initialSettings={meanrevSettings}
-            initialSignals={meanrevSignals}
-            defaultOpen
-          />
-        </Modal>
-      )}
-      {scannerModal === "candlerange" && (
-        <Modal title={`${account.name} · scanner`} onClose={() => setScannerModal(null)} wide>
-          <CandleRangeScanner
-            accountId={account.id}
-            accountType={account.type}
-            initialSettings={candlerangeSettings}
-            initialSignals={candlerangeSignals}
             defaultOpen
           />
         </Modal>

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getOhlc } from "@/lib/marketdata";
-import { realBars } from "@/lib/smc";
+import { realBars } from "@/lib/indicators";
 import { requireUser } from "../_auth";
 
 const INTERVAL_MIN: Record<string, number> = { "5min": 5, "15min": 15, "1h": 60, "1day": 1440 };

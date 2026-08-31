@@ -55,7 +55,7 @@ export const TERMS: Term[] = [
       "A stop-loss automatically closes your position when price hits a level you chose, capping the loss. A take-profit does the opposite: it closes the position when price reaches your target, locking in the gain.",
     body: [
       "Together they turn a trade from a hope into a plan: before you enter, you know exactly where you're wrong (the stop) and where you're satisfied (the target). The distance to your stop also defines your risk — which is what position sizing should be built on.",
-      "The ratio between the two distances is your reward:risk. A trade risking 10 pips to make 30 is a 1:3 — it can be wrong more often than right and still make money. Every deterministic scanner on Poshkan sets a stop and target on every trade automatically; watching where it puts them is a fast way to build the habit.",
+      "The ratio between the two distances is your reward:risk. A trade risking 10 pips to make 30 is a 1:3 — it can be wrong more often than right and still make money. Poshkan's Strategy Lab makes you set a stop and target on every rule you build; deciding where they go is a fast way to build the habit.",
     ],
     related: ["win-rate-vs-profit-factor", "leverage-and-margin", "what-is-atr"],
     strategies: [{ slug: "optimal-trade-entry", label: "Optimal Trade Entry — built entirely around reward:risk geometry" }],
@@ -99,7 +99,7 @@ export const TERMS: Term[] = [
       "Win rate is the percentage of trades that make money. Profit factor is gross profits divided by gross losses — above 1.0 means the strategy makes money overall. A strategy can have a high win rate and still lose if its rare losses outweigh its many small wins.",
     body: [
       "The two metrics describe opposite strategy personalities. Mean-reversion and range strategies win often but small — high win rate, modest profit factor. Breakout strategies win rarely but big — a 40% win rate with 3R winners is comfortably profitable. Judging either type by the other's metric is how beginners pick exactly the wrong strategy.",
-      "The honest evaluation uses both, plus max drawdown (the worst peak-to-valley losing stretch). Poshkan's backtests report all three for every deterministic scanner, over the same rules the live scanner runs — so the numbers you judge are the numbers you'd get.",
+      "The honest evaluation uses both, plus max drawdown (the worst peak-to-valley losing stretch). Poshkan's backtests report all three for any strategy you build, over the same rules it would trade — so the numbers you judge are the numbers you'd get.",
     ],
     related: ["stop-loss-take-profit", "what-is-atr"],
     strategies: [
@@ -147,7 +147,7 @@ export const TERMS: Term[] = [
       "ATR (Average True Range) measures a market's typical bar-to-bar movement — its volatility. An ATR of $2 means the market has recently moved about $2 per bar on average.",
     body: [
       "ATR's killer application is stop placement. A fixed 50-cent stop is generous on a sleepy stock and suicide on a volatile one — the same dollar distance means completely different things. A stop set at 2× ATR adapts automatically: wider when the market is wild (so normal noise doesn't stop you out), tighter when it's calm.",
-      "Several Poshkan scanners size their stops in ATR multiples for exactly this reason — the '×ATR' setting you'll see in their risk sections. It's one number that makes the same strategy sane across BTC, EUR/USD, and a small-cap stock.",
+      "Poshkan's Strategy Lab sizes stops in ATR multiples for exactly this reason — the '×ATR' setting you'll see in its risk section. It's one number that makes the same strategy sane across BTC, EUR/USD, and a small-cap stock.",
     ],
     related: ["what-is-adx", "stop-loss-take-profit"],
     strategies: [
@@ -165,7 +165,7 @@ export const TERMS: Term[] = [
       "ADX (Average Directional Index) measures trend strength on a 0–100 scale — not direction. Readings below ~20 suggest a choppy, directionless market; above ~25 suggests a real trend is underway.",
     body: [
       "ADX answers the one question every breakout trader needs answered before entering: is this market actually going somewhere, or just flailing? A breakout with ADX at 12 is statistically a coin-flip fake-out; the same breakout with ADX at 30 has a trend behind it.",
-      "That's why trend-following scanners use ADX as a gate: no trend strength, no trade, regardless of how clean the breakout looks. It's the filter that keeps a breakout strategy out of the sideways chop that would otherwise bleed it dry.",
+      "That's why trend-following strategies use ADX as a gate: no trend strength, no trade, regardless of how clean the breakout looks. It's the filter that keeps a breakout strategy out of the sideways chop that would otherwise bleed it dry.",
     ],
     related: ["what-is-atr", "win-rate-vs-profit-factor"],
     strategies: [{ slug: "trend-breakout", label: "Trend Breakout — ADX-gated breakouts" }],

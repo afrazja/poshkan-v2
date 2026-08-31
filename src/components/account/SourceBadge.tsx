@@ -1,6 +1,8 @@
 import ScannerIcon, { type ScannerKind } from "@/components/ScannerIcon";
 
 // Badge showing which scanner opened a position (or "Manual" if the user did).
+// The five deterministic scanners were removed, but trades they opened are
+// still in the ledger — these entries stay so history keeps its label.
 const LABELS: Record<string, { kind: ScannerKind; label: string }> = {
   ai: { kind: "ai", label: "AI" },
   smc: { kind: "smc", label: "SMC" },

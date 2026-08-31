@@ -75,11 +75,6 @@ export default async function AdminPage() {
     db.from("fx_positions").select("opened_at").gte("opened_at", d14),
     db.from("push_subscriptions").select("id", { count: "exact", head: true }),
     db.from("fx_scan_alerts").select("id", { count: "exact", head: true }).gte("alerted_at", d7),
-    scannerHealth(db, "SMC", "smc_settings", "smc_signals", d7),
-    scannerHealth(db, "OTE", "ote_settings", "ote_signals", d7),
-    scannerHealth(db, "Trend", "trend_settings", "trend_signals", d7),
-    scannerHealth(db, "Mean-rev", "meanrev_settings", "meanrev_signals", d7),
-    scannerHealth(db, "Candle Range", "candlerange_settings", "candlerange_signals", d7),
   ]);
 
   const users = usersRes.data?.users ?? [];

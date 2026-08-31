@@ -1,4 +1,4 @@
-// Public, indexable explainers for each scanner strategy — the SEO content
+// Public, indexable explainers for each trading strategy — the SEO content
 // surface. Copy is adapted and expanded from the in-app "How it works"
 // explainers, so the marketing pages and the product never drift apart.
 
@@ -110,7 +110,7 @@ export const STRATEGIES: Strategy[] = [
       "Stop-loss is a multiple of ATR (so it scales with volatility); target is a fixed reward:risk such as 3R.",
     ],
     shines: [
-      "Breakouts shine in strong, persistent trends — crypto bull runs, momentum stocks, trending FX. They bleed in sideways chop, which is exactly what the ADX filter is there to avoid: when the market is directionless, the scanner just says 'no-setup' and waits.",
+      "Breakouts shine in strong, persistent trends — crypto bull runs, momentum stocks, trending FX. They bleed in sideways chop, which is exactly what the ADX filter is there to avoid: when the market is directionless, the rule simply produces no setup and waits.",
     ],
     terms: [
       { term: "Donchian channel", def: "The band between the highest high and lowest low of the last N bars." },
@@ -134,7 +134,7 @@ export const STRATEGIES: Strategy[] = [
     hook: "When price stretches too far, too fast — bet on the snap-back.",
     lead: [
       "Mean reversion is the counterpunch to trend-following. Markets overreact: a burst of buying or selling stretches price far from its recent average, and more often than not it snaps back. This strategy quantifies 'too far' with Bollinger Bands — a moving average with bands drawn a set number of standard deviations away — and fades the stretch, targeting the return to the middle.",
-      "It's the natural opposite of the Trend Breakout scanner: one buys strength, the other sells it. Running both is a classic way to hold edges for different market regimes.",
+      "It's the natural opposite of trend breakout: one buys strength, the other sells it. Running both is a classic way to hold edges for different market regimes.",
     ],
     how: [
       "On 1-hour bars, draw Bollinger Bands: a moving average ± a multiple of standard deviation.",
@@ -175,7 +175,7 @@ export const STRATEGIES: Strategy[] = [
       "Confirm it's a real range: price must have touched both edges several times — one bounce isn't a range.",
       "Near the lower edge with a bullish confirmation candle → go long. Near the upper edge with a bearish candle → go short.",
       "Target the opposite edge of the box; the stop sits just beyond the edge you entered at.",
-      "If price breaks out of the box, the scanner stands aside — no trading a range that no longer exists.",
+      "If price breaks out of the box, the rule stands aside — no trading a range that no longer exists.",
     ],
     shines: [
       "Range trading is the specialist for sideways, directionless markets — the conditions that starve every trend strategy. Its enemy is the breakout: a range pays you in small, frequent wins, and then the box breaks and takes a chunk back. The edge-confirmation and breakout-detection rules exist to keep that chunk small.",
@@ -200,8 +200,8 @@ export const STRATEGIES: Strategy[] = [
       "Write trading rules in plain English and let Claude scan the market, propose entries, stops and rationale — alert-only or virtual auto-trading.",
     hook: "Describe your strategy in plain English. The AI does the scanning.",
     lead: [
-      "The other five scanners are deterministic — fixed formulas that fire when their exact conditions are met. The AI Scanner is the flexible one: instead of parameters, you give it instructions in plain English ('only trade pullbacks in uptrends, skip anything before major news, prefer 1:3 or better'), and Claude — the AI model by Anthropic — evaluates recent price action against your rules.",
-      "Every proposal comes with an entry, stop-loss, target, and a written rationale, so you can review why it likes the setup — and it either alerts you or places virtual trades inside the same risk limits every Poshkan scanner obeys.",
+      "The five formula strategies on this site are deterministic — fixed formulas that fire when their exact conditions are met. The AI Scanner is the flexible one: instead of parameters, you give it instructions in plain English ('only trade pullbacks in uptrends, skip anything before major news, prefer 1:3 or better'), and Claude — the AI model by Anthropic — evaluates recent price action against your rules.",
+      "Every proposal comes with an entry, stop-loss, target, and a written rationale, so you can review why it likes the setup — and it either alerts you or places virtual trades inside your account's risk limits.",
     ],
     how: [
       "Write your strategy in plain English — or start with the built-in one and edit from there.",
@@ -210,7 +210,7 @@ export const STRATEGIES: Strategy[] = [
       "In alert mode it notifies you and does nothing else; in auto-trade mode it opens simulated positions within your risk %, max-open, max-per-day, and daily-loss limits.",
     ],
     shines: [
-      "It shines when your edge is judgement rather than a formula — nuanced rules, context, exceptions — or when you want to prototype a strategy idea in an afternoon by literally writing it down. It's also the honest one about its limits: because the model isn't deterministic, it can't be backtested the way the formula scanners can.",
+      "It shines when your edge is judgement rather than a formula — nuanced rules, context, exceptions — or when you want to prototype a strategy idea in an afternoon by literally writing it down. It's also the honest one about its limits: because the model isn't deterministic, it can't be backtested the way a fixed formula can.",
     ],
     terms: [
       { term: "Deterministic vs discretionary", def: "Fixed-formula strategies always fire identically on the same data; discretionary ones apply judgement — the AI Scanner is judgement, encoded in your words." },

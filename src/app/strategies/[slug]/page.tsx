@@ -105,11 +105,12 @@ export default async function StrategyPage({ params }: { params: Promise<{ slug:
 
         {/* CTA */}
         <div className="mt-10 rounded-2xl border border-primary/30 bg-primary/5 p-6">
-          <h2 className="font-semibold">Watch this strategy trade — free, on virtual money</h2>
+          <h2 className="font-semibold">Test this strategy — free, on virtual money</h2>
           <p className="mt-1 text-sm text-muted">
-            Poshkan runs {s.shortName === "AI" ? "the AI Scanner" : `${s.name} as a live scanner`} on{" "}
-            {s.markets}. Flip it on in alert mode, watch the signals land, backtest where it applies —
-            and never risk a cent while you learn.
+            {s.shortName === "AI"
+              ? `Poshkan runs the AI Scanner on ${s.markets} — describe your rules in plain English and watch it work.`
+              : `Build ${s.name} rule by rule in Poshkan's Strategy Lab and backtest it on ${s.markets}.`}{" "}
+            Never risk a cent while you learn.
           </p>
           <Link
             href="/"
