@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { createDemoAccountAction } from "@/app/dashboard/actions";
 
 // First-run hero for users with zero accounts — one tap spins up a funded demo
-// with a scanner already on, then drops them into the guided scanner flow.
+// account, then drops them into the guided Strategy Lab flow.
 export default function WelcomeHero() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -33,20 +33,23 @@ export default function WelcomeHero() {
       <span className="inline-block rounded-full bg-primary/15 px-3 py-1 text-xs font-semibold text-primary">
         ✦ Welcome to Poshkan
       </span>
-      <h2 className="mt-3 text-xl font-bold tracking-tight sm:text-2xl">See the magic in 60 seconds</h2>
+      <h2 className="mt-3 text-xl font-bold tracking-tight sm:text-2xl">
+        Build your first strategy in 60 seconds
+      </h2>
       <p className="mt-2 max-w-xl text-sm text-muted">
-        We&apos;ll spin up a funded demo crypto account with a strategy scanner already switched on —
-        then you run a one-tap backtest and watch it surface real setups from recent market history.
+        We&apos;ll spin up a funded demo crypto account — then you write a strategy in your own
+        words, backtest it on real market history, and watch what it would have caught before it
+        ever risks anything.
       </p>
       <ul className="mt-4 space-y-1.5 text-sm">
         <li className="flex items-center gap-2">
           <Num n={1} /> A funded demo account, pre-seeded
         </li>
         <li className="flex items-center gap-2">
-          <Num n={2} /> A scanner watching BTC, ETH &amp; SOL
+          <Num n={2} /> Your own rules — symbols, timeframe, entry conditions
         </li>
         <li className="flex items-center gap-2">
-          <Num n={3} /> One tap to backtest &amp; see the setups
+          <Num n={3} /> One tap to backtest &amp; see the trades
         </li>
       </ul>
       {err && <p className="mt-3 text-sm text-negative">{err}</p>}

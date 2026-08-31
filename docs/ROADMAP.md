@@ -1,35 +1,88 @@
 # Poshkan — Prioritized Roadmap
 
-The product is feature-rich and past MVP. The maturity gap now is **reliability and trust in auto-execution**, not features. Priorities are ordered accordingly: harden the trade lifecycle first, then transparency, then data depth, then growth.
+Revised August 2026, after the five built-in scanners (SMC, OTE, Trend Breakout, Mean Reversion,
+Candle Range) were removed. Their results were inconsistent and their rules were hard to explain
+to a beginner, so what ships now is the **Strategy Lab**: the user writes the rules, backtests
+them, and only then lets them trade. The AI Scanner stayed.
+
+That changes the shape of this roadmap. The old P0 was "make auto-trade dependable" across six
+scanners; a good part of that work was inside the code just deleted. The remaining gap is
+narrower and sharper: **the backtest is now the product**, so it has to be trustworthy, and the
+execution path underneath it has to be reliable.
 
 ---
 
-## P0 — Make auto-trade dependable (do these first)
-The recent issues ("auto is on but nothing trades", "hit TP but didn't close") all live here.
+## P0 — The things that are still broken
 
-1. **Wick-aware TP/SL closes.** The closer currently checks the *spot price at cron-run time*, so a price that touches TP/SL between runs and retraces is missed. Close on each symbol's **candle high/low since the last run** (real bracket-order behavior). *Highest-value reliability fix.*
-2. **One reliable, frequent cron.** `market-check` (closes positions, fills orders, fires alerts) is now bundled into `/api/cron/scanners`. Confirm the external pinger hits that URL every ~1–2 min; document it; add a health indicator if a run hasn't landed recently.
-3. **Consistent "auto-trade skipped" reasons.** Every scanner's alert should state *why* a trade wasn't opened (alert-only, max-open, correlation cap, daily cap/loss, sizing, rejected). Mostly done — finish/normalize across all scanners.
-4. **Position lifecycle correctness.** Consistent `source` tagging, dedupe, and one-direction-per-account handling across all scanner crons.
+1. **Wick-aware TP/SL closes.** Unchanged and still the top item. `market-check` closes on the
+   *spot price at cron-run time*, so a price that touches TP/SL between runs and retraces is
+   missed. Close on each symbol's **candle high/low since the last run** (real bracket-order
+   behavior). This closer is scanner-agnostic — it handles manual, forex, AI and custom-strategy
+   positions alike — so removing the built-ins did nothing to shrink it. *Highest-value
+   reliability fix.*
+2. **Point the pinger at the surviving cron.** `/api/cron/scanners` now bundles three handlers
+   (custom strategies, AI scanner, `market-check`) instead of eight. The five
+   `/api/cron/<name>-scan` URLs are deleted and will 404. Confirm the external pinger hits the
+   bundle every ~1–2 min, document it, and add a health indicator when a run hasn't landed.
+3. **Honest backtest numbers.** Promoted from the old P2.9, because a lab whose backtest flatters
+   the user is worse than no lab. Walk-forward / out-of-sample windows and basic cost modeling
+   (spread, slippage) so a strategy that only worked on the sample says so.
 
-## P1 — Trust & transparency
-5. **Scanner-comparison view.** Run every scanner's backtest on a chosen symbol set and rank by net R / win rate / profit factor — so users deploy the edge that works, not a guess.
-6. **Execution log in the UI.** A per-account feed of "signal → traded / skipped (reason)" so behavior is auditable at a glance.
-7. **Per-account exposure budget.** When multiple scanners auto-trade one account, cap combined risk so correlated positions don't stack.
+## P1 — Make the lab worth trusting
 
-## P2 — Data & backtest depth
-8. **Deeper market data.** Free Yahoo caps intraday history (~8 weeks), which limits sample size. Evaluate a paid/cached feed for longer, more meaningful backtests.
-9. **Stronger backtests.** Walk-forward / out-of-sample windows and basic cost modeling (spread/slippage) so results are less optimistic.
+4. **Deeper market data.** Promoted from the old P2.8 for the same reason: free Yahoo caps
+   intraday history at roughly 8 weeks, and that cap is now a direct ceiling on the core feature.
+   Evaluate a paid or cached feed.
+5. **Strategy comparison.** The old P1.5 ranked the six built-ins against each other and died with
+   them. Rebuild it around what the user owns: run *their* strategies over one symbol set and rank
+   by net R / win rate / profit factor, so they can tell their own ideas apart.
+6. **Execution log in the UI.** A per-account feed of "signal → traded / skipped (reason)". Still
+   valid, now scoped to custom strategies and the AI Scanner.
+7. **Consistent "skipped" reasons.** Every alert should say *why* no trade opened (alert-only,
+   max-open, daily cap or loss limit, sizing, rejected). Was "across all six scanners"; now just
+   `custom-scan` and `scan-opportunities`, so it is nearly done.
+8. **Position lifecycle correctness.** Consistent `source` tagging, dedupe, and
+   one-direction-per-account across the two remaining scan crons.
+
+## P2 — Onboarding into the lab
+
+9. **A first strategy that isn't a blank page.** The demo account no longer arrives with a scanner
+   switched on, so the guided flow now has to carry a new user from "funded account" to "a rule I
+   wrote and backtested" without stranding them. Starter templates — a breakout, a mean-reversion
+   bounce — pre-loaded into the builder and clearly marked as starting points to edit, not
+   black boxes to trust.
+10. **Turn the `/strategies` pages into recipes.** Those explainers survived the removal as
+    educational SEO content, but they now describe strategies the product no longer ships. Give
+    each one a "build this in the Lab" recipe — the exact rules to enter — so the traffic converts
+    instead of bouncing off a concept with nowhere to go.
+11. **Per-account exposure budget.** Cap combined risk when several strategies trade one account.
+    Less urgent than it was, since fewer things run per account by default.
 
 ## P3 — Engagement & growth
-10. **Gamification loop.** Streaks, badges (first profit, beat SPY, win streak), and a weekly AI recap email.
-11. **Social.** Public trader profiles, share/clone a scanner config, and a "top-performing configs" board — the viral loop.
-12. **Continued mobile/PWA polish.** Install prompt, offline, native-feeling nav.
 
-## P4 — Polish
-13. **Empty states & skeletons** (partly done) and one consistent card/type system across the now-many cards.
+12. **Gamification loop.** Streaks, badges (first profit, beat SPY, win streak), weekly AI recap
+    email.
+13. **Social.** Public trader profiles, share/clone a **strategy** (the config is now the user's
+    own work, which makes sharing more meaningful than it was), and a "top-performing strategies"
+    board — the viral loop.
+14. **Continued mobile/PWA polish.** Install prompt, offline, native-feeling nav.
+
+## P4 — Cleanup & polish
+
+15. **Drop the frozen scanner tables.** `smc_settings`, `ote_settings`, `trend_settings`,
+    `meanrev_settings`, `candlerange_settings` and their signal tables still hold real user rows
+    but nothing reads or writes them. They are deliberately the undo button for this removal —
+    drop them in their own migration once the decision has settled, and not before.
+16. **Empty states & skeletons** (partly done) and one consistent card/type system.
 
 ---
 
 ## Suggested next step
-Ship **P0.1 (wick-aware closes)** — it directly ends the "didn't close at TP" class of bugs and is the single biggest trust win. Then a short **execution-hardening pass (P0.2–P0.4)** before adding any new strategy. After that, **P1.5 (scanner comparison)** is the highest-leverage feature for helping users actually profit.
+
+Ship **P0.1 (wick-aware closes)** — it directly ends the "didn't close at TP" class of bugs and is
+the single biggest trust win, and it was never scanner-specific. Then **P0.2** (a five-minute
+check that the pinger is aimed at the right URL, which the removal just made urgent) and **P0.3**.
+
+After that, **P2.9 (starter templates)** is likely higher leverage than more backtest depth: the
+lab is now the entire value proposition for a new user, and right now it greets them with an empty
+form.

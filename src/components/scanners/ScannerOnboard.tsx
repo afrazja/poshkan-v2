@@ -3,7 +3,7 @@
 import { useState } from "react";
 
 // Guided 3-step banner shown right after the demo account is created (?onboard=1).
-// Points the user straight at the SMC scanner's symbol picker + backtest button.
+// Points the user straight at the Strategy Lab's builder + backtest button.
 export default function ScannerOnboard() {
   const [open, setOpen] = useState(true);
   if (!open) return null;
@@ -20,18 +20,18 @@ export default function ScannerOnboard() {
         <Step
           done
           n={1}
-          title="Demo account created & scanner switched on"
-          hint="A funded crypto account is watching BTC, ETH & SOL with the Smart-Money-Concepts strategy."
+          title="Demo account created"
+          hint="A funded crypto account, ready for your first strategy — 100% virtual money."
         />
         <Step
           n={2}
-          title="Pick your symbols"
-          hint="In the SMC Scanner below, add or remove symbols under “Watch symbols.” We pre-picked the big three."
+          title="Build your first strategy"
+          hint="In the Strategy Lab below, choose your symbols and timeframe, then the exact conditions that define your entry."
         />
         <Step
           n={3}
-          title="Run a backtest to see the setups it flags"
-          hint="Hit “Run backtest” in the SMC Scanner — you'll see the trades it would've caught on recent history, with a win rate and equity curve."
+          title="Run a backtest to see how it would have done"
+          hint="Hit “Run backtest” — you'll see the trades your rules would've caught on recent history, with a win rate and equity curve, before anything goes live."
         />
       </ol>
     </div>

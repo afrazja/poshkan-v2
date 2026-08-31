@@ -42,9 +42,9 @@ export async function createAccountAction(input: {
   return { accountId };
 }
 
-// One-tap onboarding: a funded demo account with the SMC scanner already on, so a
-// brand-new user can backtest and see real setups in seconds. Crypto trades 24/7,
-// so the scanner has fresh data to chew on at any hour.
+// One-tap onboarding: a funded demo account, so a brand-new user can go straight
+// to the Strategy Lab and backtest their first idea in seconds. Crypto trades
+// 24/7, so there is fresh data to chew on at any hour.
 export async function createDemoAccountAction(): Promise<{ accountId?: string; error?: string }> {
   const supabase = await createClient();
   const {
