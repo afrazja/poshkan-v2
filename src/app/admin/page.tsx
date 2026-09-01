@@ -80,6 +80,19 @@ export default async function AdminPage() {
   const users = usersRes.data?.users ?? [];
   const accs = accounts ?? [];
 
+  // Login counts. Supabase Auth only keeps last_sign_in_at, so the count comes
+  // from our own counter — which means it reads null (—) until login-stats.sql
+  // is applied, and starts from zero for everyone when it is.
+  const loginsByUser = new Map<string, number>();
+  try {
+    const { data: profileRows } = await db.from("profiles").select("id, login_count");
+    for (const p of (profileRows ?? []) as { id: string; login_count: number | null }[]) {
+      loginsByUser.set(p.id, Number(p.login_count ?? 0));
+    }
+  } catch {
+    // login-stats.sql not run yet — the column renders as an em dash
+  }
+
   // Latest snapshot value per account (equity), falling back to cash.
   const snapDate = lastSnapRow?.[0]?.snapshot_date ?? null;
   const snapByAccount = new Map<string, number>();
@@ -132,6 +145,7 @@ export default async function AdminPage() {
         email: u.email ?? "(no email)",
         createdAt: u.created_at,
         lastSignIn: u.last_sign_in_at ?? null,
+        logins: loginsByUser.has(u.id) ? (loginsByUser.get(u.id) as number) : null,
         accounts: mine.length,
         equity: mine.reduce((sum, a) => sum + (snapByAccount.get(a.id) ?? Number(a.cash_balance)), 0),
       };

@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendEmail } from "@/lib/email";
+import { recordLogin } from "@/lib/login-stats";
 
 const GENERIC_LOGIN_ERROR = "Invalid email/username or password.";
 
@@ -28,8 +29,9 @@ export async function signInAction(
   }
 
   const supabase = await createClient();
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) return { error: GENERIC_LOGIN_ERROR };
+  await recordLogin(data?.user?.id);
   return {};
 }
 

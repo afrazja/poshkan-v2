@@ -7,6 +7,7 @@ export interface AdminUserRow {
   email: string;
   createdAt: string;
   lastSignIn: string | null;
+  logins: number | null; // null until login-stats.sql has been run
   accounts: number;
   equity: number;
 }
@@ -42,6 +43,9 @@ export default function AdminUsersTable({ users }: { users: AdminUserRow[] }) {
               <th className="px-3 py-2 font-medium">Email</th>
               <th className="px-3 py-2 font-medium">Joined</th>
               <th className="px-3 py-2 font-medium">Last sign-in</th>
+              <th className="px-3 py-2 text-right font-medium" title="Sign-ins counted since login-stats.sql was applied">
+                Logins
+              </th>
               <th className="px-3 py-2 text-right font-medium">Accounts</th>
               <th className="px-3 py-2 text-right font-medium">Equity</th>
             </tr>
@@ -54,6 +58,9 @@ export default function AdminUsersTable({ users }: { users: AdminUserRow[] }) {
                 <td className="px-3 py-2 text-muted" title={fmtDate(u.lastSignIn)}>
                   {agoDays(u.lastSignIn)}
                 </td>
+                <td className="px-3 py-2 text-right">
+                  {u.logins == null ? <span className="text-muted">—</span> : u.logins}
+                </td>
                 <td className="px-3 py-2 text-right">{u.accounts}</td>
                 <td className="px-3 py-2 text-right">
                   ${u.equity.toLocaleString("en-US", { maximumFractionDigits: 0 })}
@@ -62,7 +69,7 @@ export default function AdminUsersTable({ users }: { users: AdminUserRow[] }) {
             ))}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-3 py-4 text-center text-muted">
+                <td colSpan={6} className="px-3 py-4 text-center text-muted">
                   No users match.
                 </td>
               </tr>

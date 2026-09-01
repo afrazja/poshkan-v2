@@ -22,7 +22,7 @@ MCP server at `src/app/api/mcp/[transport]` (token auth, user-scoped tools).
 - Domain math: `src/lib/pnl.ts` (realized P&L), `src/lib/forex.ts` (lots/margin/pips/auto-close),
   `src/lib/assets.ts` (account-type ↔ asset-class enforcement)
 - SQL migrations: `supabase/*.sql` — run manually in the Supabase SQL editor, in this order:
-  `schema → orders → upgrades → forex → forex-sltp → orders-tif → leaderboard → hardening → mcp → push-journal → ai-limits` (all already applied in prod)
+  `schema → orders → upgrades → forex → forex-sltp → orders-tif → leaderboard → hardening → mcp → push-journal → ai-limits → login-stats` (all applied in prod except `login-stats`)
 - Hand-rolled SVG charts: `src/components/account/AreaChart.tsx` (+ `PriceChart`)
 - Notifications: `src/lib/email.ts` (Resend), `src/lib/push.ts` + `public/sw.js` (web push)
 
