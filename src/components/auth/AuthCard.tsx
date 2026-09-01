@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { signInAction, usernameAvailableAction, resetPasswordAction, notifySignupAction } from "@/app/auth/actions";
+import { safeNext } from "@/lib/safe-next";
 
 type Tab = "login" | "signup";
 
@@ -20,11 +21,15 @@ function Spinner() {
 export default function AuthCard({
   defaultTab = "signup",
   initialEmail = "",
+  next,
 }: {
   defaultTab?: Tab;
   initialEmail?: string;
+  /** Where to land after signing in. Validated — see safeNext. */
+  next?: string;
 }) {
   const router = useRouter();
+  const destination = safeNext(next);
   const [tab, setTab] = useState<Tab>(defaultTab);
 
   // shared
@@ -73,10 +78,10 @@ export default function AuthCard({
       setError(res.error);
       return;
     }
-    // Keep the button in its loading state through the navigation — the dashboard
+    // Keep the button in its loading state through the navigation — the target
     // takes a moment to load, and this component unmounts once it arrives.
     router.refresh();
-    router.push("/dashboard");
+    router.push(destination);
   }
 
   async function handleGoogleSignIn() {
@@ -86,7 +91,8 @@ export default function AuthCard({
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
+        // The callback route re-validates `next` before redirecting.
+        redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(destination)}`,
       },
     });
 

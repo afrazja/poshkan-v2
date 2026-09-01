@@ -16,9 +16,9 @@ export const metadata = {
 export default async function SignupPage({
   searchParams,
 }: {
-  searchParams: Promise<{ email?: string; expired?: string; tab?: string }>;
+  searchParams: Promise<{ email?: string; expired?: string; tab?: string; next?: string }>;
 }) {
-  const { email, expired, tab } = await searchParams;
+  const { email, expired, tab, next } = await searchParams;
   const defaultTab = expired || tab === "login" ? "login" : "signup";
 
   return (
@@ -34,7 +34,7 @@ export default async function SignupPage({
             Your session expired — please log in again.
           </div>
         )}
-        <AuthCard defaultTab={defaultTab} initialEmail={email ?? ""} />
+        <AuthCard defaultTab={defaultTab} initialEmail={email ?? ""} next={next} />
         <p className="max-w-md text-center text-xs text-muted">
           Free while Poshkan is in beta. No card, no broker connection, no deposits.
         </p>
