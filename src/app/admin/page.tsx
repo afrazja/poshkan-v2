@@ -3,19 +3,11 @@ import AdminUsersTable, { type AdminUserRow } from "@/components/admin/AdminUser
 
 export const dynamic = "force-dynamic";
 
-// One-page owner dashboard: growth & engagement stats, scanner/cron health,
-// and a searchable user browser. Read-only — every mutation stays in the app
+// One-page owner dashboard: growth & engagement stats, cron health, and a
+// searchable user browser. Read-only — every mutation stays in the app
 // or the Supabase dashboard where it's audited.
 
 const DAY = 86_400_000;
-
-interface ScannerHealth {
-  name: string;
-  enabled: number;
-  auto: number;
-  signals7d: number;
-  lastRun: string | null;
-}
 
 function runStatus(lastIso: string | null): { label: string; cls: string } {
   if (!lastIso) return { label: "never ran", cls: "bg-muted/20 text-muted" };
@@ -23,27 +15,6 @@ function runStatus(lastIso: string | null): { label: string; cls: string } {
   if (mins < 30) return { label: "healthy", cls: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" };
   if (mins < 24 * 60) return { label: `${Math.round(mins / 60)}h ago`, cls: "bg-amber-500/15 text-amber-600 dark:text-amber-400" };
   return { label: `${Math.round(mins / 1440)}d ago`, cls: "bg-rose-500/15 text-rose-600 dark:text-rose-400" };
-}
-
-async function scannerHealth(
-  db: ReturnType<typeof createAdminClient>,
-  name: string,
-  settingsTable: string,
-  signalsTable: string,
-  since: string
-): Promise<ScannerHealth> {
-  const [{ data: settings }, { count: signals7d }, { data: lastRun }] = await Promise.all([
-    db.from(settingsTable).select("enabled, mode").eq("enabled", true),
-    db.from(signalsTable).select("id", { count: "exact", head: true }).gte("created_at", since),
-    db.from(settingsTable).select("last_run_at").order("last_run_at", { ascending: false }).limit(1),
-  ]);
-  return {
-    name,
-    enabled: settings?.length ?? 0,
-    auto: (settings ?? []).filter((s) => s.mode === "auto").length,
-    signals7d: signals7d ?? 0,
-    lastRun: lastRun?.[0]?.last_run_at ?? null,
-  };
 }
 
 export default async function AdminPage() {
@@ -64,10 +35,12 @@ export default async function AdminPage() {
     { data: fxRecent },
     { count: pushSubs },
     { count: aiAlerts7d },
-    ...scanners
+    { data: liveStrategies },
+    { count: customAlerts7d },
+    { data: lastAiAlert },
   ] = await Promise.all([
     db.auth.admin.listUsers({ page: 1, perPage: 1000 }),
-    db.from("accounts").select("id, user_id, type, cash_balance"),
+    db.from("accounts").select("id, user_id, type, cash_balance, auto_trade_enabled"),
     db.from("account_snapshots").select("snapshot_date").order("snapshot_date", { ascending: false }).limit(1),
     db.from("fx_positions").select("id", { count: "exact", head: true }).eq("status", "open"),
     db.from("fx_positions").select("id", { count: "exact", head: true }).gte("opened_at", d7),
@@ -75,6 +48,10 @@ export default async function AdminPage() {
     db.from("fx_positions").select("opened_at").gte("opened_at", d14),
     db.from("push_subscriptions").select("id", { count: "exact", head: true }),
     db.from("fx_scan_alerts").select("id", { count: "exact", head: true }).gte("alerted_at", d7),
+    // The two jobs that still run under /api/cron/scanners.
+    db.from("custom_strategies").select("last_run_at").eq("status", "live"),
+    db.from("custom_strategy_signals").select("id", { count: "exact", head: true }).gte("created_at", d7),
+    db.from("fx_scan_alerts").select("alerted_at").order("alerted_at", { ascending: false }).limit(1),
   ]);
 
   const users = usersRes.data?.users ?? [];
@@ -154,6 +131,18 @@ export default async function AdminPage() {
 
   const snapshotStatus = runStatus(snapDate ? `${snapDate}T22:15:00Z` : null);
 
+  // Cron rows. Custom strategies carry their own last_run_at; the AI scanner
+  // has no run stamp, so its most recent alert stands in for one.
+  const liveRows = (liveStrategies ?? []) as { last_run_at?: string | null }[];
+  const customLastRun =
+    (liveRows.map((s) => s.last_run_at).filter(Boolean) as string[]).sort().slice(-1)[0] ?? null;
+  const aiEnabled = (accs as { auto_trade_enabled?: boolean | null }[]).filter((a) => !!a.auto_trade_enabled)
+    .length;
+  const crons = [
+    { name: "Custom strategies", enabled: liveRows.length, alerts7d: customAlerts7d ?? 0, lastRun: customLastRun },
+    { name: "AI scanner", enabled: aiEnabled, alerts7d: aiAlerts7d ?? 0, lastRun: lastAiAlert?.[0]?.alerted_at ?? null },
+  ];
+
   return (
     <div className="mt-4 space-y-6">
       {/* ── Stats ── */}
@@ -181,29 +170,27 @@ export default async function AdminPage() {
         </div>
       </section>
 
-      {/* ── Scanner & cron health ── */}
+      {/* ── Cron health ── */}
       <section>
-        <h2 className="mb-2 text-sm font-semibold">Scanner & cron health</h2>
+        <h2 className="mb-2 text-sm font-semibold">Cron health</h2>
         <div className="overflow-x-auto rounded-xl border border-border">
           <table className="w-full min-w-[520px] text-left text-xs">
             <thead className="bg-muted/10 text-muted">
               <tr>
-                <th className="px-3 py-2 font-medium">Scanner</th>
+                <th className="px-3 py-2 font-medium">Job</th>
                 <th className="px-3 py-2 text-right font-medium">Enabled</th>
-                <th className="px-3 py-2 text-right font-medium">Auto</th>
-                <th className="px-3 py-2 text-right font-medium">Signals (7d)</th>
+                <th className="px-3 py-2 text-right font-medium">Alerts (7d)</th>
                 <th className="px-3 py-2 font-medium">Last run</th>
               </tr>
             </thead>
             <tbody>
-              {(scanners as ScannerHealth[]).map((s) => {
-                const st = runStatus(s.lastRun);
+              {crons.map((c) => {
+                const st = runStatus(c.lastRun);
                 return (
-                  <tr key={s.name} className="border-t border-border">
-                    <td className="px-3 py-2 font-medium">{s.name}</td>
-                    <td className="px-3 py-2 text-right">{s.enabled}</td>
-                    <td className="px-3 py-2 text-right">{s.auto}</td>
-                    <td className="px-3 py-2 text-right">{s.signals7d}</td>
+                  <tr key={c.name} className="border-t border-border">
+                    <td className="px-3 py-2 font-medium">{c.name}</td>
+                    <td className="px-3 py-2 text-right">{c.enabled}</td>
+                    <td className="px-3 py-2 text-right">{c.alerts7d}</td>
                     <td className="px-3 py-2">
                       <span className={`rounded px-1.5 py-0.5 ${st.cls}`}>{st.label}</span>
                     </td>
@@ -212,7 +199,7 @@ export default async function AdminPage() {
               })}
               <tr className="border-t border-border">
                 <td className="px-3 py-2 font-medium">Daily snapshots</td>
-                <td className="px-3 py-2 text-right" colSpan={3}>
+                <td className="px-3 py-2 text-right" colSpan={2}>
                   latest: {snapDate ?? "—"}
                 </td>
                 <td className="px-3 py-2">
@@ -223,8 +210,8 @@ export default async function AdminPage() {
           </table>
         </div>
         <p className="mt-1 text-[11px] text-muted">
-          Scanners tick only while at least one account has them enabled; &quot;never ran&quot; with 0 enabled is
-          normal. Stock/forex scanners also pause while their market is closed.
+          Custom strategies and the AI scanner share the /api/cron/scanners ping. A job only ticks
+          while something is enabled, so &quot;never ran&quot; with 0 enabled is normal.
         </p>
       </section>
 
