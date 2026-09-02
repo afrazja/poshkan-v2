@@ -34,14 +34,15 @@ export default function GettingStarted({ checks }: { checks: StartChecks }) {
     },
     {
       done: checks.hasScanner,
-      title: "Turn on a strategy scanner",
+      title: "Set a strategy live",
       hint: (
         <>
-          Head to{" "}
+          Build a rule in the{" "}
           <Link href="/dashboard/scanners" className="font-medium text-primary hover:underline">
-            Scanners
-          </Link>{" "}
-          and switch one on — it watches the market for you and pings you when a setup appears.
+            Strategy Lab
+          </Link>
+          , backtest it, and set it live — it watches the market for you and pings you when it
+          matches.
         </>
       ),
     },

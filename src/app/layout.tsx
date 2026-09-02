@@ -17,7 +17,7 @@ export const metadata: Metadata = {
   metadataBase: new URL("https://www.poshkan.com"),
   title: "Poshkan — Paper Trading",
   description:
-    "Risk-free paper trading for US stocks, crypto, and forex — with automated strategy scanners, backtests, and a live leaderboard.",
+    "Risk-free paper trading for US stocks, crypto, and forex — build your own strategies, backtest them, and climb a live leaderboard.",
   appleWebApp: {
     capable: true,
     title: "Poshkan",
