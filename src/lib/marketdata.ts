@@ -4,14 +4,21 @@ import type { Quote, SymbolSearchResult } from "./types";
 import { candleCacheTtl, readCandleCache, writeCandleCache } from "./market-candle-cache";
 import {
   getTwelveOhlc,
-  getTwelveQuote,
   getTwelveQuotes,
   isTwelveDataConfigured,
   toTwelveSymbol,
 } from "./twelve-data";
+import { readQuoteCache, writeQuoteCache } from "./market-quote-cache";
 
-// Twelve Data is the primary quote/OHLC source when configured. Yahoo remains
-// the discovery/news source and a fail-open fallback during provider outages.
+// Quotes: Yahoo is primary — one batched request answers a whole symbol list
+// with no per-symbol credit, which is what lets a 50-holding account refresh
+// every 20 seconds on a free tier. Twelve Data fills only the symbols Yahoo
+// cannot resolve, inside its small free budget. Every fetched quote is written
+// to the shared market_quotes table so instances and users stop paying for
+// the same second twice.
+//
+// OHLC/candles: Twelve Data when configured, with Yahoo as the fail-open
+// fallback. Yahoo also remains the discovery/news source.
 const yf = new YahooFinance({ suppressNotices: ["yahooSurvey"] });
 
 let lastFallbackLog = 0;
@@ -172,11 +179,17 @@ function toIso(v: number | Date | undefined): string | undefined {
   return isNaN(d.getTime()) ? undefined : d.toISOString();
 }
 
+// How old a quote may be before someone asks the provider again. The browser
+// polls every 20s, so 15s means each poll can land on a fresh row without two
+// polls ever both paying for the same second. Trade fills read through the
+// same layer, so a fill is never older than the memory cache already allowed.
 const QUOTE_TTL = 15_000;
 
-async function getYahooQuote(symbol: string): Promise<Quote> {
-  const raw = (await yf.quote(symbol, {}, { validateResult: false })) as unknown as YQuote;
-  return toQuote(raw);
+let lastYahooLog = 0;
+function logYahooFailure(error: unknown) {
+  if (Date.now() - lastYahooLog < 60_000) return;
+  lastYahooLog = Date.now();
+  console.warn(`[marketdata] Yahoo quote batch failed: ${(error as Error).message ?? "unknown error"}`);
 }
 
 async function getYahooQuotes(symbols: string[]): Promise<Record<string, Quote>> {
@@ -192,53 +205,52 @@ async function getYahooQuotes(symbols: string[]): Promise<Record<string, Quote>>
   return quotes;
 }
 
-function enrichTwelveQuote(primary: Quote, yahoo: Quote | null): Quote {
-  if (!yahoo) return primary;
-  const merged: Quote = {
-    ...yahoo,
-    ...primary,
-    marketCap: yahoo.marketCap,
-    peRatio: yahoo.peRatio,
-    dividendRate: yahoo.dividendRate,
-    earningsDate: yahoo.earningsDate,
-    fiftyTwoWeekHigh: primary.fiftyTwoWeekHigh ?? yahoo.fiftyTwoWeekHigh,
-    fiftyTwoWeekLow: primary.fiftyTwoWeekLow ?? yahoo.fiftyTwoWeekLow,
-  };
-  // Twelve Data carries the regular session only — outside it, Yahoo's
-  // pre/post print is the latest actual trade, so it wins the price field.
-  if (yahoo.extendedSession) {
-    merged.price = yahoo.price;
-    merged.extendedSession = yahoo.extendedSession;
-    merged.regularPrice = yahoo.regularPrice ?? primary.price;
-    merged.extendedChangePercent = yahoo.extendedChangePercent;
-  }
-  return merged;
-}
-
-export async function getQuote(symbol: string): Promise<Quote> {
-  const sym = symbol.toUpperCase();
-  return cached(`quote:${sym}`, QUOTE_TTL, async () => {
-    if (isTwelveDataConfigured()) {
-      try {
-        const [primary, enrichment] = await Promise.all([
-          getTwelveQuote(sym),
-          getYahooQuote(sym).catch(() => null),
-        ]);
-        return enrichTwelveQuote(primary, enrichment);
-      } catch (error) {
-        logTwelveFallback(error);
-      }
+// One provider round-trip for a symbol set. Yahoo answers the whole list in a
+// single request; Twelve Data is asked only for what Yahoo left unresolved.
+async function fetchQuotesFromProviders(
+  symbols: string[]
+): Promise<{ quotes: Record<string, Quote>; source: Record<string, string> }> {
+  const quotes: Record<string, Quote> = {};
+  const source: Record<string, string> = {};
+  try {
+    const yahoo = await getYahooQuotes(symbols);
+    for (const [sym, q] of Object.entries(yahoo)) {
+      quotes[sym] = q;
+      source[sym] = "yahoo";
     }
-    return getYahooQuote(sym);
-  });
+  } catch (error) {
+    logYahooFailure(error);
+  }
+  const unresolved = symbols.filter((sym) => !quotes[sym]);
+  if (unresolved.length > 0 && isTwelveDataConfigured()) {
+    try {
+      const twelve = await getTwelveQuotes(unresolved);
+      for (const [sym, q] of Object.entries(twelve)) {
+        quotes[sym] = q;
+        source[sym] = "twelve";
+      }
+    } catch (error) {
+      logTwelveFallback(error);
+    }
+  }
+  return { quotes, source };
 }
 
+// Identical symbol sets requested at the same moment share one fetch.
+const quoteInflight = new Map<string, Promise<Record<string, Quote>>>();
+
+/**
+ * Three layers, cheapest first: this instance's memory, the shared
+ * market_quotes table, then the provider. Whatever the provider returns is
+ * written back to the table so the next reader — any instance, any user —
+ * finds it there.
+ */
 export async function getQuotes(symbols: string[]): Promise<Record<string, Quote>> {
   const unique = Array.from(new Set(symbols.map((s) => s.toUpperCase()))).filter(Boolean);
   if (unique.length === 0) return {};
 
   const out: Record<string, Quote> = {};
-  const missing: string[] = [];
+  let missing: string[] = [];
   for (const sym of unique) {
     const hit = cache.get(`quote:${sym}`) as Entry<Quote> | undefined;
     if (hit && Date.now() - hit.at < QUOTE_TTL) out[sym] = hit.data;
@@ -246,40 +258,45 @@ export async function getQuotes(symbols: string[]): Promise<Record<string, Quote
   }
   if (missing.length === 0) return out;
 
-  if (isTwelveDataConfigured()) {
-    try {
-      // Yahoo rides along in the batch too: it carries the pre/after-hours
-      // prints and fundamentals that Twelve Data's regular-session quotes lack.
-      const [twelve, yahoo] = await Promise.all([
-        getTwelveQuotes(missing),
-        getYahooQuotes(missing).catch(() => ({}) as Record<string, Quote>),
-      ]);
-      for (const [sym, q] of Object.entries(twelve)) {
-        out[sym] = enrichTwelveQuote(q, yahoo[sym] ?? null);
+  const shared = await readQuoteCache(missing, QUOTE_TTL);
+  for (const [sym, q] of Object.entries(shared.fresh)) {
+    out[sym] = q;
+    cache.set(`quote:${sym}`, { at: Date.now(), data: q });
+  }
+  missing = missing.filter((sym) => !out[sym]);
+  if (missing.length === 0) return out;
+
+  const key = missing.join(",");
+  let pending = quoteInflight.get(key);
+  if (!pending) {
+    pending = (async () => {
+      try {
+        const { quotes, source } = await fetchQuotesFromProviders(missing);
+        for (const [sym, q] of Object.entries(quotes)) cache.set(`quote:${sym}`, { at: Date.now(), data: q });
+        await writeQuoteCache(quotes, source);
+        return quotes;
+      } finally {
+        quoteInflight.delete(key);
       }
-    } catch (error) {
-      logTwelveFallback(error);
-    }
+    })();
+    quoteInflight.set(key, pending);
   }
+  Object.assign(out, await pending);
 
-  const unresolved = missing.filter((sym) => !out[sym]);
-  if (unresolved.length > 0) {
-    try {
-      Object.assign(out, await getYahooQuotes(unresolved));
-    } catch {
-      // Stale entries below are preferable to failing the whole quote batch.
-    }
-  }
-
+  // Provider failed on something: a stale row beats an empty cell.
   for (const sym of missing) {
-    const quote = out[sym];
-    if (quote) cache.set(`quote:${sym}`, { at: Date.now(), data: quote });
-    else {
-      const hit = cache.get(`quote:${sym}`) as Entry<Quote> | undefined;
-      if (hit) out[sym] = hit.data;
-    }
+    if (out[sym]) continue;
+    const stale = shared.stale[sym] ?? (cache.get(`quote:${sym}`) as Entry<Quote> | undefined)?.data;
+    if (stale) out[sym] = stale;
   }
   return out;
+}
+
+export async function getQuote(symbol: string): Promise<Quote> {
+  const sym = symbol.toUpperCase();
+  const quote = (await getQuotes([sym]))[sym];
+  if (!quote) throw new Error(`No quote available for ${sym}`);
+  return quote;
 }
 
 export interface NewsItem {
