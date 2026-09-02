@@ -38,7 +38,9 @@ function disableTemporarily(error: unknown) {
   disabledUntil = Date.now() + 5 * 60_000;
   if (!warned) {
     warned = true;
-    const message = error instanceof Error ? error.message : String(error ?? "unknown error");
+    // Supabase errors are plain objects, not Error instances - read .message
+    // off either so the log names the real cause instead of "[object Object]".
+    const message = (error as { message?: string } | null)?.message ?? String(error ?? "unknown error");
     console.warn(`[marketdata] persistent candle cache unavailable: ${message}`);
   }
 }
