@@ -14,7 +14,7 @@ const inter = Inter({ subsets: ["latin"], weight: ["400", "500"], display: "swap
 
 const TITLE = "Poshkan | Paper Trading and Strategy Lab for Stocks, Crypto & Forex";
 const DESCRIPTION =
-  "Build, backtest, and observe trading strategies with virtual money across stocks, crypto, and forex. Start with six built-in templates or create your own rules.";
+  "Build, backtest, and observe your own trading strategies with virtual money across stocks, crypto, and forex. Write the rules yourself — no code, nothing real at stake.";
 
 export const metadata = {
   title: TITLE,
@@ -254,7 +254,7 @@ export default async function LandingPage({
           style={{ paddingLeft: GUTTER, paddingRight: GUTTER }}
         >
           <Stat figure="3" label={<>Markets — stocks,<br />crypto, forex</>} />
-          <Stat figure="6" label={<>Strategy templates<br />you can inspect</>} />
+          <Stat figure="4" label={<>Steps from an idea<br />to a backtest</>} />
           <Stat figure="1–10×" label={<>Simulated leverage,<br />per trade</>} />
           <Stat figure="0" label={<>Deposits, withdrawals<br />or prize pools</>} />
         </div>
@@ -295,10 +295,9 @@ export default async function LandingPage({
           Write the rule. Let the market answer.
         </h2>
         <p className="mb-14 max-w-[62ch] text-[17px] leading-[30px] text-[#e9e9edcc]">
-          State an idea as explicit entry, exit and risk rules — or start from one of six built-in
-          strategies and change what you disagree with. Poshkan replays the rules over completed
-          candles, then runs them forward on a paper account so you can see which part of the idea
-          actually held.
+          State an idea as explicit entry, exit and risk rules — candles, indicators, symbols and a
+          timeframe, no code. Poshkan replays the rules over completed candles, then runs them
+          forward on a paper account so you can see which part of the idea actually held.
         </p>
 
         <div className="grid grid-cols-2 gap-x-9 gap-y-7 pb-11 md:grid-cols-4">
@@ -322,25 +321,25 @@ export default async function LandingPage({
         </figure>
       </section>
 
-      {/* ── Scanners ── */}
+      {/* ── Live ── */}
       <section id="automation" className={`${SECTION} pt-[68px]`} style={{ paddingLeft: GUTTER, paddingRight: GUTTER }}>
         <div className="grid grid-cols-1 items-start gap-x-14 gap-y-7 lg:grid-cols-2">
           <div>
-            <Kicker>Scanners</Kicker>
+            <Kicker>Live</Kicker>
             <h2 className="m-0 max-w-[22ch] text-[clamp(28px,2.8vw,38px)] font-medium leading-[1.16] tracking-[-0.013em]">
-              Rules that watch the market while you sleep
+              Your rules watch the market while you sleep
             </h2>
           </div>
           <div>
             <p className="mb-5 text-[16.5px] leading-[28px] text-[#e9e9edcc]">
-              Point a scanner at a watchlist and decide what happens when the setup appears: alert
-              you, or open the paper position itself. Risk per trade, maximum position size and a
-              daily loss limit are hard caps — the scanner stops when they are hit.
+              Set a strategy live and it keeps running on every completed candle. When a rule
+              matches you get a paper alert — entry, stop, target and the reward-to-risk it asked
+              for — so you see how the idea behaves on new data before you ever act on it.
             </p>
             <ul className="m-0 grid list-none gap-2.5 p-0">
-              <ScanBullet>Alert-only, or auto-trade inside your limits</ScanBullet>
-              <ScanBullet>Push and email when a rule matches or an order fills</ScanBullet>
-              <ScanBullet>Every scanner explains its own logic before you enable it</ScanBullet>
+              <ScanBullet>Push and email the moment a rule matches</ScanBullet>
+              <ScanBullet>Entry, stop and target on every alert, with the R it promised</ScanBullet>
+              <ScanBullet>A plain-English summary restates your logic before it goes live</ScanBullet>
             </ul>
           </div>
         </div>
@@ -435,10 +434,6 @@ export default async function LandingPage({
           <Quote
             text="The most complete and easy-to-use platform I've found for practicing trading and honestly evaluating my skills."
             name="Vahid Alizadeh, forex trader on the leaderboard"
-          />
-          <Quote
-            text="The scanners are the best part — set one loose on your watchlist and experimenting with strategies becomes the whole game."
-            name="Masoud Nikkhah, early Poshkan trader"
           />
         </div>
       </section>

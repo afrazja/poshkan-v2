@@ -5,7 +5,7 @@ import SiteFooter from "@/components/SiteFooter";
 export const metadata: Metadata = {
   title: "How the simulation works — Poshkan",
   description:
-    "Exactly how Poshkan's paper-trading simulator prices assets, fills orders, runs scanner backtests, and ranks the leaderboard — the honest mechanics, in plain language.",
+    "Exactly how Poshkan's paper-trading simulator prices assets, fills orders, runs strategy backtests, and ranks the leaderboard — the honest mechanics, in plain language.",
 };
 
 // The trust page: every mechanic that affects a user's numbers, stated plainly.
@@ -60,9 +60,9 @@ export default function HowItWorksPage() {
           </p>
         </Section>
 
-        <Section title="How scanner backtests work">
+        <Section title="How backtests work">
           <p>
-            Backtests replay a scanner&apos;s exact live logic bar by bar over recent history. Three rules
+            Backtests replay a strategy&apos;s exact live logic bar by bar over recent history. Three rules
             keep them honest:
           </p>
           <ul className="list-disc space-y-2 pl-5">
