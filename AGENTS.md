@@ -13,7 +13,7 @@ accounts. Live at **https://trade.poshkan.com** (Vercel, auto-deploys from `main
 ## Architecture in one breath
 Next.js 16 App Router + TypeScript + Tailwind v4 (class dark mode) · Supabase (auth +
 Postgres + RLS; all money mutations go through security-definer SQL RPCs) · market data: Yahoo quotes via `yahoo-finance2` (one batched request, no key) shared across
-instances through the `market_quotes` table, Twelve Data for candles and as a quote fallback · crons in
+instances through the `market_quotes` table, Twelve Data is wired in but its key is unset - an optional fallback, or a future paid tier for deeper backtest history · crons in
 `src/app/api/cron/*` secured by `CRON_SECRET` (Vercel cron daily + external 5-min pinger) ·
 MCP server at `src/app/api/mcp/[transport]` (token auth, user-scoped tools).
 

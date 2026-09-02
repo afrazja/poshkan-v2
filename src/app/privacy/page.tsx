@@ -39,8 +39,8 @@ export default function PrivacyPage() {
           <h2 className="mb-1 font-semibold">Services we rely on</h2>
           <p>
             Poshkan runs on Vercel (hosting), Supabase (database &amp; authentication), Resend
-            (email delivery), Twelve Data and Yahoo Finance (market data — your personal data is
-            never sent there), and Anthropic (the AI scanner — your watchlist symbols and market
+            (email delivery), Yahoo Finance (market data — your personal data is never sent
+            there), and Anthropic (the AI scanner — your watchlist symbols and market
             data are sent to the Claude API only when the scanner runs for you). Each processes
             data under its own privacy policy.
           </p>
