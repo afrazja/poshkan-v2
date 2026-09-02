@@ -65,7 +65,9 @@ export default function SymbolPanel({
           <p className="text-sm text-muted">{name}</p>
           {heldShares > 0 && (
             <span className="mt-1 inline-block rounded-full bg-background px-2 py-0.5 text-xs text-muted">
-              You hold {heldShares} {heldShares === 1 ? "share" : "shares"}
+              {/* A coin is held in coins, not shares — name the ticker instead. */}
+              You hold {heldShares}{" "}
+              {isCrypto ? symbol.split("-")[0] : heldShares === 1 ? "share" : "shares"}
             </span>
           )}
         </div>

@@ -73,8 +73,8 @@ export default function OwnerView({ symbol }: { symbol: string }) {
         {f && showOthers && <OthersCard f={f} />}
       </div>
       <p className="mt-2 text-[11px] text-muted">
-        Free data from Yahoo Finance, refreshed daily. This is evidence about the business and its price
-        history, not a recommendation.
+        Free data from Yahoo Finance, refreshed daily. This is evidence about{" "}
+        {f?.kind === "crypto" ? "this coin" : "the business"} and its price history, not a recommendation.
       </p>
     </section>
   );
