@@ -31,7 +31,7 @@ export default function OwnerView({ symbol }: { symbol: string }) {
   }, [symbol]);
 
   if (data === "loading") {
-    return <div className="mt-5 text-xs text-muted">Reading the owner’s viewâ¦</div>;
+    return <div className="mt-5 text-xs text-muted">Reading the owner’s view…</div>;
   }
   if (!data || (!data.fundamentals && !data.priceContext)) return null;
   const f = data.fundamentals;
