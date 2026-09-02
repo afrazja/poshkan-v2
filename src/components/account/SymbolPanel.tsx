@@ -153,25 +153,21 @@ export default function SymbolPanel({
             )}
           </div>
 
-          {/* Next earnings (or, for a coin, how long it has traded) + alert */}
-          <div className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-background px-3 py-2 text-sm">
-            {isCrypto ? (
-              quote?.tradingSince ? (
-                <span className="text-muted">
-                  Trading since{" "}
-                  <span className="font-medium text-foreground">{fmtMonthYear(quote.tradingSince)}</span>
-                </span>
-              ) : (
-                <span className="text-muted">Trades every day, including weekends</span>
-              )
-            ) : (
+          {/* A coin has no earnings date, so it gets no earnings strip — just
+              the alert on its own. */}
+          {isCrypto ? (
+            <div className="mt-4 flex justify-end">
+              <AlertForm symbol={symbol} currentPrice={quote?.price} />
+            </div>
+          ) : (
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-background px-3 py-2 text-sm">
               <span className="text-muted">
                 Next earnings:{" "}
                 <span className="font-medium text-foreground">{fmtDate(quote?.earningsDate)}</span>
               </span>
-            )}
-            <AlertForm symbol={symbol} currentPrice={quote?.price} />
-          </div>
+              <AlertForm symbol={symbol} currentPrice={quote?.price} />
+            </div>
+          )}
 
           <NewsSection symbol={symbol} />
         </>
@@ -230,12 +226,6 @@ function fmtDate(iso?: string): string {
   const d = new Date(iso);
   if (isNaN(d.getTime())) return "—";
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-}
-function fmtMonthYear(iso?: string): string {
-  if (!iso) return "—";
-  const d = new Date(iso);
-  if (isNaN(d.getTime())) return "—";
-  return d.toLocaleDateString("en-US", { month: "long", year: "numeric" });
 }
 // "20.1M of 21M" when the coin has a cap, plain count when it does not.
 function fmtSupply(circulating?: number, max?: number): string {

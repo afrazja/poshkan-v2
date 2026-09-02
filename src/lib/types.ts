@@ -130,7 +130,6 @@ export interface Quote {
   // Crypto only. `maxSupply` is absent when the coin has no cap (Yahoo sends 0).
   circulatingSupply?: number;
   maxSupply?: number;
-  tradingSince?: string;
 }
 
 export interface NewsItem {
