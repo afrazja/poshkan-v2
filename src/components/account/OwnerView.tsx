@@ -3,6 +3,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import type { Fundamentals } from "@/lib/fundamentals";
 import type { Drawdown, PriceContext } from "@/lib/price-context";
+import type { BitcoinComparison } from "@/lib/bitcoin-comparison";
 import { formatCompactUSD, formatCurrency } from "@/lib/format";
 
 // The Owner's View: what a long-term holder wants to know about the thing they
@@ -13,6 +14,7 @@ import { formatCompactUSD, formatCurrency } from "@/lib/format";
 interface Payload {
   fundamentals: Fundamentals | null;
   priceContext: PriceContext | null;
+  bitcoin: BitcoinComparison | null;
 }
 
 // This view lives behind a tab, so it is mounted and unmounted every time the
@@ -66,6 +68,7 @@ export default function OwnerView({ symbol }: { symbol: string }) {
       <div className="grid gap-3 sm:grid-cols-2">
         {p && <PriceCard p={p} />}
         {p && <DrawdownCard p={p} />}
+        {data.bitcoin && <BitcoinCard b={data.bitcoin} symbol={symbol} />}
         {f && <WhatCard f={f} />}
         {f && showMoney && <MoneyCard f={f} />}
         {f && showHealth && <HealthCard f={f} />}
@@ -211,6 +214,70 @@ function EpisodeList({ episodes, maxDepth }: { episodes: Drawdown[]; maxDepth: n
       ))}
       {earlier > 0 && <div className="text-[11px] text-muted">and {earlier} earlier</div>}
     </div>
+  );
+}
+
+function BitcoinCard({ b, symbol }: { b: BitcoinComparison; symbol: string }) {
+  const ticker = symbol.split("-")[0];
+  const same = b.sameDirectionPct;
+  // A stablecoin correlates with nothing because it barely moves; say that
+  // instead of reporting a meaningless correlation.
+  const pegged = b.dailyMovePct < 0.5 && Math.abs(b.beta) < 0.15;
+
+  let verdict: ReactNode;
+  if (pegged) {
+    verdict = (
+      <>
+        It barely moves at all. This one tracks the dollar rather than the crypto market.
+      </>
+    );
+  } else if (b.correlation >= 0.75) {
+    verdict = (
+      <>
+        Holding {ticker} next to Bitcoin is close to <B>holding more Bitcoin</B>. It is one bet, not two.
+      </>
+    );
+  } else if (b.correlation >= 0.45) {
+    verdict = <>It follows Bitcoin most of the time, though not always.</>;
+  } else {
+    verdict = <>It goes its own way more often than most coins do.</>;
+  }
+
+  return (
+    <Card title="Is this a separate bet from Bitcoin?" className="sm:col-span-2">
+      <div className="mt-1">
+        <div className="relative h-1.5 rounded-full bg-border">
+          <div
+            className="h-full rounded-full bg-primary"
+            style={{ width: `${clamp(same, 0, 100)}%` }}
+          />
+          <div className="absolute top-1/2 h-3 w-px -translate-y-1/2 bg-foreground/40" style={{ left: "50%" }} />
+        </div>
+        <div className="mt-1 flex justify-between text-[11px] text-muted">
+          <span>Moves with Bitcoin {Math.round(same)}% of days</span>
+          <span>50% would be a coin flip</span>
+        </div>
+      </div>
+      <p>
+        Over the last {b.days} trading days, {ticker} closed the same direction as Bitcoin on{" "}
+        <B>{Math.round(same)}% of days</B>.
+        {!pegged && (
+          <>
+            {" "}
+            When Bitcoin moves 1%, {ticker} moves about <B>{b.beta.toFixed(1)}%</B>.
+          </>
+        )}
+      </p>
+      {b.worstDays && !pegged && (
+        <p>
+          On Bitcoin’s <B>{b.worstDays.count} worst days</B> of that year, Bitcoin fell{" "}
+          {Math.abs(b.worstDays.bitcoinAvgPct).toFixed(1)}% on average and {ticker}{" "}
+          {b.worstDays.coinAvgPct < 0 ? "fell" : "rose"}{" "}
+          <B>{Math.abs(b.worstDays.coinAvgPct).toFixed(1)}%</B>.
+        </p>
+      )}
+      <p className="text-muted">{verdict}</p>
+    </Card>
   );
 }
 
