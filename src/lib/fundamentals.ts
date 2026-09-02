@@ -179,8 +179,9 @@ async function fetchFundamentals(sym: string): Promise<Fundamentals> {
         .filter((y) => Number.isFinite(y.year));
     }
   }
-  years.sort((a, b) => a.year - b.year);
-  years = years.slice(-5);
+  const byYear = new Map<number, YearMoney>();
+  for (const y of years.sort((a, b) => a.year - b.year)) byYear.set(y.year, y);
+  years = [...byYear.values()].slice(-5);
 
   // Insider activity in the last six months, from the readable transaction text.
   const since = Date.now() - 182 * 86_400_000;

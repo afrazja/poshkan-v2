@@ -5,6 +5,7 @@ import type { Quote, NewsItem } from "@/lib/types";
 import { formatCurrency, formatPercent, formatCompactUSD, changeColor } from "@/lib/format";
 import { createAlertAction } from "@/app/dashboard/[accountId]/actions";
 import PriceChart from "./PriceChart";
+import OwnerView from "./OwnerView";
 
 export default function SymbolPanel({
   symbol,
@@ -106,6 +107,8 @@ export default function SymbolPanel({
         <KV label="Dividend" value={fmtDividend(quote?.dividendRate, quote?.price)} />
         <KV label="52-wk low" value={fmtPrice(quote?.fiftyTwoWeekLow)} />
       </div>
+
+      <OwnerView symbol={symbol} />
 
       {/* Earnings + price alert */}
       <div className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-background px-3 py-2 text-sm">
