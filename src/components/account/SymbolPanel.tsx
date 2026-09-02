@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import type { Quote, NewsItem } from "@/lib/types";
 import { formatCurrency, formatPercent, formatCompactUSD, changeColor } from "@/lib/format";
 import { createAlertAction } from "@/app/dashboard/[accountId]/actions";
+import { isCryptoSymbol } from "@/lib/assets";
 import PriceChart from "./PriceChart";
 import OwnerView from "./OwnerView";
 
@@ -33,6 +34,7 @@ export default function SymbolPanel({
   const [quote, setQuote] = useState<Quote | undefined>(liveQuote);
   const [loading, setLoading] = useState(!liveQuote);
   const [tab, setTab] = useState<PanelTab>("overview");
+  const isCrypto = isCryptoSymbol(symbol);
 
   // A different symbol is a fresh look: always start on the price.
   useEffect(() => setTab("overview"), [symbol]);
@@ -124,24 +126,48 @@ export default function SymbolPanel({
             <PriceChart symbol={symbol} height={180} />
           </div>
 
-          {/* Key stats */}
+          {/* Key stats — a coin has no earnings, no dividend and no P/E, so it
+              gets the numbers that do describe it: what changed hands and how
+              many coins exist. */}
           <div className="mt-5 grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-4">
             <KV label="Open" value={fmtPrice(quote?.open)} />
             <KV label="High" value={fmtPrice(quote?.dayHigh)} />
             <KV label="Low" value={fmtPrice(quote?.dayLow)} />
             <KV label="Mkt cap" value={formatCompactUSD(quote?.marketCap)} />
-            <KV label="P/E ratio" value={fmtNum(quote?.peRatio)} />
-            <KV label="52-wk high" value={fmtPrice(quote?.fiftyTwoWeekHigh)} />
-            <KV label="Dividend" value={fmtDividend(quote?.dividendRate, quote?.price)} />
-            <KV label="52-wk low" value={fmtPrice(quote?.fiftyTwoWeekLow)} />
+            {isCrypto ? (
+              <>
+                <KV label="24h volume" value={formatCompactUSD(quote?.volume)} />
+                <KV label="52-wk high" value={fmtPrice(quote?.fiftyTwoWeekHigh)} />
+                <KV label="Coins in circulation" value={fmtSupply(quote?.circulatingSupply, quote?.maxSupply)} />
+                <KV label="52-wk low" value={fmtPrice(quote?.fiftyTwoWeekLow)} />
+              </>
+            ) : (
+              <>
+                <KV label="P/E ratio" value={fmtNum(quote?.peRatio)} />
+                <KV label="52-wk high" value={fmtPrice(quote?.fiftyTwoWeekHigh)} />
+                <KV label="Dividend" value={fmtDividend(quote?.dividendRate, quote?.price)} />
+                <KV label="52-wk low" value={fmtPrice(quote?.fiftyTwoWeekLow)} />
+              </>
+            )}
           </div>
 
-          {/* Earnings + price alert */}
+          {/* Next earnings (or, for a coin, how long it has traded) + alert */}
           <div className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-background px-3 py-2 text-sm">
-            <span className="text-muted">
-              Next earnings:{" "}
-              <span className="font-medium text-foreground">{fmtDate(quote?.earningsDate)}</span>
-            </span>
+            {isCrypto ? (
+              quote?.tradingSince ? (
+                <span className="text-muted">
+                  Trading since{" "}
+                  <span className="font-medium text-foreground">{fmtMonthYear(quote.tradingSince)}</span>
+                </span>
+              ) : (
+                <span className="text-muted">Trades every day, including weekends</span>
+              )
+            ) : (
+              <span className="text-muted">
+                Next earnings:{" "}
+                <span className="font-medium text-foreground">{fmtDate(quote?.earningsDate)}</span>
+              </span>
+            )}
             <AlertForm symbol={symbol} currentPrice={quote?.price} />
           </div>
 
@@ -202,6 +228,19 @@ function fmtDate(iso?: string): string {
   const d = new Date(iso);
   if (isNaN(d.getTime())) return "—";
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+function fmtMonthYear(iso?: string): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "—";
+  return d.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+}
+// "20.1M of 21M" when the coin has a cap, plain count when it does not.
+function fmtSupply(circulating?: number, max?: number): string {
+  if (circulating == null || !Number.isFinite(circulating)) return "—";
+  const n = (v: number) =>
+    v >= 1e12 ? `${(v / 1e12).toFixed(2)}T` : v >= 1e9 ? `${(v / 1e9).toFixed(2)}B` : v >= 1e6 ? `${(v / 1e6).toFixed(2)}M` : v >= 1e3 ? `${(v / 1e3).toFixed(1)}K` : `${Math.round(v)}`;
+  return max && max > 0 ? `${n(circulating)} of ${n(max)}` : n(circulating);
 }
 
 // Inline "set a price alert" form — also reused by the watchlist rows.

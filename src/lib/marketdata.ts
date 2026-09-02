@@ -95,6 +95,11 @@ interface YQuote {
   dividendRate?: number;
   trailingAnnualDividendRate?: number;
   earningsTimestamp?: number | Date;
+  regularMarketVolume?: number;
+  volume24Hr?: number;
+  circulatingSupply?: number;
+  maxSupply?: number;
+  startDate?: number | Date;
 }
 interface YCandle {
   date?: Date | string;
@@ -170,6 +175,12 @@ function toQuote(q: YQuote): Quote {
     fiftyTwoWeekLow: q.fiftyTwoWeekLow,
     dividendRate: q.dividendRate ?? q.trailingAnnualDividendRate,
     earningsDate: toIso(q.earningsTimestamp),
+    volume: q.volume24Hr ?? q.regularMarketVolume,
+    circulatingSupply: q.circulatingSupply,
+    // Yahoo reports an uncapped coin (ETH) as maxSupply 0, which would read as
+    // "a maximum of 0". Only a positive cap is a real one.
+    maxSupply: q.maxSupply && q.maxSupply > 0 ? q.maxSupply : undefined,
+    tradingSince: toIso(q.startDate),
   };
 }
 

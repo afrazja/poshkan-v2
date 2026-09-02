@@ -125,6 +125,12 @@ export interface Quote {
   fiftyTwoWeekLow?: number;
   dividendRate?: number;
   earningsDate?: string;
+  // Value traded today: shares for a stock, dollars over 24h for a coin.
+  volume?: number;
+  // Crypto only. `maxSupply` is absent when the coin has no cap (Yahoo sends 0).
+  circulatingSupply?: number;
+  maxSupply?: number;
+  tradingSince?: string;
 }
 
 export interface NewsItem {
