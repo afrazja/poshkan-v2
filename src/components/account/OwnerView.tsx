@@ -31,7 +31,7 @@ export default function OwnerView({ symbol }: { symbol: string }) {
   }, [symbol]);
 
   if (data === "loading") {
-    return <div className="mt-5 text-xs text-muted">Reading the owner&apos;s view…</div>;
+    return <div className="mt-5 text-xs text-muted">Reading the owner’s viewâ¦</div>;
   }
   if (!data || (!data.fundamentals && !data.priceContext)) return null;
   const f = data.fundamentals;
@@ -43,7 +43,7 @@ export default function OwnerView({ symbol }: { symbol: string }) {
 
   return (
     <section className="mt-5">
-      <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">Owner&apos;s view</h4>
+      <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">Owner’s view</h4>
       <div className="grid gap-3 sm:grid-cols-2">
         {p && <PriceCard p={p} />}
         {p && <DrawdownCard p={p} />}
@@ -91,7 +91,7 @@ function PriceCard({ p }: { p: PriceContext }) {
             </div>
           </div>
           <p>
-            Today&apos;s price is <B>{pct(y.aboveLowPct)} above</B> the lowest point of {window} and{" "}
+            Today’s price is <B>{pct(y.aboveLowPct)} above</B> the lowest point of {window} and{" "}
             <B>{pct(y.belowHighPct)} below</B> the highest.
           </p>
           <p>
@@ -420,7 +420,7 @@ function ValueCard({ f }: { f: Fundamentals }) {
     <Card title="Is it expensive?">
       {pe ? (
         <p>
-          You pay <B>${pe.toFixed(0)}</B> for every $1 of last year&apos;s profit
+          You pay <B>${pe.toFixed(0)}</B> for every $1 of last year’s profit
           {fpe ? (
             <>
               , and <B>${fpe.toFixed(0)}</B> for every $1 of profit expected next year
@@ -441,7 +441,7 @@ function ValueCard({ f }: { f: Fundamentals }) {
       </p>
       {yieldPct > 0 ? (
         <p>
-          Pays <B>{yieldPct.toFixed(2)}%</B> a year in dividends at today&apos;s price
+          Pays <B>{yieldPct.toFixed(2)}%</B> a year in dividends at today’s price
           {f.events?.exDividend ? <> · next ex-dividend {shortDate(f.events.exDividend)}</> : null}.
         </p>
       ) : (
