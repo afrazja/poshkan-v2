@@ -1,12 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { FxPosition, Quote } from "@/lib/types";
 import { formatCurrency, formatSignedCurrency, changeColor } from "@/lib/format";
 import { symbolLabel } from "@/lib/assets";
-import { marginFor, TRADE_LEVERAGE_OPTIONS } from "@/lib/forex";
-import { openFxPositionAction, closeFxPositionAction, setFxSlTpAction } from "@/app/dashboard/[accountId]/actions";
+import { autoCloseReason, marginFor, TRADE_LEVERAGE_OPTIONS } from "@/lib/forex";
+import {
+  autoCloseFxPositionAction,
+  openFxPositionAction,
+  closeFxPositionAction,
+  setFxSlTpAction,
+} from "@/app/dashboard/[accountId]/actions";
 import SymbolSearch from "@/components/SymbolSearch";
 import Modal from "@/components/Modal";
 import SourceBadge from "./SourceBadge";
@@ -39,6 +44,43 @@ export default function LeveragePanel({
     .filter((p) => p.status !== "open")
     .sort((a, b) => new Date(b.closed_at ?? 0).getTime() - new Date(a.closed_at ?? 0).getTime());
   const unit = accountType === "crypto" ? "coins" : "shares";
+
+  // Live auto-close while the page is open, on every quote poll. The forex
+  // panel has had this all along; leveraged positions on stock and crypto
+  // accounts never got it, so a stop here waited up to a full cron interval
+  // while the user watched price go through it. The server re-verifies with a
+  // fresh rate, so a stale quote can't force a close, and the RPC's
+  // status='open' guard makes a double-fire harmless.
+  const autoRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    for (const p of live) {
+      if (autoRef.current.has(p.id)) continue;
+      // Timed auto-close: close at market once the timer passes (the server
+      // fetches its own rate, so no quote is needed here).
+      if (p.auto_close_at && new Date(p.auto_close_at).getTime() <= Date.now()) {
+        autoRef.current.add(p.id);
+        closeFxPositionAction(p.id, accountId)
+          .then((r) => {
+            if (!r.error) router.refresh();
+            else autoRef.current.delete(p.id);
+          })
+          .catch(() => autoRef.current.delete(p.id));
+        continue;
+      }
+      const q = quotes[p.symbol.toUpperCase()];
+      if (!q?.price) continue;
+      if (!autoCloseReason(p, q.price)) continue;
+      autoRef.current.add(p.id);
+      // Refresh only on a confirmed close — refreshing on a server-declined
+      // close (stale client rate) would loop this effect.
+      autoCloseFxPositionAction(p.id, accountId)
+        .then((r) => {
+          if (r.closed) router.refresh();
+          else autoRef.current.delete(p.id);
+        })
+        .catch(() => autoRef.current.delete(p.id));
+    }
+  }, [live, quotes, accountId, router]);
 
   async function close(id: string) {
     setClosing(id);

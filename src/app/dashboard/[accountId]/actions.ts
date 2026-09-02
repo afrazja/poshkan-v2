@@ -538,9 +538,16 @@ export async function autoCloseFxPositionAction(
   const reason = autoCloseReason(pos as Parameters<typeof autoCloseReason>[0], rate);
   if (!reason) return { closed: false };
 
+  // Fill AT the level for a bracket, matching the cron's bracketHit(): a resting
+  // take-profit never fills better than its own price, and a stop fills at its
+  // price rather than wherever spot sits by the next poll. A margin stop-out is
+  // a market close and takes the live rate.
+  const fill =
+    reason === "sl" ? Number(pos.stop_loss) : reason === "tp" ? Number(pos.take_profit) : rate;
+
   const { error } = await supabase.rpc("fx_close", {
     p_position_id: positionId,
-    p_rate: rate,
+    p_rate: fill,
     p_reason: reason,
   });
   if (error) return { closed: false };
