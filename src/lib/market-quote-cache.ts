@@ -50,7 +50,13 @@ export async function readQuoteCache(symbols: string[], maxAgeMs: number): Promi
     const cutoff = Date.now() - maxAgeMs;
     for (const row of (data ?? []) as { symbol: string; quote: Quote; fetched_at: string }[]) {
       const at = new Date(row.fetched_at).getTime();
-      (at >= cutoff ? fresh : stale)[row.symbol.toUpperCase()] = row.quote;
+      const isFresh = at >= cutoff;
+      // Stamp the row's own fetch time so the UI can say how old it is.
+      (isFresh ? fresh : stale)[row.symbol.toUpperCase()] = {
+        ...row.quote,
+        asOf: new Date(at).toISOString(),
+        stale: !isFresh,
+      };
     }
     return { fresh, stale };
   } catch (error) {
@@ -76,7 +82,7 @@ export async function writeQuoteCache(
       symbol: q.symbol.toUpperCase(),
       provider: source[q.symbol.toUpperCase()] ?? "unknown",
       price: q.price,
-      quote: q,
+      quote: { ...q, asOf: now, stale: false },
       fetched_at: now,
     }));
   if (rows.length === 0) return;

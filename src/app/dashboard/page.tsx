@@ -4,6 +4,7 @@ import { realizedPnl } from "@/lib/pnl";
 import { floatingPnl } from "@/lib/forex";
 import AccountsGrid from "@/components/accounts/AccountsGrid";
 import { MARKET_GROUPS } from "@/components/accounts/nocturne";
+import { summarizeFreshness } from "@/lib/quote-freshness";
 import AlertsCard from "@/components/accounts/AlertsCard";
 import GettingStarted from "@/components/accounts/GettingStarted";
 import WelcomeHero from "@/components/accounts/WelcomeHero";
@@ -87,6 +88,10 @@ export default async function DashboardPage() {
       // quotes unavailable — fall back to cost basis below
     }
   }
+
+  // How old the prices behind every figure on this page are — shown in the
+  // band so a server-rendered snapshot never passes itself off as live.
+  const freshness = summarizeFreshness(quotes);
 
   type Sum = {
     marketValue: number;
@@ -201,7 +206,13 @@ export default async function DashboardPage() {
       </div>
       {checks.hasAccount ? <GettingStarted checks={checks} /> : <WelcomeHero />}
       <AlertsCard alerts={(alerts ?? []) as Alert[]} />
-      <AccountsGrid accounts={accountRows} summary={summary} band={band} groups={groups} />
+      <AccountsGrid
+        accounts={accountRows}
+        summary={summary}
+        band={band}
+        groups={groups}
+        freshness={freshness}
+      />
     </div>
   );
 }

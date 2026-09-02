@@ -105,6 +105,11 @@ export interface Quote {
   percentChange: number;
   currency: string;
   isMarketOpen: boolean;
+  // When this quote was last fetched from the provider (ISO). `stale` means it
+  // is older than the cache TTL and is being served only because the provider
+  // could not be reached — the UI must say so rather than show it as live.
+  asOf?: string;
+  stale?: boolean;
   // Extended-hours detail (stocks): which session `price` came from, the
   // regular-session price it moved from, and the extended move itself.
   extendedSession?: "pre" | "post";

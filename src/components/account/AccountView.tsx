@@ -13,6 +13,8 @@ import { TextSkeleton } from "@/components/Skeleton";
 import LeveragePanel from "./LeveragePanel";
 import TradeCoach from "./TradeCoach";
 import MarketStatusBadge from "./MarketStatusBadge";
+import QuoteFreshness from "./QuoteFreshness";
+import { summarizeFreshness } from "@/lib/quote-freshness";
 import AiScanner, { type AutoSettings } from "./AiScanner";
 import { useQuotes } from "@/lib/useQuotes";
 import { useSymbolSparks } from "@/lib/useSymbolSparks";
@@ -335,6 +337,7 @@ export default function AccountView({
                   {account.type} account · {isForex ? "equity" : "total value"}
                 </span>
                 <MarketStatusBadge market={account.type} />
+                <QuoteFreshness {...summarizeFreshness(quotes)} />
               </div>
             </div>
             <EquitySpark accountId={account.id} />

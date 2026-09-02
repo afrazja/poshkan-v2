@@ -272,9 +272,14 @@ export async function getQuotes(symbols: string[]): Promise<Record<string, Quote
     pending = (async () => {
       try {
         const { quotes, source } = await fetchQuotesFromProviders(missing);
-        for (const [sym, q] of Object.entries(quotes)) cache.set(`quote:${sym}`, { at: Date.now(), data: q });
-        await writeQuoteCache(quotes, source);
-        return quotes;
+        // Stamp the fetch time on the way in, so every later reader — memory,
+        // table, UI — can say how old the price is.
+        const now = new Date().toISOString();
+        const stamped: Record<string, Quote> = {};
+        for (const [sym, q] of Object.entries(quotes)) stamped[sym] = { ...q, asOf: now, stale: false };
+        for (const [sym, q] of Object.entries(stamped)) cache.set(`quote:${sym}`, { at: Date.now(), data: q });
+        await writeQuoteCache(stamped, source);
+        return stamped;
       } finally {
         quoteInflight.delete(key);
       }
@@ -287,7 +292,8 @@ export async function getQuotes(symbols: string[]): Promise<Record<string, Quote
   for (const sym of missing) {
     if (out[sym]) continue;
     const stale = shared.stale[sym] ?? (cache.get(`quote:${sym}`) as Entry<Quote> | undefined)?.data;
-    if (stale) out[sym] = stale;
+    // Flagged, never silent: the UI turns this into "prices delayed".
+    if (stale) out[sym] = { ...stale, stale: true };
   }
   return out;
 }

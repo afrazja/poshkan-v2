@@ -2,13 +2,17 @@
 
 import { formatCurrency, formatPercent, formatSignedCurrency } from "@/lib/format";
 import NewAccountButton from "./NewAccountButton";
+import QuoteFreshness from "@/components/account/QuoteFreshness";
+import type { Freshness } from "@/lib/quote-freshness";
 import { pnlColor, type BandTotals } from "./nocturne";
 
 export default function PortfolioBand({
   band,
+  freshness,
   onNewAccount,
 }: {
   band: BandTotals;
+  freshness?: Freshness;
   onNewAccount: () => void;
 }) {
   const { totalValue, todayPnl, prevValue, cashAvailable, openPositions } = band;
@@ -35,6 +39,13 @@ export default function PortfolioBand({
               {prevValue > 0 && ` · ${formatPercent((todayPnl / prevValue) * 100)}`} today
             </span>
           </div>
+          {/* This page is a server snapshot, not a live poll — so it ages
+              visibly rather than pretending to be current. */}
+          {freshness?.asOf && (
+            <div className="mt-2">
+              <QuoteFreshness asOf={freshness.asOf} stale={freshness.stale} />
+            </div>
+          )}
         </div>
         <div className="hidden min-[900px]:block">
           <NewAccountButton onClick={onNewAccount} />

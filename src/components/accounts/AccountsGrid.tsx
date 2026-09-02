@@ -15,6 +15,7 @@ import PortfolioBand from "./PortfolioBand";
 import AccountsTable from "./AccountsTable";
 import AccountCards from "./AccountCards";
 import NewAccountButton from "./NewAccountButton";
+import type { Freshness } from "@/lib/quote-freshness";
 import {
   applyOrder,
   buildRows,
@@ -31,11 +32,13 @@ export default function AccountsGrid({
   summary,
   band,
   groups,
+  freshness,
 }: {
   accounts: Account[];
   summary: Record<string, AccountSummary>;
   band: BandTotals;
   groups: MarketGroup[];
+  freshness?: Freshness;
 }) {
   const router = useRouter();
 
@@ -221,7 +224,7 @@ export default function AccountsGrid({
 
   return (
     <div data-nocturne>
-      <PortfolioBand band={band} onNewAccount={() => setShowCreate(true)} />
+      <PortfolioBand band={band} freshness={freshness} onNewAccount={() => setShowCreate(true)} />
 
       {/* Its own row, right-aligned, directly above the list. Desktop only:
           below 900px there is no table to switch to. */}
