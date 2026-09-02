@@ -7,6 +7,8 @@ import { createAlertAction } from "@/app/dashboard/[accountId]/actions";
 import PriceChart from "./PriceChart";
 import OwnerView from "./OwnerView";
 
+type PanelTab = "overview" | "owner";
+
 export default function SymbolPanel({
   symbol,
   name,
@@ -30,6 +32,10 @@ export default function SymbolPanel({
 }) {
   const [quote, setQuote] = useState<Quote | undefined>(liveQuote);
   const [loading, setLoading] = useState(!liveQuote);
+  const [tab, setTab] = useState<PanelTab>("overview");
+
+  // A different symbol is a fresh look: always start on the price.
+  useEffect(() => setTab("overview"), [symbol]);
 
   // Fetch a one-off quote when the symbol isn't already in the polled set.
   useEffect(() => {
@@ -92,34 +98,58 @@ export default function SymbolPanel({
         </div>
       </div>
 
-      <div className="mt-4">
-        <PriceChart symbol={symbol} height={180} />
+      {/* Price and news, or the longer read on the business behind the symbol */}
+      <div className="mt-4 flex flex-wrap gap-1 rounded-lg border border-border bg-background p-1">
+        {(
+          [
+            { key: "overview", label: "Overview" },
+            { key: "owner", label: "Owner’s view" },
+          ] as { key: PanelTab; label: string }[]
+        ).map((t) => (
+          <button
+            key={t.key}
+            onClick={() => setTab(t.key)}
+            className={`rounded-md px-4 py-1.5 text-sm font-medium transition ${
+              tab === t.key ? "bg-card text-foreground shadow-sm" : "text-muted hover:text-foreground"
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
       </div>
 
-      {/* Key stats */}
-      <div className="mt-5 grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-4">
-        <KV label="Open" value={fmtPrice(quote?.open)} />
-        <KV label="High" value={fmtPrice(quote?.dayHigh)} />
-        <KV label="Low" value={fmtPrice(quote?.dayLow)} />
-        <KV label="Mkt cap" value={formatCompactUSD(quote?.marketCap)} />
-        <KV label="P/E ratio" value={fmtNum(quote?.peRatio)} />
-        <KV label="52-wk high" value={fmtPrice(quote?.fiftyTwoWeekHigh)} />
-        <KV label="Dividend" value={fmtDividend(quote?.dividendRate, quote?.price)} />
-        <KV label="52-wk low" value={fmtPrice(quote?.fiftyTwoWeekLow)} />
-      </div>
+      {tab === "overview" ? (
+        <>
+          <div className="mt-4">
+            <PriceChart symbol={symbol} height={180} />
+          </div>
 
-      <OwnerView symbol={symbol} />
+          {/* Key stats */}
+          <div className="mt-5 grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-4">
+            <KV label="Open" value={fmtPrice(quote?.open)} />
+            <KV label="High" value={fmtPrice(quote?.dayHigh)} />
+            <KV label="Low" value={fmtPrice(quote?.dayLow)} />
+            <KV label="Mkt cap" value={formatCompactUSD(quote?.marketCap)} />
+            <KV label="P/E ratio" value={fmtNum(quote?.peRatio)} />
+            <KV label="52-wk high" value={fmtPrice(quote?.fiftyTwoWeekHigh)} />
+            <KV label="Dividend" value={fmtDividend(quote?.dividendRate, quote?.price)} />
+            <KV label="52-wk low" value={fmtPrice(quote?.fiftyTwoWeekLow)} />
+          </div>
 
-      {/* Earnings + price alert */}
-      <div className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-background px-3 py-2 text-sm">
-        <span className="text-muted">
-          Next earnings:{" "}
-          <span className="font-medium text-foreground">{fmtDate(quote?.earningsDate)}</span>
-        </span>
-        <AlertForm symbol={symbol} currentPrice={quote?.price} />
-      </div>
+          {/* Earnings + price alert */}
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-background px-3 py-2 text-sm">
+            <span className="text-muted">
+              Next earnings:{" "}
+              <span className="font-medium text-foreground">{fmtDate(quote?.earningsDate)}</span>
+            </span>
+            <AlertForm symbol={symbol} currentPrice={quote?.price} />
+          </div>
 
-      <NewsSection symbol={symbol} />
+          <NewsSection symbol={symbol} />
+        </>
+      ) : (
+        <OwnerView symbol={symbol} />
+      )}
 
       <div className="mt-5 flex flex-wrap gap-2">
         <button

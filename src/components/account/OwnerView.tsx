@@ -15,15 +15,29 @@ interface Payload {
   priceContext: PriceContext | null;
 }
 
+// This view lives behind a tab, so it is mounted and unmounted every time the
+// user switches back and forth. Keep what we already fetched for the life of
+// the page so the second visit is instant.
+const seen = new Map<string, Payload | null>();
+
 export default function OwnerView({ symbol }: { symbol: string }) {
-  const [data, setData] = useState<Payload | null | "loading">("loading");
+  const [data, setData] = useState<Payload | null | "loading">(() =>
+    seen.has(symbol) ? (seen.get(symbol) as Payload | null) : "loading"
+  );
 
   useEffect(() => {
+    if (seen.has(symbol)) {
+      setData(seen.get(symbol) as Payload | null);
+      return;
+    }
     let active = true;
     setData("loading");
     fetch(`/api/fundamentals?symbol=${encodeURIComponent(symbol)}`)
       .then((r) => (r.ok ? (r.json() as Promise<Payload>) : null))
-      .then((j) => active && setData(j))
+      .then((j) => {
+        seen.set(symbol, j);
+        if (active) setData(j);
+      })
       .catch(() => active && setData(null));
     return () => {
       active = false;
@@ -31,9 +45,15 @@ export default function OwnerView({ symbol }: { symbol: string }) {
   }, [symbol]);
 
   if (data === "loading") {
-    return <div className="mt-5 text-xs text-muted">Reading the owner’s view…</div>;
+    return <div className="mt-4 text-sm text-muted">Reading the owner’s view…</div>;
   }
-  if (!data || (!data.fundamentals && !data.priceContext)) return null;
+  if (!data || (!data.fundamentals && !data.priceContext)) {
+    return (
+      <div className="mt-4 rounded-lg border border-border bg-background px-3 py-4 text-sm text-muted">
+        No background information is available for {symbol}. The Overview tab still has its price and chart.
+      </div>
+    );
+  }
   const f = data.fundamentals;
   const p = data.priceContext;
   const showMoney = !!f?.money?.years.length;
@@ -42,8 +62,7 @@ export default function OwnerView({ symbol }: { symbol: string }) {
   const showOthers = !!(f?.analysts || f?.insiders);
 
   return (
-    <section className="mt-5">
-      <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">Owner’s view</h4>
+    <section className="mt-4">
       <div className="grid gap-3 sm:grid-cols-2">
         {p && <PriceCard p={p} />}
         {p && <DrawdownCard p={p} />}
