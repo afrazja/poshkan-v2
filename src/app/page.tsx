@@ -387,6 +387,21 @@ export default async function LandingPage({
           </ResearchPoint>
         </div>
 
+        <figure className="m-0 mt-12 max-w-[820px]">
+          <div className="overflow-hidden rounded-[14px] bg-[#161826]" style={{ boxShadow: SHADOW_MD }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/landing/before-you-buy.png"
+              alt="The public NVDA page: where the price sits in its 12-month range, and every 20% fall in ten years with how long each took to recover"
+              className="block w-full"
+            />
+          </div>
+          <figcaption className="mt-4 max-w-[56ch] text-[13.5px] leading-[22px] text-[#e9e9ed9e]">
+            The live public page for NVDA. Seven falls of 20% or more in ten years, the deepest 66%,
+            every one recovered — computed from real closes, not written by anyone.
+          </figcaption>
+        </figure>
+
         <p className="mt-11 max-w-[62ch] text-[16px] leading-[28px] text-[#e9e9edcc]">
           You do not need an account to read any of it. See it for{" "}
           <a href="/symbol/NVDA" className="text-[var(--lp-accent)] underline underline-offset-4">
