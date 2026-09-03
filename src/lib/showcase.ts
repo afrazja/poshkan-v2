@@ -31,6 +31,13 @@ const CRYPTO_ROWS = 5;
 // A ticker that resolves to the wrong asset is usually a near-worthless token
 // wearing a famous name. Nothing this small reaches a shelf.
 const MIN_CRYPTO_CAP = 100e6;
+// A shelf must mean what its name says. With 400 stocks something is always
+// genuinely red and something is always genuinely near a high; with 15 coins
+// neither holds, and "Down most today" ends up listing gains. Rows that do not
+// qualify are dropped, and a shelf left empty disappears for the day — which is
+// itself the honest answer to "what is near its high?" when nothing is.
+const NEAR_LOW_MAX = 25;
+const NEAR_HIGH_MIN = 75;
 
 export interface ShowcaseRow {
   symbol: string;
@@ -134,25 +141,25 @@ async function buildStocks(): Promise<Shelf[]> {
       key: "gainers",
       label: "Up most today",
       blurb: "Today's biggest risers. Check what the jump has done to the price before you follow it.",
-      rows: [...stocks].sort((a, b) => b.changePct - a.changePct).slice(0, ROWS),
+      rows: stocks.filter((r) => r.changePct > 0).sort((a, b) => b.changePct - a.changePct).slice(0, ROWS),
     },
     {
       key: "losers",
       label: "Down most today",
       blurb: "Today's biggest falls. A red day is not automatically a disaster — see how far it has fallen before.",
-      rows: [...stocks].sort((a, b) => a.changePct - b.changePct).slice(0, ROWS),
+      rows: stocks.filter((r) => r.changePct < 0).sort((a, b) => a.changePct - b.changePct).slice(0, ROWS),
     },
     {
       key: "near-low",
       label: "Near 12-month low",
       blurb: "Cheaper than they have been all year. Cheap for a reason, or on sale? The evidence is a click away.",
-      rows: [...withRange].sort((a, b) => (a.rangePct ?? 0) - (b.rangePct ?? 0)).slice(0, ROWS),
+      rows: withRange.filter((r) => (r.rangePct ?? 100) <= NEAR_LOW_MAX).sort((a, b) => (a.rangePct ?? 0) - (b.rangePct ?? 0)).slice(0, ROWS),
     },
     {
       key: "near-high",
       label: "Near 12-month high",
       blurb: "Priced higher than at any point this year. Momentum, or paying up for it?",
-      rows: [...withRange].sort((a, b) => (b.rangePct ?? 0) - (a.rangePct ?? 0)).slice(0, ROWS),
+      rows: withRange.filter((r) => (r.rangePct ?? 0) >= NEAR_HIGH_MIN).sort((a, b) => (b.rangePct ?? 0) - (a.rangePct ?? 0)).slice(0, ROWS),
     },
     {
       key: "traded",
@@ -189,25 +196,25 @@ async function buildCrypto(): Promise<Shelf[]> {
       key: "gainers",
       label: "Up most today",
       blurb: "Today's biggest risers. Most coins rise and fall with Bitcoin, so check whether this is its own move.",
-      rows: [...coins].sort((a, b) => b.changePct - a.changePct).slice(0, CRYPTO_ROWS),
+      rows: coins.filter((r) => r.changePct > 0).sort((a, b) => b.changePct - a.changePct).slice(0, CRYPTO_ROWS),
     },
     {
       key: "losers",
       label: "Down most today",
       blurb: "Today's biggest falls. Coins fall further than shares do — see how deep it has gone before.",
-      rows: [...coins].sort((a, b) => a.changePct - b.changePct).slice(0, CRYPTO_ROWS),
+      rows: coins.filter((r) => r.changePct < 0).sort((a, b) => a.changePct - b.changePct).slice(0, CRYPTO_ROWS),
     },
     {
       key: "near-low",
       label: "Near 12-month low",
       blurb: "Cheaper than they have been all year. Crypto stays down for years at a time, so read the drawdown history first.",
-      rows: [...withRange].sort((a, b) => (a.rangePct ?? 0) - (b.rangePct ?? 0)).slice(0, CRYPTO_ROWS),
+      rows: withRange.filter((r) => (r.rangePct ?? 100) <= NEAR_LOW_MAX).sort((a, b) => (a.rangePct ?? 0) - (b.rangePct ?? 0)).slice(0, CRYPTO_ROWS),
     },
     {
       key: "near-high",
       label: "Near 12-month high",
       blurb: "Priced higher than at any point this year.",
-      rows: [...withRange].sort((a, b) => (b.rangePct ?? 0) - (a.rangePct ?? 0)).slice(0, CRYPTO_ROWS),
+      rows: withRange.filter((r) => (r.rangePct ?? 0) >= NEAR_HIGH_MIN).sort((a, b) => (b.rangePct ?? 0) - (a.rangePct ?? 0)).slice(0, CRYPTO_ROWS),
     },
     {
       key: "traded",
