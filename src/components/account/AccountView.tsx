@@ -13,7 +13,6 @@ import { TextSkeleton } from "@/components/Skeleton";
 import LeveragePanel, { OpenModal as LeverageTicket } from "./LeveragePanel";
 import Showcase from "./Showcase";
 import CryptoMap from "./CryptoMap";
-import TradeCoach from "./TradeCoach";
 import MarketStatusBadge from "./MarketStatusBadge";
 import QuoteFreshness from "./QuoteFreshness";
 import { summarizeFreshness } from "@/lib/quote-freshness";
@@ -497,7 +496,6 @@ export default function AccountView({
           </div>
           <div className="min-w-0 space-y-6 lg:col-span-1">
             <ForexPerformance accountId={account.id} closed={fxPositions.filter((p) => p.status !== "open")} />
-            <TradeCoach positions={fxPositions} cash={cash} />
           </div>
         </div>
       )}

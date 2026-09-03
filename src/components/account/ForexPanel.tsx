@@ -30,6 +30,7 @@ import {
   fillFxTpLevelsAction,
 } from "@/app/dashboard/[accountId]/actions";
 import Modal from "@/components/Modal";
+import SegmentedControl from "@/components/SegmentedControl";
 import PriceChart from "./PriceChart";
 import PositionChartModal from "./PositionChartModal";
 import SourceBadge from "./SourceBadge";
@@ -1006,28 +1007,20 @@ function FxTradeModal({
 
           {/* Execution: now at market, or pending at a chosen rate */}
           {ALLOW_PENDING_FX && (
-            <div className="flex gap-1 rounded-lg border border-border bg-background p-1">
-              {(
-                [
-                  { key: "MARKET", label: "Market — now" },
-                  { key: "PENDING", label: "At rate…" },
-                ] as const
-              ).map((m) => (
-                <button
-                  key={m.key}
-                  onClick={() => {
-                    setExecMode(m.key);
-                    // Pre-fill ~20 pips below the live rate (a valid limit entry to edit).
-                    if (m.key === "PENDING" && !entryRate && rate) setEntryRate((rate - 0.002).toFixed(5));
-                  }}
-                  className={`flex-1 rounded-md py-1.5 text-xs font-medium transition ${
-                    execMode === m.key ? "bg-card text-foreground shadow-sm" : "text-muted hover:text-foreground"
-                  }`}
-                >
-                  {m.label}
-                </button>
-              ))}
-            </div>
+            <SegmentedControl
+              size="sm"
+              label="Execution"
+              value={execMode}
+              onChange={(key) => {
+                setExecMode(key);
+                // Pre-fill ~20 pips below the live rate (a valid limit entry to edit).
+                if (key === "PENDING" && !entryRate && rate) setEntryRate((rate - 0.002).toFixed(5));
+              }}
+              options={[
+                { key: "MARKET", label: "Market — now" },
+                { key: "PENDING", label: "At rate…" },
+              ]}
+            />
           )}
 
           <div className="flex justify-between rounded-lg bg-background px-3 py-2 text-sm">
