@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { Shelf, ShowcaseRow } from "@/lib/showcase";
+import type { Shelf, ShowcaseRow, ShowcaseType } from "@/lib/showcase";
 import { formatCurrency, formatPercent, changeColor } from "@/lib/format";
 
 // The answer to an empty account. Instead of a search bar and nothing else, six
@@ -9,31 +9,39 @@ import { formatCurrency, formatPercent, changeColor } from "@/lib/format";
 // its own 12-month range, so a jumping stock cannot be mistaken for a bargain.
 // Clicking a row opens the symbol panel, which lands on Before you buy.
 
-// Two copies of this mount on every stock account — one for the desktop column,
-// one for the phone's Ideas tab — and only ever one is visible. Share the fetch
-// so the hidden twin costs nothing.
-let shared: Promise<Shelf[]> | null = null;
-const loadShelves = () => {
-  if (!shared) {
-    shared = fetch("/api/showcase")
+// Two copies of this mount on every account — one for the desktop column, one
+// for the phone's Ideas tab — and only ever one is visible. Share the fetch per
+// asset type so the hidden twin costs nothing.
+const shared = new Map<ShowcaseType, Promise<Shelf[]>>();
+const loadShelves = (type: ShowcaseType) => {
+  let p = shared.get(type);
+  if (!p) {
+    p = fetch(`/api/showcase?type=${type}`)
       .then((r) => (r.ok ? r.json() : { shelves: [] }))
       .then((j) => (j.shelves ?? []) as Shelf[])
       .catch(() => [] as Shelf[]);
+    shared.set(type, p);
   }
-  return shared;
+  return p;
 };
 
-export default function StockShowcase({ onSelect }: { onSelect: (symbol: string, name: string) => void }) {
+export default function Showcase({
+  type,
+  onSelect,
+}: {
+  type: ShowcaseType;
+  onSelect: (symbol: string, name: string) => void;
+}) {
   const [shelves, setShelves] = useState<Shelf[] | null>(null);
   const [active, setActive] = useState(0);
 
   useEffect(() => {
     let live = true;
-    loadShelves().then((s) => live && setShelves(s));
+    loadShelves(type).then((s) => live && setShelves(s));
     return () => {
       live = false;
     };
-  }, []);
+  }, [type]);
 
   if (shelves && shelves.length === 0) return null;
 
@@ -43,7 +51,8 @@ export default function StockShowcase({ onSelect }: { onSelect: (symbol: string,
     <div className="rounded-2xl border border-border bg-card p-4">
       <h2 className="text-sm font-semibold">Ideas to look at</h2>
       <p className="mt-0.5 text-xs text-muted">
-        Live from the largest US companies. Nothing here is a recommendation.
+        {type === "crypto" ? "The largest coins by value." : "Live from the largest US companies."} Nothing
+        here is a recommendation.
       </p>
 
       {!shelves ? (

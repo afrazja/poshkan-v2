@@ -11,7 +11,7 @@ import ScannerIcon from "@/components/ScannerIcon";
 import EquitySpark from "./EquitySpark";
 import { TextSkeleton } from "@/components/Skeleton";
 import LeveragePanel from "./LeveragePanel";
-import StockShowcase from "./StockShowcase";
+import Showcase from "./Showcase";
 import TradeCoach from "./TradeCoach";
 import MarketStatusBadge from "./MarketStatusBadge";
 import QuoteFreshness from "./QuoteFreshness";
@@ -89,7 +89,7 @@ export default function AccountView({
   // account opens on Ideas. Computed from props, so the server and the first
   // client render agree.
   const [tab, setTab] = useState<Tab>(
-    account.type === "stocks" && initialPositions.length === 0 ? "ideas" : "holdings"
+    account.type !== "forex" && initialPositions.length === 0 ? "ideas" : "holdings"
   );
 
   // Restore the last tab the user had open on this account.
@@ -124,7 +124,9 @@ export default function AccountView({
   // An empty stock account gives the wide column to the showcase: there is no
   // portfolio to read yet. It hands the width back the moment one is bought,
   // because an eight-column holdings table is unreadable at a third of the page.
-  const leadWithIdeas = isStocks && positions.length === 0;
+  const leadWithIdeas = !isForex && positions.length === 0;
+  // Both non-forex markets get a showcase; each has its own universe.
+  const showcaseType = account.type === "crypto" ? "crypto" : "stocks";
 
   // Symbols to keep priced live.
   const symbols = useMemo(() => {
@@ -541,7 +543,7 @@ export default function AccountView({
         <>
           {/* Desktop only — on a phone this same showcase is the Ideas tab. */}
           <div className="hidden lg:block">
-            <StockShowcase onSelect={selectSymbol} />
+            <Showcase type={showcaseType} onSelect={selectSymbol} />
           </div>
           {/* Never strand a position: if this account still holds leveraged
               trades from before, it keeps the panel to close them. */}
@@ -556,13 +558,20 @@ export default function AccountView({
           )}
         </>
       ) : (
-        <LeveragePanel
-          accountId={account.id}
-          accountType={account.type}
-          cash={cash}
-          positions={fxPositions}
-          quotes={quotes}
-        />
+        <>
+          <LeveragePanel
+            accountId={account.id}
+            accountType={account.type}
+            cash={cash}
+            positions={fxPositions}
+            quotes={quotes}
+          />
+          {/* Crypto keeps its long/short ticket and gains the showcase beneath
+              it; on a phone the same showcase is the Ideas tab instead. */}
+          <div className="hidden lg:block">
+            <Showcase type={showcaseType} onSelect={selectSymbol} />
+          </div>
+        </>
       )}
 
       <TradeCoach positions={fxPositions} cash={cash} />
@@ -618,7 +627,7 @@ export default function AccountView({
           <div className="flex flex-wrap gap-1 rounded-lg border border-border bg-card p-1">
             {(
               [
-                ...(isStocks ? [{ key: "ideas" as Tab, label: "Ideas", phoneOnly: true }] : []),
+                ...(!isForex ? [{ key: "ideas" as Tab, label: "Ideas", phoneOnly: true }] : []),
                 { key: "holdings", label: "Holdings", count: positions.length },
                 { key: "watchlist", label: "Watchlist", count: watchlist.length },
                 { key: "history", label: "History", count: transactions.length },
@@ -682,7 +691,7 @@ export default function AccountView({
             Here it is a tab instead. The desktop copy lives in that column. */}
         {tab === "ideas" && (
           <div className="lg:hidden">
-            <StockShowcase onSelect={selectSymbol} />
+            <Showcase type={showcaseType} onSelect={selectSymbol} />
           </div>
         )}
 

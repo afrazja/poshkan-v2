@@ -56,7 +56,54 @@ export const SHOWCASE_STOCKS = [
   "LIN","SHW","APD","ECL","FCX","NEM","NUE","DOW","DD","PPG","VMC","MLM","IFF","ALB","STLD","CE","LYB","CF","MOS","FMC","PKG","IP","AVY","AMCR","BALL",
 ];
 
-/** Everything the showcase needs priced, in one array, de-duplicated. */
+/** Everything the stock showcase needs priced, in one array, de-duplicated. */
 export function showcaseSymbols(): string[] {
   return Array.from(new Set([...SHOWCASE_ETFS, ...SHOWCASE_STOCKS]));
+}
+
+// ---------------------------------------------------------------------------
+// Crypto
+// ---------------------------------------------------------------------------
+// Every ticker below was checked against Yahoo before being listed, because the
+// obvious guesses are wrong: UNI-USD is "UNICORN Token" and not Uniswap,
+// APT-USD is Apricot Finance and not Aptos, SUI-USD is Salmonation, ARB-USD is
+// ARbit, PEPE-USD is PEPEGOLD, POL-USD is Proof Of Liquidity. All of those are
+// near-worthless tokens that a beginner would read as the famous name. These
+// fifteen resolve to the real coin and carry a real market cap; the floor in
+// showcase.ts is the second line of defence if one is ever renamed away.
+export const CRYPTO_MAJORS = [
+  "BTC-USD",
+  "ETH-USD",
+  "BNB-USD",
+  "XRP-USD",
+  "SOL-USD",
+  "TRX-USD",
+  "DOGE-USD",
+  "XMR-USD",
+  "LINK-USD",
+  "ADA-USD",
+  "XLM-USD",
+  "BCH-USD",
+  "LTC-USD",
+  "HBAR-USD",
+  "AVAX-USD",
+];
+
+// Kept out of the movement shelves on purpose: a coin pegged to the dollar has
+// no interesting day, and it would crowd out the ones that do.
+export const CRYPTO_STABLE = ["USDT-USD", "USDC-USD", "DAI-USD"];
+
+export const CRYPTO_START = ["BTC-USD", "ETH-USD"];
+
+export const CRYPTO_NOTES: Record<string, string> = {
+  "BTC-USD": "The first one, and the one every other coin is measured against",
+  "ETH-USD": "The second largest — a platform other projects are built on",
+  "USDT-USD": "Pegged to the dollar — used to sit still, not to grow",
+  "USDC-USD": "Also pegged to the dollar, by a US-regulated issuer",
+  "DAI-USD": "Pegged to the dollar, backed by crypto held as collateral",
+};
+
+/** Everything the crypto showcase needs priced. */
+export function cryptoShowcaseSymbols(): string[] {
+  return Array.from(new Set([...CRYPTO_MAJORS, ...CRYPTO_STABLE]));
 }
