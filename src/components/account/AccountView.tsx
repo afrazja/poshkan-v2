@@ -71,7 +71,9 @@ export default function AccountView({
 }) {
   const router = useRouter();
   const [selected, setSelected] = useState<{ symbol: string; name: string } | null>(null);
-  const [trade, setTrade] = useState<{ side: "BUY" | "SELL"; symbol: string } | null>(null);
+  const [trade, setTrade] = useState<{ side: "BUY" | "SELL"; symbol: string; fromPanel?: boolean } | null>(
+    null
+  );
   const [cashModal, setCashModal] = useState<"DEPOSIT" | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
   const [scannerModal, setScannerModal] = useState<
@@ -454,8 +456,8 @@ export default function AccountView({
             liveQuote={selectedQuote}
             heldShares={heldFor(selected.symbol)}
             inWatchlist={inWatchlist(selected.symbol)}
-            onBuy={() => setTrade({ side: "BUY", symbol: selected.symbol })}
-            onSell={() => setTrade({ side: "SELL", symbol: selected.symbol })}
+            onBuy={() => setTrade({ side: "BUY", symbol: selected.symbol, fromPanel: true })}
+            onSell={() => setTrade({ side: "SELL", symbol: selected.symbol, fromPanel: true })}
             onToggleWatch={() => toggleWatch(selected.symbol)}
             watchPending={watchBusy === selected.symbol}
           />
@@ -638,6 +640,7 @@ export default function AccountView({
           price={tradePrice}
           cash={cash}
           maxShares={heldFor(trade.symbol)}
+          showChart={!trade.fromPanel}
           onClose={() => setTrade(null)}
         />
       )}

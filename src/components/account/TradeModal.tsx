@@ -9,6 +9,7 @@ import {
   placeLimitOrderAction,
 } from "@/app/dashboard/[accountId]/actions";
 import PriceChart from "./PriceChart";
+import SegmentedControl from "@/components/SegmentedControl";
 import { isCryptoSymbol } from "@/lib/assets";
 
 // A beginner thinks "I want to put $500 into Apple", not "I want 1.53971
@@ -39,6 +40,7 @@ export default function TradeModal({
   price: initialPrice,
   cash,
   maxShares,
+  showChart = true,
   onClose,
 }: {
   accountId: string;
@@ -47,6 +49,8 @@ export default function TradeModal({
   price: number;
   cash: number;
   maxShares?: number; // for SELL
+  /** Off when a symbol panel is already open behind this, chart and all. */
+  showChart?: boolean;
   onClose: () => void;
 }) {
   const router = useRouter();
@@ -255,50 +259,39 @@ export default function TradeModal({
               {error}
             </div>
           )}
-          <div className="flex gap-1 rounded-lg border border-border bg-background p-1">
-            {(["MARKET", "LIMIT"] as const).map((t) => (
-              <button
-                key={t}
-                type="button"
-                onClick={() => chooseType(t)}
-                className={`flex-1 rounded-md py-1.5 text-sm font-medium transition ${
-                  orderType === t ? "bg-card text-foreground shadow-sm" : "text-muted hover:text-foreground"
-                }`}
-              >
-                {t === "MARKET" ? "Market" : "Limit"}
-              </button>
-            ))}
-          </div>
+          <SegmentedControl
+            label="Order type"
+            value={orderType}
+            onChange={chooseType}
+            options={[
+              { key: "MARKET", label: "Market" },
+              { key: "LIMIT", label: "Limit" },
+            ]}
+          />
 
           <div className="flex justify-between rounded-lg bg-background px-3 py-2 text-sm">
             <span className="text-muted">Market price</span>
             <span className="font-semibold">{formatCurrency(price)}</span>
           </div>
 
-          <PriceChart symbol={symbol} />
+          {/* The symbol panel behind this already has a chart; drawing a second
+              one here just pushes the amount field off a phone screen. */}
+          {showChart && <PriceChart symbol={symbol} />}
 
           <div>
             <div className="mb-1 flex items-center justify-between gap-2">
               <label className="text-sm font-medium">{inDollars ? "Amount to spend" : "Quantity"}</label>
-              <div className="flex gap-1 rounded-lg border border-border bg-background p-0.5">
-                {(
-                  [
-                    { key: "DOLLARS", label: "$" },
-                    { key: "UNITS", label: isCryptoSymbol(symbol) ? symbol.split("-")[0] : "Shares" },
-                  ] as { key: AmountMode; label: string }[]
-                ).map((t) => (
-                  <button
-                    key={t.key}
-                    type="button"
-                    onClick={() => switchMode(t.key)}
-                    className={`rounded-md px-2.5 py-1 text-xs font-medium transition ${
-                      mode === t.key ? "bg-card text-foreground shadow-sm" : "text-muted hover:text-foreground"
-                    }`}
-                  >
-                    {t.label}
-                  </button>
-                ))}
-              </div>
+              <SegmentedControl
+                size="sm"
+                fill={false}
+                label="Amount unit"
+                value={mode}
+                onChange={switchMode}
+                options={[
+                  { key: "DOLLARS", label: "$" },
+                  { key: "UNITS", label: isCryptoSymbol(symbol) ? symbol.split("-")[0] : "Shares" },
+                ]}
+              />
             </div>
             <div className="relative">
               {inDollars && (
@@ -366,25 +359,16 @@ export default function TradeModal({
               </p>
               <div className="mt-3">
                 <label className="mb-1 block text-sm font-medium">Time in force</label>
-                <div className="flex gap-1 rounded-lg border border-border bg-background p-1">
-                  {(
-                    [
-                      { key: "GTC", label: "GTC", hint: "until canceled" },
-                      { key: "DAY", label: "Day", hint: "expires tonight" },
-                    ] as const
-                  ).map((t) => (
-                    <button
-                      key={t.key}
-                      type="button"
-                      onClick={() => setTif(t.key)}
-                      className={`flex-1 rounded-md py-1.5 text-xs font-medium transition ${
-                        tif === t.key ? "bg-card text-foreground shadow-sm" : "text-muted hover:text-foreground"
-                      }`}
-                    >
-                      {t.label} <span className="opacity-70">· {t.hint}</span>
-                    </button>
-                  ))}
-                </div>
+                <SegmentedControl
+                  size="sm"
+                  label="Time in force"
+                  value={tif}
+                  onChange={setTif}
+                  options={[
+                    { key: "GTC", label: <>GTC <span className="opacity-70">· until canceled</span></> },
+                    { key: "DAY", label: <>Day <span className="opacity-70">· expires tonight</span></> },
+                  ]}
+                />
               </div>
             </div>
           )}

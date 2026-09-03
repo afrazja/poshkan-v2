@@ -5,6 +5,7 @@ import type { Quote, NewsItem } from "@/lib/types";
 import { formatCurrency, formatPercent, formatCompactUSD, changeColor } from "@/lib/format";
 import { createAlertAction } from "@/app/dashboard/[accountId]/actions";
 import { isCryptoSymbol } from "@/lib/assets";
+import SegmentedControl from "@/components/SegmentedControl";
 import PriceChart from "./PriceChart";
 import OwnerView from "./OwnerView";
 
@@ -105,36 +106,18 @@ export default function SymbolPanel({
         </div>
       </div>
 
-      {/* The read on what this is and what it costs, then the chart and news.
-          Two equal halves with the live one filled in the brand colour: it
-          reads as a switch, and which side you are on is never in doubt. */}
-      <div
-        role="tablist"
-        aria-label="Symbol detail"
-        className="mt-4 grid grid-cols-2 gap-1 rounded-lg border border-border bg-background p-1"
-      >
-        {(
-          [
-            { key: "owner", label: "Before you buy" },
-            { key: "overview", label: "Chart & news" },
-          ] as { key: PanelTab; label: string }[]
-        ).map((t) => (
-          <button
-            key={t.key}
-            type="button"
-            role="tab"
-            aria-selected={tab === t.key}
-            onClick={() => setTab(t.key)}
-            className={`rounded-md px-4 py-2 text-sm font-medium transition ${
-              tab === t.key
-                ? "bg-primary text-primary-foreground shadow-sm"
-                : "text-muted hover:bg-card hover:text-foreground"
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
+      {/* The read on what this is and what it costs, then the chart and news. */}
+      <SegmentedControl
+        as="tabs"
+        label="Symbol detail"
+        className="mt-4"
+        value={tab}
+        onChange={setTab}
+        options={[
+          { key: "owner", label: "Before you buy" },
+          { key: "overview", label: "Chart & news" },
+        ]}
+      />
 
       {tab === "overview" ? (
         <>
