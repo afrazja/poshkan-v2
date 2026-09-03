@@ -8,7 +8,10 @@ import { isCryptoSymbol } from "@/lib/assets";
 import PriceChart from "./PriceChart";
 import OwnerView from "./OwnerView";
 
-type PanelTab = "overview" | "owner";
+// The research tab leads, and opens first. The price, today's move and the
+// Buy / Sell row are pinned outside the tabs, so nothing about the price is
+// hidden by that choice — only the chart costs a click.
+type PanelTab = "owner" | "overview";
 
 export default function SymbolPanel({
   symbol,
@@ -33,11 +36,11 @@ export default function SymbolPanel({
 }) {
   const [quote, setQuote] = useState<Quote | undefined>(liveQuote);
   const [loading, setLoading] = useState(!liveQuote);
-  const [tab, setTab] = useState<PanelTab>("overview");
+  const [tab, setTab] = useState<PanelTab>("owner");
   const isCrypto = isCryptoSymbol(symbol);
 
-  // A different symbol is a fresh look: always start on the price.
-  useEffect(() => setTab("overview"), [symbol]);
+  // A different symbol is a fresh look: start on the research every time.
+  useEffect(() => setTab("owner"), [symbol]);
 
   // Fetch a one-off quote when the symbol isn't already in the polled set.
   useEffect(() => {
@@ -102,12 +105,12 @@ export default function SymbolPanel({
         </div>
       </div>
 
-      {/* Price and news, or the longer read on the business behind the symbol */}
+      {/* The read on what this is and what it costs, then the chart and news */}
       <div className="mt-4 flex flex-wrap gap-1 rounded-lg border border-border bg-background p-1">
         {(
           [
-            { key: "overview", label: "Overview" },
-            { key: "owner", label: "Owner’s view" },
+            { key: "owner", label: "Before you buy" },
+            { key: "overview", label: "Chart & news" },
           ] as { key: PanelTab; label: string }[]
         ).map((t) => (
           <button

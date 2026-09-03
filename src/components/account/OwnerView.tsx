@@ -46,13 +46,30 @@ export default function OwnerView({ symbol }: { symbol: string }) {
     };
   }, [symbol]);
 
+  // This tab opens first, so its loading state is the first thing anyone sees
+  // on a symbol. Show the shape of what is coming rather than a line of text.
   if (data === "loading") {
-    return <div className="mt-4 text-sm text-muted">Reading the owner’s view…</div>;
+    return (
+      <section className="mt-4 grid animate-pulse gap-3 sm:grid-cols-2">
+        {[0, 1, 2, 3].map((i) => (
+          <div
+            key={i}
+            className={`rounded-lg border border-border bg-background px-3 py-2.5 ${i < 2 ? "sm:col-span-2" : ""}`}
+          >
+            <div className="h-3 w-40 rounded bg-border" />
+            <div className="mt-3 h-1.5 w-full rounded-full bg-border" />
+            <div className="mt-3 h-2.5 w-full rounded bg-border" />
+            <div className="mt-1.5 h-2.5 w-4/5 rounded bg-border" />
+          </div>
+        ))}
+      </section>
+    );
   }
   if (!data || (!data.fundamentals && !data.priceContext)) {
     return (
       <div className="mt-4 rounded-lg border border-border bg-background px-3 py-4 text-sm text-muted">
-        No background information is available for {symbol}. The Overview tab still has its price and chart.
+        No background information is available for {symbol}. The Chart &amp; news tab still has its price and
+        chart.
       </div>
     );
   }
