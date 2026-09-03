@@ -119,8 +119,15 @@ export default function TradeModal({
   }
 
   function setMax() {
-    const units = maxShares ?? 0;
-    setAmount(inDollars ? (units * execPrice).toFixed(2) : String(units));
+    if (side === "SELL") {
+      const units = maxShares ?? 0;
+      setAmount(inDollars ? (units * execPrice).toFixed(2) : String(units));
+      return;
+    }
+    // Buying: fill from the real cash balance, not the figure on screen. Cash
+    // is displayed rounded to the cent, so typing what you can see can ask for
+    // a fraction more than you hold and quietly disable the button.
+    setAmount(inDollars ? floorTo(cash, 2).toFixed(2) : fmtUnits(floorTo(execPrice > 0 ? cash / execPrice : 0, dp), dp));
   }
 
   function goReview(e: React.FormEvent) {
@@ -326,11 +333,18 @@ export default function TradeModal({
                 )}
               </p>
             )}
-            {side === "SELL" && (
-              <button type="button" onClick={setMax} className="mt-1 text-xs text-primary hover:underline">
-                Max: {inDollars ? formatCurrency((maxShares ?? 0) * execPrice) : `${maxShares} ${unitWord}`}
+            <div className="mt-1 flex items-center justify-between gap-2">
+              <button type="button" onClick={setMax} className="text-xs text-primary hover:underline">
+                {side === "SELL"
+                  ? `Max: ${inDollars ? formatCurrency((maxShares ?? 0) * execPrice) : `${maxShares} ${unitWord}`}`
+                  : `Max: ${formatCurrency(cash)}`}
               </button>
-            )}
+              {/* The submit button disables itself when the order costs too
+                  much, which on its own just looks broken. Say why. */}
+              {side === "BUY" && quantity > 0 && !affordable && (
+                <span className="text-xs text-negative">More than your cash — tap Max</span>
+              )}
+            </div>
           </div>
 
           {isLimit && (
