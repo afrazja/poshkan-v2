@@ -481,9 +481,20 @@ export function OpenModal({
                 ))}
               </div>
               <p className="mt-1 text-xs leading-relaxed text-muted">
-                Leverage is borrowed money. At <strong>{lev}×</strong> you control {formatCurrency(positionValue)} while
-                only {formatCurrency(margin)} of your cash is set aside — so every move counts {lev} times
-                against that cash. It multiplies losses exactly as much as gains.
+                {lev === 1 ? (
+                  <>
+                    At <strong>1×</strong> nothing is borrowed: the whole {formatCurrency(positionValue)} comes
+                    from your own cash, and a move costs exactly what it looks like. Anything higher borrows
+                    the difference.
+                  </>
+                ) : (
+                  <>
+                    Leverage is borrowed money. At <strong>{lev}×</strong> you control{" "}
+                    {formatCurrency(positionValue)} while only {formatCurrency(margin)} of your cash is set
+                    aside — so every move hits that cash <strong>{lev} times harder</strong>. It multiplies
+                    losses exactly as much as gains.
+                  </>
+                )}
               </p>
             </div>
 
