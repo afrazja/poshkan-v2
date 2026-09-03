@@ -22,12 +22,21 @@ interface Payload {
 // the page so the second visit is instant.
 const seen = new Map<string, Payload | null>();
 
-export default function OwnerView({ symbol }: { symbol: string }) {
+export default function OwnerView({
+  symbol,
+  initial,
+}: {
+  symbol: string;
+  /** Rendered on the server for the public page, so the cards are in the HTML
+   *  rather than appearing after a fetch that a crawler never waits for. */
+  initial?: Payload;
+}) {
   const [data, setData] = useState<Payload | null | "loading">(() =>
-    seen.has(symbol) ? (seen.get(symbol) as Payload | null) : "loading"
+    initial ?? (seen.has(symbol) ? (seen.get(symbol) as Payload | null) : "loading")
   );
 
   useEffect(() => {
+    if (initial) return; // already have it from the server
     if (seen.has(symbol)) {
       setData(seen.get(symbol) as Payload | null);
       return;
@@ -44,7 +53,7 @@ export default function OwnerView({ symbol }: { symbol: string }) {
     return () => {
       active = false;
     };
-  }, [symbol]);
+  }, [symbol, initial]);
 
   // This tab opens first, so its loading state is the first thing anyone sees
   // on a symbol. Show the shape of what is coming rather than a line of text.
