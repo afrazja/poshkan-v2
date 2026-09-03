@@ -15,9 +15,25 @@ interface Row {
   contributions: number;
   return_pct: number;
   as_of: string;
+  // Added by leaderboard-stats.sql. Optional on purpose: until that migration
+  // is run the function returns the old shape, and these columns simply do not
+  // render rather than the page breaking.
+  trades?: number;
+  open_positions?: number;
+  days_active?: number;
+  max_drawdown_pct?: number;
 }
 
 const MEDALS = ["🥇", "🥈", "🥉"];
+
+// "3d" reads better than "3" under a column called Active; past a couple of
+// months the exact day count stops mattering.
+function dayLabel(days?: number): string {
+  if (!days || days < 1) return "—";
+  if (days < 60) return days + "d";
+  const months = Math.round(days / 30.44);
+  return months < 24 ? months + "mo" : (days / 365.25).toFixed(1) + "y";
+}
 // Past this many entries the board switches from "show everyone" to
 // top-20 + your own rank pinned below — keeps the page fast at any scale.
 const LIMIT = 20;
@@ -133,6 +149,11 @@ export default async function LeaderboardPage({
   const percentile = viewerRank ? Math.max(1, Math.ceil((viewerRank / total) * 100)) : null;
   const entryNoun = showAll ? "accounts" : "traders";
 
+  // The process columns only exist once leaderboard-stats.sql has been run.
+  // Detect it from the data rather than assuming, so the page is correct
+  // either way.
+  const hasStats = rows.some((r) => r.trades != null);
+
   const renderRow = (r: Row, rank: number) => {
     const mine = user && r.user_id === user.id;
     const others = (accountCount.get(r.user_id) ?? 1) - 1;
@@ -166,6 +187,23 @@ export default async function LeaderboardPage({
           {formatPercent(Number(r.return_pct))}
         </td>
         <td className="px-4 py-3 text-right text-muted">{formatCurrency(Number(r.total_value))}</td>
+        {hasStats && (
+          <>
+            <td className="px-4 py-3 text-right text-muted tabular-nums">{r.trades ?? 0}</td>
+            <td className="px-4 py-3 text-right text-muted tabular-nums">{r.open_positions ?? 0}</td>
+            <td className="px-4 py-3 text-right text-muted tabular-nums">{dayLabel(r.days_active)}</td>
+            <td
+              className={`px-4 py-3 text-right tabular-nums ${
+                Number(r.max_drawdown_pct ?? 0) <= -20 ? "text-negative" : "text-muted"
+              }`}
+              title="The deepest peak-to-trough dip this account lived through"
+            >
+              {r.max_drawdown_pct == null || Number(r.max_drawdown_pct) === 0
+                ? "—"
+                : `${Number(r.max_drawdown_pct).toFixed(1)}%`}
+            </td>
+          </>
+        )}
       </tr>
     );
   };
@@ -216,7 +254,7 @@ export default async function LeaderboardPage({
         </div>
       ) : (
         <div className="overflow-x-auto rounded-2xl border border-border bg-card">
-          <table className="w-full min-w-[640px] text-sm">
+          <table className="w-full min-w-[900px] text-sm">
             <thead>
               <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted">
                 <th className="px-4 py-3 font-medium">#</th>
@@ -224,6 +262,22 @@ export default async function LeaderboardPage({
                 <th className="px-4 py-3 font-medium">Account</th>
                 <th className="px-4 py-3 text-right font-medium">Return</th>
                 <th className="px-4 py-3 text-right font-medium">Value</th>
+                {hasStats && (
+                  <>
+                    <th className="px-4 py-3 text-right font-medium" title="Buys, sells and leveraged positions opened">
+                      Trades
+                    </th>
+                    <th className="px-4 py-3 text-right font-medium" title="Positions held right now">
+                      Open
+                    </th>
+                    <th className="px-4 py-3 text-right font-medium" title="Since the first trade">
+                      Active
+                    </th>
+                    <th className="px-4 py-3 text-right font-medium" title="Deepest peak-to-trough dip">
+                      Worst dip
+                    </th>
+                  </>
+                )}
               </tr>
             </thead>
             <tbody>
