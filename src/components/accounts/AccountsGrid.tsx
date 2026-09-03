@@ -154,6 +154,7 @@ export default function AccountsGrid({
         <CreateAccountModal
           onClose={() => setShowCreate(false)}
           existingNames={accounts.map((a) => a.name)}
+          takenTypes={accounts.map((a) => a.type)}
         />
       )}
 

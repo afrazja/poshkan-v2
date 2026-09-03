@@ -18,17 +18,24 @@ function defaultName(type: string, taken: string[]): string {
   return `${base} ${i}`;
 }
 
+const MARKETS = ["stocks", "crypto", "forex"] as const;
+
 export default function CreateAccountModal({
   onClose,
   existingNames = [],
+  takenTypes = [],
 }: {
   onClose: () => void;
   existingNames?: string[];
+  /** Markets this user already has an account in - one each is the limit. */
+  takenTypes?: string[];
 }) {
   const router = useRouter();
-  const [name, setName] = useState(() => defaultName("stocks", existingNames));
+  const free = MARKETS.filter((m) => !takenTypes.includes(m));
+  const firstFree = free[0] ?? "stocks";
+  const [name, setName] = useState(() => defaultName(firstFree, existingNames));
   const [nameEdited, setNameEdited] = useState(false);
-  const [type, setType] = useState("stocks");
+  const [type, setType] = useState<string>(firstFree);
   const [cash, setCash] = useState("10000");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -96,10 +103,16 @@ export default function CreateAccountModal({
               }}
               className={inputClass}
             >
-              <option value="stocks">Stocks</option>
-              <option value="crypto">Crypto</option>
-              <option value="forex">Forex</option>
+              {MARKETS.map((m) => (
+                <option key={m} value={m} disabled={takenTypes.includes(m)}>
+                  {TYPE_LABEL[m]}
+                  {takenTypes.includes(m) ? " — already have one" : ""}
+                </option>
+              ))}
             </select>
+            <p className="mt-1 text-xs text-muted">
+              One account per market, so a rank and a record in it mean something whole.
+            </p>
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium">Initial cash ($)</label>
@@ -121,6 +134,13 @@ export default function CreateAccountModal({
           that keeps every P&L number (and the leaderboard) honest.
         </p>
 
+        {free.length === 0 && (
+          <p className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-muted">
+            You already have an account in all three markets, which is the limit. Use the ones you have -
+            resetting an account’s cash is on its ⋯ menu.
+          </p>
+        )}
+
         <div className="flex justify-end gap-2 pt-2">
           <button
             type="button"
@@ -131,7 +151,7 @@ export default function CreateAccountModal({
           </button>
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || free.length === 0}
             className="rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50"
           >
             {loading ? "Creating…" : "Create account"}
