@@ -219,11 +219,12 @@ export default async function LandingPage({
 
       {/* ── Hero ── */}
       <section
-        className={`${SECTION} grid grid-cols-1 items-center gap-14 pb-16 pt-[68px] lg:grid-cols-[minmax(0,1.14fr)_minmax(0,1fr)]`}
+        className={`${SECTION} grid grid-cols-1 items-center gap-14 pb-16 pt-[68px] lg:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)]`}
         style={{ paddingLeft: GUTTER, paddingRight: GUTTER }}
       >
         <div>
-          <h1 className="mb-7 ml-[-0.06em] text-[clamp(37px,4.9vw,74px)] font-medium leading-[1.08] tracking-[-0.018em]">
+          {/* Sized so "Practice trading." stays on one line in the narrower text column. */}
+          <h1 className="mb-7 ml-[-0.06em] text-[clamp(37px,3.9vw,57px)] font-medium leading-[1.08] tracking-[-0.018em]">
             {/* The trailing space keeps the two lines separate words for screen readers and search. */}
             <span className="block">Practice trading. </span>
             <span className="block text-[#e9e9eda8]">Guided, not guessing.</span>
@@ -246,7 +247,9 @@ export default async function LandingPage({
           </p>
         </div>
 
-        <figure className="relative m-0">
+        {/* On wide screens the tour runs past the content column to 24px from the window's right
+            edge: the page gutter plus whatever margin the 1200px container leaves. */}
+        <figure className="relative m-0 lg:mr-[calc(min(0px,(1200px_-_100vw)/2)_-_clamp(20px,5vw,72px)_+_24px)]">
           <div
             aria-hidden
             className="pointer-events-none absolute blur-[28px]"
