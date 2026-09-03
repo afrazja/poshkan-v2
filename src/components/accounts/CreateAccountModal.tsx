@@ -135,7 +135,7 @@ export default function CreateAccountModal({
         </p>
 
         {free.length === 0 && (
-          <p className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-muted">
+          <p className="rounded-lg border border-orange-500/30 bg-orange-500/10 px-3 py-2 text-sm text-orange-600 dark:text-orange-400">
             You already have an account in all three markets, which is the limit. Use the ones you have -
             resetting an account’s cash is on its ⋯ menu.
           </p>
