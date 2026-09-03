@@ -113,6 +113,9 @@ const coinPrice = (v: number) =>
   v >= 1000 ? formatCurrency(v) : v >= 1 ? `$${v.toFixed(2)}` : v >= 0.01 ? `$${v.toFixed(4)}` : `$${v.toPrecision(2)}`;
 
 const ticker = (symbol: string) => symbol.replace("-USD", "");
+// Only the trailing quote currency: a blind replace turns Yahoo's
+// "Tether USDt USD" into "Tethert USD".
+const coinName = (name: string) => name.replace(/\s+USD$/, "");
 
 function Treemap({
   rows,
@@ -328,7 +331,7 @@ export default function CryptoMap({ onSelect }: { onSelect: (symbol: string, nam
                         >
                           {ticker(r.symbol)}
                         </button>{" "}
-                        <span className="text-xs text-muted">{r.name.replace(" USD", "")}</span>
+                        <span className="text-xs text-muted">{coinName(r.name)}</span>
                       </td>
                       <td className="py-1.5 pr-2 text-right tabular-nums">{coinPrice(r.price)}</td>
                       <td className={`py-1.5 pr-2 text-right tabular-nums ${changeColor(r.changePct)}`}>
