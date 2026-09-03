@@ -3,7 +3,7 @@ import Link from "next/link";
 import { Inter } from "next/font/google";
 import { redirect } from "next/navigation";
 import RecoveryRedirect from "@/components/auth/RecoveryRedirect";
-import SignupCta from "@/components/landing/SignupCta";
+import ContactForm from "@/components/landing/ContactForm";
 import { BTN_PRIMARY, BTN_SECONDARY, FADE_RULE, SHADOW_MD } from "@/components/landing/lp";
 
 // Nocturne landing design — Inter throughout, 400 body / 500 headings.
@@ -173,6 +173,7 @@ export default async function LandingPage({
           <a href="#research" className="text-[#e9e9ed] hover:text-[var(--lp-accent-300)]">Before you buy</a>
           <a href="#discipline" className="text-[#e9e9ed] hover:text-[var(--lp-accent-300)]">Discipline</a>
           <a href="#compare" className="text-[#e9e9ed] hover:text-[var(--lp-accent-300)]">Compare</a>
+          <a href="#contact" className="text-[#e9e9ed] hover:text-[var(--lp-accent-300)]">Contact</a>
         </div>
         {/* One sign-up button in the first screen: the hero's. The nav is not sticky, so a second one here only
             duplicated it. Log in takes the slot in the same outlined style as every other button on the page. */}
@@ -199,7 +200,7 @@ export default async function LandingPage({
             price in front of you actually means.
           </p>
           <div className="flex flex-wrap items-center gap-3">
-            <a href="#start" className={`${BTN_PRIMARY} px-[22px] py-3 text-[15px]`}>
+            <a href="/signup" className={`${BTN_PRIMARY} px-[22px] py-3 text-[15px]`}>
               Create a free account
             </a>
             <a href="/symbol/NVDA" className={`${BTN_SECONDARY} px-[22px] py-3 text-[15px]`}>
@@ -427,20 +428,29 @@ export default async function LandingPage({
         </div>
       </section>
 
-      {/* ── Close ── */}
-      <section id="start" className={`${SECTION} pt-[68px]`} style={{ paddingLeft: GUTTER, paddingRight: GUTTER }}>
+      {/* ── Contact ── */}
+      <section id="contact" className={`${SECTION} pt-[68px]`} style={{ paddingLeft: GUTTER, paddingRight: GUTTER }}>
         <div className="mb-[52px]" style={FADE_RULE} />
-        <h2 className="mb-5 max-w-[22ch] text-[clamp(30px,3vw,42px)] font-medium leading-[1.15] tracking-[-0.014em]">
-          Start practising
-        </h2>
-        <p className="mb-10 max-w-[54ch] text-[16.5px] leading-[28px] text-[#e9e9edcc]">
-          An email and a password is the whole sign-up. Open a paper account for stocks, crypto or
-          forex, look up any symbol, and read it before you buy it.
-        </p>
-        <SignupCta />
-        <p className="mt-[18px] text-[13.5px] leading-[22px] text-[#e9e9ed9e]">
-          Takes about a minute. Free while Poshkan is in beta — no card, nothing real at stake.
-        </p>
+        <div className="grid grid-cols-1 items-start gap-x-14 gap-y-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)]">
+          <div>
+            <Kicker>Talk to us</Kicker>
+            <h2 className="mb-5 max-w-[16ch] text-[clamp(30px,3vw,42px)] font-medium leading-[1.15] tracking-[-0.014em]">
+              Say what you think
+            </h2>
+            <p className="m-0 max-w-[44ch] text-[16.5px] leading-[28px] text-[#e9e9edcc]">
+              Poshkan is built by one person, and your message lands in that person’s inbox, not a
+              ticket queue. What confused you, what is missing, what broke: all of it is useful.
+            </p>
+            <p className="mb-0 mt-6 max-w-[44ch] text-[14px] leading-[24px] text-[#e9e9ed9e]">
+              Rather try it first?{" "}
+              <Link href="/signup" className="text-[var(--lp-accent)] underline underline-offset-4">
+                Create a free account
+              </Link>
+              . Free while Poshkan is in beta — no card, nothing real at stake.
+            </p>
+          </div>
+          <ContactForm />
+        </div>
       </section>
 
       {/* ── Footer ── */}

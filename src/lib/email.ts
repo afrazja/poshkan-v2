@@ -3,7 +3,12 @@ import "server-only";
 // Transactional email via Resend's REST API (RESEND_API_KEY).
 // Note: with the shared onboarding@resend.dev sender, Resend only delivers to
 // the email address that owns the Resend account until a domain is verified.
-export async function sendEmail(to: string, subject: string, html: string): Promise<boolean> {
+export async function sendEmail(
+  to: string,
+  subject: string,
+  html: string,
+  opts: { replyTo?: string } = {}
+): Promise<boolean> {
   const key = process.env.RESEND_API_KEY;
   if (!key) return false;
   try {
@@ -18,6 +23,9 @@ export async function sendEmail(to: string, subject: string, html: string): Prom
         to,
         subject,
         html,
+        // A visitor's message carries their address here, so Reply in the
+        // inbox answers them rather than the sender.
+        ...(opts.replyTo ? { reply_to: opts.replyTo } : {}),
       }),
     });
     return res.ok;
