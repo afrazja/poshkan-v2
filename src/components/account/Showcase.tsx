@@ -2,28 +2,13 @@
 
 import { useEffect, useState } from "react";
 import type { Shelf, ShowcaseRow, ShowcaseType } from "@/lib/showcase";
+import { loadShowcase } from "./showcase-data";
 import { formatCurrency, formatPercent, changeColor } from "@/lib/format";
 
 // The answer to an empty account. Instead of a search bar and nothing else, six
 // shelves of live, changing ideas — and every row says where that price sits in
 // its own 12-month range, so a jumping stock cannot be mistaken for a bargain.
 // Clicking a row opens the symbol panel, which lands on Before you buy.
-
-// Two copies of this mount on every account — one for the desktop column, one
-// for the phone's Ideas tab — and only ever one is visible. Share the fetch per
-// asset type so the hidden twin costs nothing.
-const shared = new Map<ShowcaseType, Promise<Shelf[]>>();
-const loadShelves = (type: ShowcaseType) => {
-  let p = shared.get(type);
-  if (!p) {
-    p = fetch(`/api/showcase?type=${type}`)
-      .then((r) => (r.ok ? r.json() : { shelves: [] }))
-      .then((j) => (j.shelves ?? []) as Shelf[])
-      .catch(() => [] as Shelf[]);
-    shared.set(type, p);
-  }
-  return p;
-};
 
 export default function Showcase({
   type,
@@ -37,7 +22,7 @@ export default function Showcase({
 
   useEffect(() => {
     let live = true;
-    loadShelves(type).then((s) => live && setShelves(s));
+    loadShowcase(type).then((p) => live && setShelves(p.shelves));
     return () => {
       live = false;
     };

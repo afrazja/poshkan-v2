@@ -12,9 +12,9 @@ export async function GET(request: Request) {
   const raw = new URL(request.url).searchParams.get("type");
   const type: ShowcaseType = raw === "crypto" ? "crypto" : "stocks";
   try {
-    return NextResponse.json({ shelves: await getShowcase(type) });
+    return NextResponse.json(await getShowcase(type));
   } catch (error) {
     console.warn(`[showcase] ${type}: ${(error as Error).message ?? "failed"}`);
-    return NextResponse.json({ shelves: [] });
+    return NextResponse.json({ shelves: [], map: [] });
   }
 }

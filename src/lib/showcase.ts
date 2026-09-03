@@ -64,8 +64,14 @@ export interface Shelf {
   rows: ShowcaseRow[];
 }
 
-const cache = new Map<ShowcaseType, { at: number; shelves: Shelf[] }>();
-const inflight = new Map<ShowcaseType, Promise<Shelf[]>>();
+/** Shelves, plus the flat list the crypto treemap sizes its tiles from. */
+export interface Showcase {
+  shelves: Shelf[];
+  map: ShowcaseRow[];
+}
+
+const cache = new Map<ShowcaseType, { at: number; data: Showcase }>();
+const inflight = new Map<ShowcaseType, Promise<Showcase>>();
 
 // Money traded, at the scale people say it out loud: $35.0B, $412M.
 function usd(v: number): string {
@@ -126,7 +132,7 @@ function curated(all: ShowcaseRow[], order: string[], notes: Record<string, stri
     .map((r) => ({ ...r, note: notes[r.symbol] ?? r.note }));
 }
 
-async function buildStocks(): Promise<Shelf[]> {
+async function buildStocks(): Promise<Showcase> {
   // Who moved most today is a question about the whole market, not about any
   // list we keep: our 400 names missed Snowflake at +20.9% and Ciena at -9.7%
   // on the day this was found. Ask Yahoo which symbols actually moved, then
@@ -146,7 +152,7 @@ async function buildStocks(): Promise<Shelf[]> {
   const movers = all.filter((r) => (stockSet.has(r.symbol) || extraSet.has(r.symbol)) && tradedToday(r));
   const withRange = stocks.filter((r) => r.rangePct != null);
 
-  return [
+  const shelves: Shelf[] = [
     {
       key: "etfs",
       label: "Whole markets",
@@ -190,9 +196,11 @@ async function buildStocks(): Promise<Shelf[]> {
         .map((r) => ({ ...r, note: `${usd(dollarsTraded(r, false))} traded${r.note ? ` · ${r.note}` : ""}` })),
     },
   ];
+
+  return { shelves, map: [] };
 }
 
-async function buildCrypto(): Promise<Shelf[]> {
+async function buildCrypto(): Promise<Showcase> {
   const all = await priceAll(cryptoShowcaseSymbols());
   const majorSet = new Set(CRYPTO_MAJORS);
   const stableSet = new Set(CRYPTO_STABLE);
@@ -203,7 +211,14 @@ async function buildCrypto(): Promise<Shelf[]> {
   );
   const withRange = coins.filter((r) => r.rangePct != null);
 
-  return [
+  // The treemap wants the whole market including the dollar-pegged coins: they
+  // are a real share of it, and seeing them sit flat while everything else
+  // moves is the clearest explanation of what a stablecoin is.
+  const map = all
+    .filter((r) => (r.marketCap ?? 0) >= MIN_CRYPTO_CAP)
+    .sort((a, b) => (b.marketCap ?? 0) - (a.marketCap ?? 0));
+
+  const shelves: Shelf[] = [
     {
       key: "start",
       label: "Start here",
@@ -252,20 +267,24 @@ async function buildCrypto(): Promise<Shelf[]> {
       rows: curated(all, CRYPTO_STABLE, CRYPTO_NOTES),
     },
   ];
+
+  return { shelves, map };
 }
 
-export async function getShowcase(type: ShowcaseType): Promise<Shelf[]> {
+export async function getShowcase(type: ShowcaseType): Promise<Showcase> {
   const hit = cache.get(type);
-  if (hit && Date.now() - hit.at < TTL) return hit.shelves;
+  if (hit && Date.now() - hit.at < TTL) return hit.data;
   const pending = inflight.get(type);
   if (pending) return pending;
 
   const p = (async () => {
-    const shelves = (await (type === "crypto" ? buildCrypto() : buildStocks())).filter(
-      (s) => s.rows.length > 0
-    );
-    cache.set(type, { at: Date.now(), shelves });
-    return shelves;
+    const built = await (type === "crypto" ? buildCrypto() : buildStocks());
+    const data: Showcase = {
+      shelves: built.shelves.filter((s) => s.rows.length > 0),
+      map: built.map,
+    };
+    cache.set(type, { at: Date.now(), data });
+    return data;
   })().finally(() => inflight.delete(type));
 
   inflight.set(type, p);

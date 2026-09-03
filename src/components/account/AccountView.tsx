@@ -12,6 +12,7 @@ import EquitySpark from "./EquitySpark";
 import { TextSkeleton } from "@/components/Skeleton";
 import LeveragePanel, { OpenModal as LeverageTicket } from "./LeveragePanel";
 import Showcase from "./Showcase";
+import CryptoMap from "./CryptoMap";
 import TradeCoach from "./TradeCoach";
 import MarketStatusBadge from "./MarketStatusBadge";
 import QuoteFreshness from "./QuoteFreshness";
@@ -128,6 +129,7 @@ export default function AccountView({
   const leadWithIdeas = !isForex && positions.length === 0;
   // Both non-forex markets get a showcase; each has its own universe.
   const showcaseType = account.type === "crypto" ? "crypto" : "stocks";
+  const isCrypto = account.type === "crypto";
 
   // Symbols to keep priced live.
   const symbols = useMemo(() => {
@@ -349,6 +351,12 @@ export default function AccountView({
           )}
         </div>
       )}
+
+      {/* Crypto opens on the market itself, above the portfolio: one picture of
+          who is up, who is down, and how much of "crypto" is just Bitcoin.
+          Stocks have no equivalent worth the space — 400 tiles is a mosaic, not
+          a map — so this is the thing that makes the two markets feel different. */}
+      {isCrypto && <CryptoMap onSelect={selectSymbol} />}
 
       {/* Portfolio summary (always visible) */}
       <div className="rounded-2xl border border-border bg-card p-5">
