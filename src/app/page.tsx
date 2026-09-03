@@ -166,11 +166,12 @@ export default async function LandingPage({
           <a href="#compare" className="text-[#e9e9ed] hover:text-[var(--lp-accent-300)]">Compare</a>
           <a href="#contact" className="text-[#e9e9ed] hover:text-[var(--lp-accent-300)]">Contact</a>
         </div>
-        {/* One sign-up button in the first screen: the hero's. The nav is not sticky, so a second one here only
-            duplicated it. Log in takes the slot in the same outlined style as every other button on the page. */}
-        <div className="ml-auto flex items-center">
-          <Link href="/signup?tab=login" className={`${BTN_PRIMARY} px-4 py-2 text-[14px]`}>
+        <div className="ml-auto flex items-center gap-5">
+          <Link href="/signup?tab=login" className="text-[14px] text-[#e9e9edad] hover:text-[var(--lp-accent-300)]">
             Log in
+          </Link>
+          <Link href="/signup" className={`${BTN_PRIMARY} px-4 py-2 text-[14px]`}>
+            Create a free account
           </Link>
         </div>
       </nav>
