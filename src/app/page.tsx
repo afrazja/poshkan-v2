@@ -2,19 +2,16 @@ import Image from "next/image";
 import Link from "next/link";
 import { Inter } from "next/font/google";
 import { redirect } from "next/navigation";
-import { Check } from "lucide-react";
 import RecoveryRedirect from "@/components/auth/RecoveryRedirect";
-import LandingVideo from "@/components/landing/LandingVideo";
 import SignupCta from "@/components/landing/SignupCta";
-import InstallStrip from "@/components/landing/InstallStrip";
 import { BTN_PRIMARY, BTN_SECONDARY, FADE_RULE, SHADOW_MD } from "@/components/landing/lp";
 
 // Nocturne landing design — Inter throughout, 400 body / 500 headings.
 const inter = Inter({ subsets: ["latin"], weight: ["400", "500"], display: "swap" });
 
-const TITLE = "Poshkan | Paper Trading and Strategy Lab for Stocks, Crypto & Forex";
+const TITLE = "Poshkan | Paper Trading for Stocks, Crypto & Forex";
 const DESCRIPTION =
-  "Build, backtest, and observe your own trading strategies with virtual money across stocks, crypto, and forex. Write the rules yourself — no code, nothing real at stake.";
+  "Practice trading US stocks, crypto and forex with virtual money. Before you buy, see where a price sits in its year and how far it has fallen before — real closes, no opinions, no AI.";
 
 export const metadata = {
   title: TITLE,
@@ -74,6 +71,11 @@ const LP_TOKENS = {
 const GUTTER = "clamp(20px, 5vw, 72px)";
 const SECTION = "mx-auto max-w-[1200px]";
 
+// The page is deliberately four screens: hero, the one feature that is the
+// reason to sign up (with its one screenshot), three text-only cards, a short
+// comparison, and the form. Feature tours with a figure per section lost the
+// visitor before the form — so a new feature earns a card, not a section.
+
 function Kicker({ children }: { children: React.ReactNode }) {
   return (
     <p className="mb-6 flex items-center gap-[14px] text-[13px] uppercase tracking-[0.06em] text-[var(--lp-accent)]">
@@ -92,31 +94,28 @@ function Stat({ figure, label }: { figure: string; label: React.ReactNode }) {
   );
 }
 
-function LabStep({ n, title, text }: { n: string; title: string; text: string }) {
-  return (
-    <div>
-      <p className="mb-2.5 text-[14px] tabular-nums text-[var(--lp-accent)]">{n}</p>
-      <h3 className="mb-2 text-[19px] font-medium leading-[26px]">{title}</h3>
-      <p className="m-0 text-[15px] leading-[25px] text-[#e9e9edbd]">{text}</p>
-    </div>
-  );
-}
-
 function ResearchPoint({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div>
-      <h3 className="mb-2 text-[19px] font-medium leading-[26px]">{title}</h3>
-      <p className="m-0 max-w-[46ch] text-[15.5px] leading-[26px] text-[#e9e9edbd]">{children}</p>
+      <h3 className="mb-1 text-[16.5px] font-medium leading-6">{title}</h3>
+      <p className="m-0 max-w-[46ch] text-[14.5px] leading-[24px] text-[#e9e9edbd]">{children}</p>
     </div>
   );
 }
 
-function ScanBullet({ children }: { children: React.ReactNode }) {
+function Habit({ n, title, children }: { n: string; title: string; children: React.ReactNode }) {
   return (
-    <li className="flex items-baseline gap-2.5 text-[15.5px] leading-[25px]">
-      <Check size={15} className="shrink-0 translate-y-0.5 text-[var(--lp-accent)]" aria-hidden />
-      {children}
-    </li>
+    <div
+      className="rounded-[14px] p-6"
+      style={{
+        background: "color-mix(in srgb, var(--lp-accent) 7%, transparent)",
+        boxShadow: "inset 0 0 0 1px var(--lp-divider)",
+      }}
+    >
+      <p className="mb-3 text-[13px] tabular-nums text-[var(--lp-accent)]">{n}</p>
+      <h3 className="mb-2.5 text-[19px] font-medium leading-[26px]">{title}</h3>
+      <p className="m-0 text-[15px] leading-[25px] text-[#e9e9edbd]">{children}</p>
+    </div>
   );
 }
 
@@ -137,17 +136,6 @@ function CompareRow({ label, cells }: { label: string; cells: [string, string, s
       <td className="px-2 py-3.5 align-top text-[#e9e9edbd]">{cells[2]}</td>
       <td className="px-2 py-3.5 align-top text-[#e9e9edbd]">{cells[3]}</td>
     </tr>
-  );
-}
-
-function Quote({ text, name }: { text: string; name: string }) {
-  return (
-    <figure className="m-0">
-      <blockquote className="m-0 max-w-[30ch] text-[clamp(21px,2vw,26px)] font-medium leading-[1.42] tracking-[-0.01em]">
-        “{text}”
-      </blockquote>
-      <figcaption className="mt-6 text-[15px] leading-[26px] text-[#e9e9ed9e]">— {name}</figcaption>
-    </figure>
   );
 }
 
@@ -182,9 +170,8 @@ export default async function LandingPage({
           Poshkan
         </span>
         <div className="hidden items-center gap-7 text-[14px] md:flex">
-          <a href="#tour" className="text-[#e9e9ed] hover:text-[var(--lp-accent-300)]">Tour</a>
-          <a href="#lab" className="text-[#e9e9ed] hover:text-[var(--lp-accent-300)]">Strategy Lab</a>
-          <a href="#record" className="text-[#e9e9ed] hover:text-[var(--lp-accent-300)]">Your record</a>
+          <a href="#research" className="text-[#e9e9ed] hover:text-[var(--lp-accent-300)]">Before you buy</a>
+          <a href="#discipline" className="text-[#e9e9ed] hover:text-[var(--lp-accent-300)]">Discipline</a>
           <a href="#compare" className="text-[#e9e9ed] hover:text-[var(--lp-accent-300)]">Compare</a>
         </div>
         <div className="ml-auto flex items-center gap-5">
@@ -216,8 +203,8 @@ export default async function LandingPage({
             <a href="#start" className={`${BTN_PRIMARY} px-[22px] py-3 text-[15px]`}>
               Create a free account
             </a>
-            <a href="#lab" className={`${BTN_SECONDARY} px-[22px] py-3 text-[15px]`}>
-              See how a strategy is built
+            <a href="/symbol/NVDA" className={`${BTN_SECONDARY} px-[22px] py-3 text-[15px]`}>
+              See it for NVDA
             </a>
           </div>
           <p className="mt-5 text-[13.5px] leading-[22px] text-[#e9e9ed9e]">
@@ -263,275 +250,111 @@ export default async function LandingPage({
           style={{ paddingLeft: GUTTER, paddingRight: GUTTER }}
         >
           <Stat figure="3" label={<>Markets — stocks,<br />crypto, forex</>} />
-          <Stat figure="4" label={<>Steps from an idea<br />to a backtest</>} />
+          <Stat figure="10 yrs" label={<>Of real closes behind<br />every symbol page</>} />
           <Stat figure="1–10×" label={<>Simulated leverage,<br />per trade</>} />
           <Stat figure="0" label={<>Deposits, withdrawals<br />or prize pools</>} />
         </div>
       </section>
 
-      {/* ── Tour ── */}
-      <section id="tour" className={`${SECTION} pt-[68px]`} style={{ paddingLeft: GUTTER, paddingRight: GUTTER }}>
-        <div className="grid grid-cols-1 items-start gap-x-14 gap-y-5 pb-10 lg:grid-cols-2">
-          <div>
-            <Kicker>The live app</Kicker>
-            <h2 className="m-0 max-w-[20ch] text-[clamp(28px,2.8vw,38px)] font-medium leading-[1.16] tracking-[-0.013em]">
-              Fifteen seconds inside Poshkan
-            </h2>
-          </div>
-          <p className="m-0 text-[16.5px] leading-[28px] text-[#e9e9edcc]">
-            Paper accounts across three markets, profit and loss moving in real time, Strategy Lab
-            activity and the leaderboard. No narration, no mock-ups — this is the product as it runs.
-          </p>
-        </div>
-        <figure className="m-0 max-w-[1000px]">
-          <div className="overflow-hidden rounded-[14px] bg-[#161826]" style={{ boxShadow: SHADOW_MD }}>
-            <LandingVideo
-              src="/landing/paper-trading-tour.mp4"
-              poster="/landing/paper-trading-tour-poster.jpg"
-              ariaLabel="A tour of Poshkan: paper accounts across stocks, crypto and forex, profit and loss, and the leaderboard."
-            />
-          </div>
-          <figcaption className="mt-4 max-w-[56ch] text-[13.5px] leading-[22px] text-[#e9e9ed9e]">
-            Real footage of the live app. Every number in it is virtual money.
-          </figcaption>
-        </figure>
-      </section>
-
-      {/* ── Strategy Lab ── */}
-      <section id="lab" className={`${SECTION} pt-[68px]`} style={{ paddingLeft: GUTTER, paddingRight: GUTTER }}>
-        <Kicker>Strategy Lab</Kicker>
-        <h2 className="mb-6 max-w-[24ch] text-[clamp(32px,3.4vw,46px)] font-medium leading-[1.14] tracking-[-0.015em]">
-          Write the rule. Let the market answer.
-        </h2>
-        <p className="mb-14 max-w-[62ch] text-[17px] leading-[30px] text-[#e9e9edcc]">
-          State an idea as explicit entry, exit and risk rules — candles, indicators, symbols and a
-          timeframe, no code. Poshkan replays the rules over completed candles, then runs them
-          forward on a paper account so you can see which part of the idea actually held.
-        </p>
-
-        <div className="grid grid-cols-2 gap-x-9 gap-y-7 pb-11 md:grid-cols-4">
-          <LabStep n="01" title="Define rules" text="Candle patterns, indicators, symbols and timeframe. No code." />
-          <LabStep n="02" title="Set risk" text="Stop, target, maximum holding time and risk per trade." />
-          <LabStep n="03" title="Backtest" text="Replay the rules on history, with trading costs applied." />
-          <LabStep n="04" title="Observe" text="Follow it forward on paper and see where it breaks down." />
-        </div>
-
-        <figure className="m-0 max-w-[780px]">
-          <div className="overflow-hidden rounded-[14px] bg-[#161826]" style={{ boxShadow: SHADOW_MD }}>
-            <LandingVideo
-              src="/landing/strategy-lab-tour.mp4"
-              poster="/landing/strategy-lab-tour-poster.jpg"
-              ariaLabel="Building a strategy in the Strategy Lab: setup, entry rules, exit and risk, then the test."
-            />
-          </div>
-          <figcaption className="mt-4 max-w-[60ch] text-[13.5px] leading-[22px] text-[#e9e9ed9e]">
-            Four steps, and a rule summary that restates your logic in plain English before anything runs.
-          </figcaption>
-        </figure>
-      </section>
-
-      {/* ── Live ── */}
-      <section id="automation" className={`${SECTION} pt-[68px]`} style={{ paddingLeft: GUTTER, paddingRight: GUTTER }}>
-        <div className="grid grid-cols-1 items-start gap-x-14 gap-y-7 lg:grid-cols-2">
-          <div>
-            <Kicker>Live</Kicker>
-            <h2 className="m-0 max-w-[22ch] text-[clamp(28px,2.8vw,38px)] font-medium leading-[1.16] tracking-[-0.013em]">
-              Your rules watch the market while you sleep
-            </h2>
-          </div>
-          <div>
-            <p className="mb-5 text-[16.5px] leading-[28px] text-[#e9e9edcc]">
-              Set a strategy live and it keeps running on every completed candle. When a rule
-              matches you get a paper alert — entry, stop, target and the reward-to-risk it asked
-              for — so you see how the idea behaves on new data before you ever act on it.
-            </p>
-            <ul className="m-0 grid list-none gap-2.5 p-0">
-              <ScanBullet>Push and email the moment a rule matches</ScanBullet>
-              <ScanBullet>Entry, stop and target on every alert, with the R it promised</ScanBullet>
-              <ScanBullet>A plain-English summary restates your logic before it goes live</ScanBullet>
-            </ul>
-          </div>
-        </div>
-      </section>
-
       {/* ── Before you buy ── */}
       <section id="research" className={`${SECTION} pt-[68px]`} style={{ paddingLeft: GUTTER, paddingRight: GUTTER }}>
-        <Kicker>Before you buy</Kicker>
-        <h2 className="mb-6 max-w-[24ch] text-[clamp(32px,3.4vw,46px)] font-medium leading-[1.14] tracking-[-0.015em]">
-          A price means nothing on its own
-        </h2>
-        <p className="mb-12 max-w-[62ch] text-[17px] leading-[30px] text-[#e9e9edcc]">
-          Every other simulator hands you a chart and a Buy button. Click any symbol in Poshkan and
-          the first thing you see is not the chart — it is what the number in front of you is worth
-          knowing about. All of it arithmetic over years of real closes. No opinions, no
-          recommendations, no AI.
-        </p>
-
-        <div className="grid grid-cols-1 gap-x-12 gap-y-9 sm:grid-cols-2">
-          <ResearchPoint title="Where this price sits in its own year">
-            Not “+8% today” but “+8% today, and higher than it has been on 97% of days this year.”
-            The same jump, two completely different stories.
-          </ResearchPoint>
-          <ResearchPoint title="How far it falls, and whether it comes back">
-            Every drop of 20% or more in the last ten years: how deep, how long to recover, and
-            whether it ever did. The question a chart never answers.
-          </ResearchPoint>
-          <ResearchPoint title="Whether a coin is a second bet at all">
-            Most altcoins move with Bitcoin almost every day. Poshkan measures it — and tells you
-            when four coins are really one position wearing four names.
-          </ResearchPoint>
-          <ResearchPoint title="What the business earns, in plain words">
-            Five years of revenue and profit, cash against debt, and what you pay for a dollar of
-            earnings — written as sentences rather than a wall of ratios.
-          </ResearchPoint>
-        </div>
-
-        <figure className="m-0 mt-12 max-w-[820px]">
-          <div className="overflow-hidden rounded-[14px] bg-[#161826]" style={{ boxShadow: SHADOW_MD }}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="/landing/before-you-buy.png"
-              alt="The public NVDA page: where the price sits in its 12-month range, and every 20% fall in ten years with how long each took to recover"
-              className="block w-full"
-            />
-          </div>
-          <figcaption className="mt-4 max-w-[56ch] text-[13.5px] leading-[22px] text-[#e9e9ed9e]">
-            The live public page for NVDA. Seven falls of 20% or more in ten years, the deepest 66%,
-            every one recovered — computed from real closes, not written by anyone.
-          </figcaption>
-        </figure>
-
-        <p className="mt-11 max-w-[62ch] text-[16px] leading-[28px] text-[#e9e9edcc]">
-          You do not need an account to read any of it. See it for{" "}
-          <a href="/symbol/NVDA" className="text-[var(--lp-accent)] underline underline-offset-4">
-            NVDA
-          </a>
-          ,{" "}
-          <a href="/symbol/AAPL" className="text-[var(--lp-accent)] underline underline-offset-4">
-            AAPL
-          </a>{" "}
-          or{" "}
-          <a href="/symbol/BTC-USD" className="text-[var(--lp-accent)] underline underline-offset-4">
-            Bitcoin
-          </a>
-          .
-        </p>
-      </section>
-
-      {/* ── Crypto map ── */}
-      <section id="crypto" className={`${SECTION} pt-[68px]`} style={{ paddingLeft: GUTTER, paddingRight: GUTTER }}>
-        <div className="grid grid-cols-1 items-start gap-x-14 gap-y-5 pb-10 lg:grid-cols-2">
+        <div className="grid grid-cols-1 items-start gap-x-14 gap-y-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]">
           <div>
-            <Kicker>Crypto</Kicker>
-            <h2 className="m-0 max-w-[20ch] text-[clamp(28px,2.8vw,38px)] font-medium leading-[1.16] tracking-[-0.013em]">
-              The whole market in one picture
+            <Kicker>Before you buy</Kicker>
+            <h2 className="mb-5 max-w-[20ch] text-[clamp(30px,3vw,42px)] font-medium leading-[1.15] tracking-[-0.014em]">
+              A price means nothing on its own
             </h2>
-          </div>
-          <p className="m-0 text-[16.5px] leading-[28px] text-[#e9e9edcc]">
-            A crypto account opens on a map: every coin a block sized by its share of the market and
-            coloured by the day&rsquo;s move. It answers in one glance what a list of prices cannot
-            &mdash; how much of &ldquo;crypto&rdquo; is simply Bitcoin, and whether the coin you are about
-            to buy is a separate bet at all.
-          </p>
-        </div>
-        <figure className="m-0 max-w-[1000px]">
-          <div className="overflow-hidden rounded-[14px] bg-[#161826]" style={{ boxShadow: SHADOW_MD }}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="/landing/crypto-map.png"
-              alt="The crypto market as a treemap: Bitcoin filling most of the canvas, Ethereum and the other coins sized by market value and coloured by today’s move"
-              className="block w-full"
-            />
-          </div>
-          <figcaption className="mt-4 max-w-[56ch] text-[13.5px] leading-[22px] text-[#e9e9ed9e]">
-            Bitcoin alone is 64% of it. The dollar-pegged coins sit grey while everything around them
-            moves &mdash; the clearest explanation of a stablecoin there is.
-          </figcaption>
-        </figure>
-      </section>
+            <p className="mb-8 max-w-[50ch] text-[16.5px] leading-[28px] text-[#e9e9edcc]">
+              Every other simulator hands you a chart and a Buy button. Click any symbol in Poshkan
+              and the first thing you see is what the number in front of you is worth knowing about
+              — arithmetic over years of real closes. No opinions, no recommendations, no AI.
+            </p>
 
-      {/* ── Your record ── */}
-      <section id="record" className={`${SECTION} pt-[68px]`} style={{ paddingLeft: GUTTER, paddingRight: GUTTER }}>
-        <div className="grid grid-cols-1 items-start gap-12 lg:grid-cols-[minmax(0,366px)_minmax(0,1fr)]">
+            <div className="grid grid-cols-1 gap-y-5 sm:grid-cols-2 sm:gap-x-8 lg:grid-cols-1">
+              <ResearchPoint title="Where this price sits in its own year">
+                Not “+8% today” but “+8% today, and higher than on 97% of days this year.”
+              </ResearchPoint>
+              <ResearchPoint title="How far it falls, and whether it comes back">
+                Every drop of 20% or more in ten years: how deep, how long, and whether it ever
+                recovered.
+              </ResearchPoint>
+              <ResearchPoint title="Whether a coin is a second bet at all">
+                Most altcoins move with Bitcoin almost every day. Poshkan measures it.
+              </ResearchPoint>
+              <ResearchPoint title="What the business earns, in plain words">
+                Five years of revenue and profit, cash against debt — sentences, not a wall of ratios.
+              </ResearchPoint>
+            </div>
+
+            <p className="mt-8 max-w-[50ch] text-[15px] leading-[26px] text-[#e9e9edcc]">
+              No account needed to read any of it. See it for{" "}
+              <a href="/symbol/NVDA" className="text-[var(--lp-accent)] underline underline-offset-4">
+                NVDA
+              </a>
+              ,{" "}
+              <a href="/symbol/AAPL" className="text-[var(--lp-accent)] underline underline-offset-4">
+                AAPL
+              </a>{" "}
+              or{" "}
+              <a href="/symbol/BTC-USD" className="text-[var(--lp-accent)] underline underline-offset-4">
+                Bitcoin
+              </a>
+              .
+            </p>
+          </div>
+
           <figure className="m-0">
             <div className="overflow-hidden rounded-[14px] bg-[#161826]" style={{ boxShadow: SHADOW_MD }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src="/landing/trade.png"
-                alt="A closed EUR/USD trade replayed on its chart with entry, stop-loss, take-profit and reward-to-risk"
+                src="/landing/before-you-buy.png"
+                alt="The public NVDA page: where the price sits in its 12-month range, and every 20% fall in ten years with how long each took to recover"
                 className="block w-full"
               />
             </div>
             <figcaption className="mt-4 text-[13.5px] leading-[22px] text-[#e9e9ed9e]">
-              Every closed trade replays on its own chart — entry, stop, target, and the
-              reward-to-risk the plan asked for.
+              The live public page for NVDA. Seven falls of 20% or more in ten years, the deepest
+              66%, every one recovered — computed from real closes, not written by anyone.
             </figcaption>
           </figure>
-          <div>
-            <Kicker>Your record</Kicker>
-            <h2 className="mb-6 max-w-[20ch] text-[clamp(30px,3vw,42px)] font-medium leading-[1.15] tracking-[-0.014em]">
-              Every trade gets graded
-            </h2>
-            <p className="mb-10 max-w-[52ch] text-[16.5px] leading-[28px] text-[#e9e9edcc]">
-              Poshkan keeps the score a demo account never shows you: win rate, average win against
-              average loss, expectancy per trade, and how many exits were stops rather than you
-              changing your mind. Leveraged trades are asked for a plan before they open — a stop, a
-              target and a reason — and then held to it.
-            </p>
-            <div className="flex flex-wrap items-start gap-7">
-              <figure className="m-0 max-w-[375px]">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src="/landing/stats.png"
-                  alt="Performance panel: average win, average loss, expectancy per trade, outcomes and best and worst trade"
-                  className="block w-full rounded-[10px]"
-                />
-                <figcaption className="mt-3 text-[13px] leading-[21px] text-[#e9e9ed9e]">
-                  Expectancy and outcome mix, per account.
-                </figcaption>
-              </figure>
-            </div>
-          </div>
         </div>
       </section>
 
-      {/* ── Leaderboard ── */}
-      <section id="leaderboard" className={`${SECTION} pt-[68px]`} style={{ paddingLeft: GUTTER, paddingRight: GUTTER }}>
-        <div className="grid grid-cols-1 items-start gap-x-14 gap-y-7 pb-12 lg:grid-cols-2">
+      {/* ── Discipline ── */}
+      <section id="discipline" className={`${SECTION} pt-[68px]`} style={{ paddingLeft: GUTTER, paddingRight: GUTTER }}>
+        <div className="grid grid-cols-1 items-start gap-x-14 gap-y-5 pb-10 lg:grid-cols-2">
           <div>
-            <Kicker>Leaderboard</Kicker>
-            <h2 className="m-0 max-w-[22ch] text-[clamp(28px,2.8vw,38px)] font-medium leading-[1.16] tracking-[-0.013em]">
-              A rank that shows what it cost
+            <Kicker>Discipline</Kicker>
+            <h2 className="m-0 max-w-[20ch] text-[clamp(28px,2.8vw,38px)] font-medium leading-[1.16] tracking-[-0.013em]">
+              It slows you down at the right moments
             </h2>
           </div>
           <p className="m-0 text-[16.5px] leading-[28px] text-[#e9e9edcc]">
-            Scored on percentage return on the money put in, so seeding an account with a million
-            virtual dollars buys nothing but a bigger denominator. Beside every rank: how many trades
-            it took, how long the account has run, how often it trades — and the worst peak-to-trough
-            fall endured on the way. A 60% return that survived a 40% drawdown should not read like a
-            60% return that never fell more than 3%.
+            No coach, no tips, no AI. The pauses a careful trader takes are built into the ticket,
+            the rank and the crypto account — so they are there on the day you would rather skip
+            them.
           </p>
         </div>
-        <figure className="m-0 max-w-[720px]">
-          <div className="overflow-hidden rounded-[14px] bg-[#161826]" style={{ boxShadow: SHADOW_MD }}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="/landing/leaderboard.png"
-              alt="Leaderboard: accounts ranked by percentage return at live prices, with trades, days active and worst drawdown"
-              className="block w-full"
-            />
-          </div>
-          <figcaption className="mt-4 max-w-[56ch] text-[13.5px] leading-[22px] text-[#e9e9ed9e]">
-            Every account, filtered by market. Beside each return: trades, days active, pace, and
-            the worst dip endured — a $22,700 account outranks a $114,000 one on percentage return.
-          </figcaption>
-        </figure>
 
-        <div className="grid grid-cols-1 gap-14 pt-14 sm:grid-cols-[repeat(auto-fit,minmax(300px,1fr))]">
-          <Quote
-            text="The most complete and easy-to-use platform I've found for practicing trading and honestly evaluating my skills."
-            name="Vahid Alizadeh, forex trader on the leaderboard"
-          />
+        <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
+          <Habit n="01" title="Every leveraged trade starts with a plan">
+            Long or short, the ticket walks you through which way, how big, the plan, and a check.
+            Four things are scored in front of you before it opens: a stop set before entry, risk
+            under 1% of your cash, reward at least 1.5× the risk, and the reason written down.
+            Closed trades keep the score — expectancy per trade, and how many exits were stops
+            rather than a change of mind.
+          </Habit>
+          <Habit n="02" title="A rank that shows what it cost">
+            Every account ranked by percentage return on the money put in, so a million virtual
+            dollars buys nothing but a bigger denominator. Beside each rank: trades, days active,
+            pace, and the worst peak-to-trough fall on the way.
+          </Habit>
+          <Habit n="03" title="The whole crypto market in one picture">
+            A crypto account opens on a map: every coin a block sized by its share of the market,
+            coloured by the day’s move. Bitcoin is about two-thirds of it and the dollar-pegged
+            coins sit grey — so you can see whether the coin you are about to buy is a separate bet
+            at all.
+          </Habit>
         </div>
       </section>
 
@@ -539,9 +362,9 @@ export default async function LandingPage({
       <section id="compare" className={`${SECTION} pt-[68px]`} style={{ paddingLeft: GUTTER, paddingRight: GUTTER }}>
         <div className="mb-[52px]" style={FADE_RULE} />
         <h2 className="mb-5 max-w-[26ch] text-[clamp(28px,2.8vw,38px)] font-medium leading-[1.16] tracking-[-0.013em]">
-          Why not just use a broker&apos;s demo?
+          Why not just use a broker’s demo?
         </h2>
-        <p className="mb-12 max-w-[58ch] text-[16.5px] leading-[28px] text-[#e9e9edcc]">
+        <p className="mb-10 max-w-[58ch] text-[16.5px] leading-[28px] text-[#e9e9edcc]">
           Fair question. There are three usual ways to practise, and each of them stops somewhere.
         </p>
 
@@ -576,19 +399,19 @@ export default async function LandingPage({
               <CompareRow
                 label="Markets"
                 cells={[
-                  "US stocks, crypto and forex in one account",
+                  "US stocks, crypto and forex — one account each",
                   "Whatever that one broker sells",
                   "Usually stocks only",
                   "Whatever gets called out",
                 ]}
               />
               <CompareRow
-                label="Your own rules"
+                label="Before you buy"
                 cells={[
-                  "Built from candles and indicators, no code",
-                  "Not supported",
-                  "Not supported",
-                  "Someone else's, unexplained",
+                  "Where the price sits in its year, how far it has fallen before, what the business earns",
+                  "A chart",
+                  "A lesson, not the live number",
+                  "Someone’s opinion",
                 ]}
               />
               <CompareRow
@@ -598,15 +421,6 @@ export default async function LandingPage({
                   "Your discretion",
                   "None",
                   "None",
-                ]}
-              />
-              <CompareRow
-                label="What it's built for"
-                cells={[
-                  "Practice, and finding out what your idea does",
-                  "Turning you into a funded customer",
-                  "Coursework",
-                  "Following someone else",
                 ]}
               />
             </tbody>
@@ -622,13 +436,12 @@ export default async function LandingPage({
         </h2>
         <p className="mb-10 max-w-[54ch] text-[16.5px] leading-[28px] text-[#e9e9edcc]">
           An email and a password is the whole sign-up. Open a paper account for stocks, crypto or
-          forex, and place your first order or start a strategy in the Lab.
+          forex, look up any symbol, and read it before you buy it.
         </p>
         <SignupCta />
         <p className="mt-[18px] text-[13.5px] leading-[22px] text-[#e9e9ed9e]">
           Takes about a minute. Free while Poshkan is in beta — no card, nothing real at stake.
         </p>
-        <InstallStrip />
       </section>
 
       {/* ── Footer ── */}
