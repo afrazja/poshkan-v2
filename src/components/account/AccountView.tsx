@@ -11,6 +11,7 @@ import ScannerIcon from "@/components/ScannerIcon";
 import EquitySpark from "./EquitySpark";
 import { TextSkeleton } from "@/components/Skeleton";
 import LeveragePanel from "./LeveragePanel";
+import StockShowcase from "./StockShowcase";
 import TradeCoach from "./TradeCoach";
 import MarketStatusBadge from "./MarketStatusBadge";
 import QuoteFreshness from "./QuoteFreshness";
@@ -98,6 +99,7 @@ export default function AccountView({
   const orders = initialOrders;
   const fxPositions = initialFxPositions;
   const isForex = account.type === "forex";
+  const isStocks = account.type === "stocks";
 
   // Symbols to keep priced live.
   const symbols = useMemo(() => {
@@ -470,14 +472,33 @@ export default function AccountView({
       {!isForex && (
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3 lg:items-start">
         <div className="min-w-0 space-y-6 lg:order-2 lg:col-span-1">
-      {/* Leveraged long/short (shorting) for stock & crypto accounts */}
-      <LeveragePanel
-        accountId={account.id}
-        accountType={account.type}
-        cash={cash}
-        positions={fxPositions}
-        quotes={quotes}
-      />
+      {/* A stock account gives this column to the showcase instead of leverage:
+          a beginner opening an empty account needs somewhere to start, not a
+          margin ticket. Crypto keeps the long/short panel. */}
+      {isStocks ? (
+        <>
+          <StockShowcase onSelect={selectSymbol} />
+          {/* Never strand a position: if this account still holds leveraged
+              trades from before, it keeps the panel to close them. */}
+          {fxPositions.some((p) => p.status === "open") && (
+            <LeveragePanel
+              accountId={account.id}
+              accountType={account.type}
+              cash={cash}
+              positions={fxPositions}
+              quotes={quotes}
+            />
+          )}
+        </>
+      ) : (
+        <LeveragePanel
+          accountId={account.id}
+          accountType={account.type}
+          cash={cash}
+          positions={fxPositions}
+          quotes={quotes}
+        />
+      )}
 
       <TradeCoach positions={fxPositions} cash={cash} />
 
