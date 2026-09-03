@@ -464,7 +464,6 @@ export default async function LandingPage({
           <Link href="/strategies" className="text-[var(--lp-accent)] hover:text-[var(--lp-accent-300)]">Strategies</Link>
           <Link href="/learn" className="text-[var(--lp-accent)] hover:text-[var(--lp-accent-300)]">Learn</Link>
           <Link href="/tools" className="text-[var(--lp-accent)] hover:text-[var(--lp-accent-300)]">Calculators</Link>
-          <Link href="/scans" className="text-[var(--lp-accent)] hover:text-[var(--lp-accent-300)]">Daily scans</Link>
           <Link href="/help" className="text-[var(--lp-accent)] hover:text-[var(--lp-accent-300)]">Help</Link>
           <Link href="/terms" className="text-[var(--lp-accent)] hover:text-[var(--lp-accent-300)]">Terms</Link>
           <Link href="/privacy" className="text-[var(--lp-accent)] hover:text-[var(--lp-accent-300)]">Privacy</Link>
