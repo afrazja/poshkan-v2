@@ -183,13 +183,15 @@ export default async function LandingPage({
       >
         <div>
           <h1 className="mb-7 ml-[-0.06em] text-[clamp(37px,4.9vw,74px)] font-medium leading-[1.08] tracking-[-0.018em]">
-            <span className="block">Practice trading.</span>
-            <span className="block text-[#e9e9eda8]">Lose nothing real.</span>
+            {/* The trailing space keeps the two lines separate words for screen readers and search. */}
+            <span className="block">Practice trading. </span>
+            <span className="block text-[#e9e9eda8]">Guided, not guessing.</span>
           </h1>
           <p className="mb-7 max-w-[46ch] text-[17.5px] leading-[30px] text-[#e9e9edd1]">
-            A paper-trading platform for US stocks, crypto and forex. Live prices, broker-style order
-            mechanics, virtual money — and, before you buy anything, the context that says what the
-            price in front of you actually means.
+            A blank practice account teaches a beginner nothing, because you still don’t know what
+            to do with it. Poshkan puts the guidance beside every decision: when a price deserves
+            your attention, what a real basis for a trade looks like, whether the business is worth
+            owning, and how to keep your head when it falls.
           </p>
           {/* One action here. The public symbol pages are linked from the section that explains them. */}
           <div className="flex flex-wrap items-center gap-3">
@@ -197,8 +199,9 @@ export default async function LandingPage({
               Create a free account
             </a>
           </div>
-          <p className="mt-5 text-[13.5px] leading-[22px] text-[#e9e9ed9e]">
-            Free while Poshkan is in beta. No card, no broker connection, no deposits.
+          <p className="mt-5 max-w-[46ch] text-[13.5px] leading-[22px] text-[#e9e9ed9e]">
+            US stocks, crypto and forex, virtual money only. Free while Poshkan is in beta — no card,
+            no broker connection, no deposits.
           </p>
         </div>
 

@@ -2,7 +2,7 @@ import { ImageResponse } from "next/og";
 
 // Branded 1200×630 preview for link shares (WhatsApp, Telegram, X, Discord…).
 // Rendered on demand — no binary asset to keep in sync with the design.
-export const alt = "Poshkan — paper trading that tells you what a price means before you buy.";
+export const alt = "Poshkan — practice trading, guided rather than guessing.";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -87,11 +87,11 @@ export default function OgImage() {
             <div style={{ fontSize: 40, fontWeight: 700 }}>Poshkan</div>
           </div>
           <div style={{ marginTop: 40, fontSize: 72, fontWeight: 800, lineHeight: 1.1 }}>
-            Practice trading. Lose nothing real.
+            Practice trading. Guided, not guessing.
           </div>
           <div style={{ marginTop: 28, fontSize: 30, color: "rgba(255,255,255,0.75)", lineHeight: 1.4 }}>
-            Paper trading for US stocks, crypto and forex — and, before you buy, what the price
-            in front of you actually means.
+            A blank practice account teaches a beginner nothing. Poshkan puts the guidance beside
+            every decision — virtual money, real prices.
           </div>
           <div
             style={{
