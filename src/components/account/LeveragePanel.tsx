@@ -340,7 +340,12 @@ export function OpenModal({
         ) : (
           <div className="flex items-center justify-between rounded-lg bg-background px-3 py-2 text-sm">
             <span>
-              <strong>{symbol.symbol}</strong> <span className="text-muted">{symbol.name}</span>
+              {/* Rows that carry no company name pass the ticker as the name,
+                  which rendered as "ETH-USD ETH-USD". */}
+              <strong>{symbol.symbol}</strong>{" "}
+              {symbol.name && symbol.name !== symbol.symbol && (
+                <span className="text-muted">{symbol.name}</span>
+              )}
             </span>
             <span className="font-semibold">{price ? formatCurrency(price) : "…"}</span>
           </div>
