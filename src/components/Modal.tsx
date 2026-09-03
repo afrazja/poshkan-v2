@@ -12,11 +12,14 @@ export default function Modal({
   onClose,
   children,
   wide = false,
+  xl = false,
 }: {
   title: string;
   onClose: () => void;
   children: React.ReactNode;
   wide?: boolean;
+  /** Wider still, for a chart that needs the room to be readable. */
+  xl?: boolean;
 }) {
   const idRef = useRef<symbol | null>(null);
   if (idRef.current === null) idRef.current = Symbol("modal");
@@ -43,7 +46,7 @@ export default function Modal({
       onClick={onClose}
     >
       <div
-        className={`flex max-h-[92vh] w-full flex-col overflow-hidden ${wide ? "max-w-2xl" : "max-w-md"} rounded-2xl border border-border bg-card shadow-xl`}
+        className={`flex max-h-[92vh] w-full flex-col overflow-hidden ${xl ? "max-w-5xl" : wide ? "max-w-2xl" : "max-w-md"} rounded-2xl border border-border bg-card shadow-xl`}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Sticky header — stays visible while the body scrolls */}
