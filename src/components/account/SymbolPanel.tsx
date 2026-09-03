@@ -179,14 +179,14 @@ export default function SymbolPanel({
       <div className="mt-5 flex gap-2">
         <button
           onClick={onBuy}
-          className="flex-1 rounded-lg bg-positive px-3 py-2.5 text-sm font-semibold text-white hover:opacity-90"
+          className="flex-1 whitespace-nowrap rounded-lg bg-positive px-2 py-2.5 text-sm font-semibold text-white hover:opacity-90 sm:px-5"
         >
           Buy
         </button>
         <button
           onClick={onSell}
           disabled={heldShares <= 0}
-          className="flex-1 rounded-lg bg-negative px-3 py-2.5 text-sm font-semibold text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+          className="flex-1 whitespace-nowrap rounded-lg bg-negative px-2 py-2.5 text-sm font-semibold text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40 sm:px-5"
         >
           Sell
         </button>
@@ -194,7 +194,7 @@ export default function SymbolPanel({
           <button
             onClick={onLeverage}
             title="Open a leveraged long or short position"
-            className="flex-1 rounded-lg bg-foreground px-3 py-2.5 text-sm font-semibold text-background transition hover:opacity-90"
+            className="flex-1 whitespace-nowrap rounded-lg bg-foreground px-2 py-2.5 text-sm font-semibold text-background transition hover:opacity-90 sm:px-5"
           >
             Long / Short
           </button>
