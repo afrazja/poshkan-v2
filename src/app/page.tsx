@@ -102,6 +102,15 @@ function LabStep({ n, title, text }: { n: string; title: string; text: string })
   );
 }
 
+function ResearchPoint({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <h3 className="mb-2 text-[19px] font-medium leading-[26px]">{title}</h3>
+      <p className="m-0 max-w-[46ch] text-[15.5px] leading-[26px] text-[#e9e9edbd]">{children}</p>
+    </div>
+  );
+}
+
 function ScanBullet({ children }: { children: React.ReactNode }) {
   return (
     <li className="flex items-baseline gap-2.5 text-[15.5px] leading-[25px]">
@@ -200,7 +209,8 @@ export default async function LandingPage({
           </h1>
           <p className="mb-7 max-w-[46ch] text-[17.5px] leading-[30px] text-[#e9e9edd1]">
             A paper-trading platform for US stocks, crypto and forex. Live prices, broker-style order
-            mechanics, virtual money — and an honest record of every decision you make.
+            mechanics, virtual money — and, before you buy anything, the context that says what the
+            price in front of you actually means.
           </p>
           <div className="flex flex-wrap items-center gap-3">
             <a href="#start" className={`${BTN_PRIMARY} px-[22px] py-3 text-[15px]`}>
@@ -345,6 +355,55 @@ export default async function LandingPage({
         </div>
       </section>
 
+      {/* ── Before you buy ── */}
+      <section id="research" className={`${SECTION} pt-[68px]`} style={{ paddingLeft: GUTTER, paddingRight: GUTTER }}>
+        <Kicker>Before you buy</Kicker>
+        <h2 className="mb-6 max-w-[24ch] text-[clamp(32px,3.4vw,46px)] font-medium leading-[1.14] tracking-[-0.015em]">
+          A price means nothing on its own
+        </h2>
+        <p className="mb-12 max-w-[62ch] text-[17px] leading-[30px] text-[#e9e9edcc]">
+          Every other simulator hands you a chart and a Buy button. Click any symbol in Poshkan and
+          the first thing you see is not the chart — it is what the number in front of you is worth
+          knowing about. All of it arithmetic over years of real closes. No opinions, no
+          recommendations, no AI.
+        </p>
+
+        <div className="grid grid-cols-1 gap-x-12 gap-y-9 sm:grid-cols-2">
+          <ResearchPoint title="Where this price sits in its own year">
+            Not “+8% today” but “+8% today, and higher than it has been on 97% of days this year.”
+            The same jump, two completely different stories.
+          </ResearchPoint>
+          <ResearchPoint title="How far it falls, and whether it comes back">
+            Every drop of 20% or more in the last ten years: how deep, how long to recover, and
+            whether it ever did. The question a chart never answers.
+          </ResearchPoint>
+          <ResearchPoint title="Whether a coin is a second bet at all">
+            Most altcoins move with Bitcoin almost every day. Poshkan measures it — and tells you
+            when four coins are really one position wearing four names.
+          </ResearchPoint>
+          <ResearchPoint title="What the business earns, in plain words">
+            Five years of revenue and profit, cash against debt, and what you pay for a dollar of
+            earnings — written as sentences rather than a wall of ratios.
+          </ResearchPoint>
+        </div>
+
+        <p className="mt-11 max-w-[62ch] text-[16px] leading-[28px] text-[#e9e9edcc]">
+          You do not need an account to read any of it. See it for{" "}
+          <a href="/symbol/NVDA" className="text-[var(--lp-accent)] underline underline-offset-4">
+            NVDA
+          </a>
+          ,{" "}
+          <a href="/symbol/AAPL" className="text-[var(--lp-accent)] underline underline-offset-4">
+            AAPL
+          </a>{" "}
+          or{" "}
+          <a href="/symbol/BTC-USD" className="text-[var(--lp-accent)] underline underline-offset-4">
+            Bitcoin
+          </a>
+          .
+        </p>
+      </section>
+
       {/* ── Your record ── */}
       <section id="record" className={`${SECTION} pt-[68px]`} style={{ paddingLeft: GUTTER, paddingRight: GUTTER }}>
         <div className="grid grid-cols-1 items-start gap-12 lg:grid-cols-[minmax(0,366px)_minmax(0,1fr)]">
@@ -368,9 +427,10 @@ export default async function LandingPage({
               Every trade gets graded
             </h2>
             <p className="mb-10 max-w-[52ch] text-[16.5px] leading-[28px] text-[#e9e9edcc]">
-              Poshkan keeps the score a demo account never shows you: win rate, profit factor,
-              expectancy per trade, how many exits were stops and how many were you changing your
-              mind.
+              Poshkan keeps the score a demo account never shows you: win rate, average win against
+              average loss, expectancy per trade, and how many exits were stops rather than you
+              changing your mind. Leveraged trades are asked for a plan before they open — a stop, a
+              target and a reason — and then held to it.
             </p>
             <div className="flex flex-wrap items-start gap-7">
               <figure className="m-0 max-w-[375px]">
@@ -384,17 +444,6 @@ export default async function LandingPage({
                   Expectancy and outcome mix, per account.
                 </figcaption>
               </figure>
-              <figure className="m-0 max-w-[375px]">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src="/landing/coach.png"
-                  alt="Coach panel reading the last twenty closed trades: stops used, typical risk, average win to loss"
-                  className="block w-full rounded-[10px]"
-                />
-                <figcaption className="mt-3 text-[13px] leading-[21px] text-[#e9e9ed9e]">
-                  Coach reads your last twenty closed trades for habits, not opinions.
-                </figcaption>
-              </figure>
             </div>
           </div>
         </div>
@@ -406,13 +455,15 @@ export default async function LandingPage({
           <div>
             <Kicker>Leaderboard</Kicker>
             <h2 className="m-0 max-w-[22ch] text-[clamp(28px,2.8vw,38px)] font-medium leading-[1.16] tracking-[-0.013em]">
-              Ranked by percentage return, not by deposits
+              A rank that shows what it cost
             </h2>
           </div>
           <p className="m-0 text-[16.5px] leading-[28px] text-[#e9e9edcc]">
-            Every account is scored on percentage return on the money put into it, at live prices.
-            Seeding an account with a million virtual dollars buys nothing but a bigger denominator.
-            Reset your history whenever you like — the rank resets with it.
+            Scored on percentage return on the money put in, so seeding an account with a million
+            virtual dollars buys nothing but a bigger denominator. Beside every rank: how many trades
+            it took, how long the account has run, how often it trades — and the worst peak-to-trough
+            fall endured on the way. A 60% return that survived a 40% drawdown should not read like a
+            60% return that never fell more than 3%.
           </p>
         </div>
         <figure className="m-0 max-w-[720px]">
@@ -420,12 +471,12 @@ export default async function LandingPage({
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src="/landing/leaderboard.png"
-              alt="Leaderboard: traders ranked by their best account's percentage return at live prices"
+              alt="Leaderboard: accounts ranked by percentage return at live prices, with trades, days active and worst drawdown"
               className="block w-full"
             />
           </div>
           <figcaption className="mt-4 max-w-[56ch] text-[13.5px] leading-[22px] text-[#e9e9ed9e]">
-            Top per trader, or every account — a $13,600 crypto account outranks a $92,000 one on
+            Every account, filtered by market — a $13,600 crypto account outranks a $92,000 one on
             percentage return.
           </figcaption>
         </figure>
