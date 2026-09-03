@@ -9,6 +9,24 @@ import {
   placeLimitOrderAction,
 } from "@/app/dashboard/[accountId]/actions";
 import PriceChart from "./PriceChart";
+import { isCryptoSymbol } from "@/lib/assets";
+
+// A beginner thinks "I want to put $500 into Apple", not "I want 1.53971
+// shares". So the amount is entered in dollars by default and converted to a
+// quantity here, at the price the order will use. Selling still defaults to
+// units, because you sell a position you can already count — and a unit-based
+// Max clears it exactly, leaving no dust behind.
+type AmountMode = "DOLLARS" | "UNITS";
+
+// Enough decimals that rounding the quantity can never move the cost by a
+// cent: 5–6 for a stock, 8 for a coin priced in the tens of thousands.
+function unitDecimals(price: number): number {
+  if (!(price > 0)) return 4;
+  return Math.min(8, Math.max(2, Math.ceil(Math.log10(price / 0.005))));
+}
+const roundTo = (n: number, dp: number) => Math.round(n * 10 ** dp) / 10 ** dp;
+// toFixed always leaves a decimal point here (dp >= 2), so trimming zeros is safe.
+const fmtUnits = (n: number, dp: number) => n.toFixed(dp).replace(/\.?0+$/, "");
 
 export default function TradeModal({
   accountId,
@@ -28,7 +46,8 @@ export default function TradeModal({
   onClose: () => void;
 }) {
   const router = useRouter();
-  const [qty, setQty] = useState("");
+  const [amount, setAmount] = useState("");
+  const [mode, setMode] = useState<AmountMode>(side === "BUY" ? "DOLLARS" : "UNITS");
   const [price, setPrice] = useState(initialPrice);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -56,25 +75,50 @@ export default function TradeModal({
   }, [symbol, initialPrice]);
 
   const isLimit = orderType === "LIMIT";
-  const quantity = Number(qty) || 0;
   const limit = Number(limitPrice) || 0;
+  // A limit order will fill at the limit, so that is the price a dollar amount
+  // must be divided by — not the market price.
   const execPrice = isLimit ? limit : price;
+  const dp = unitDecimals(execPrice);
+  const entered = Number(amount) || 0;
+  const inDollars = mode === "DOLLARS";
+  const quantity = inDollars ? (execPrice > 0 ? roundTo(entered / execPrice, dp) : 0) : entered;
   const estimate = quantity * execPrice;
   const affordable = side === "BUY" ? estimate <= cash : true;
   const enoughShares = side === "SELL" ? quantity <= (maxShares ?? 0) : true;
+  const unitWord = isCryptoSymbol(symbol) ? symbol.split("-")[0] : quantity === 1 ? "share" : "shares";
 
   function chooseType(t: "MARKET" | "LIMIT") {
     setOrderType(t);
     if (t === "LIMIT" && !limitPrice && price > 0) setLimitPrice(price.toFixed(2));
   }
 
+  // Carry the value across when the unit changes, so switching never wipes what
+  // was typed or silently reinterprets $500 as 500 shares.
+  function switchMode(next: AmountMode) {
+    if (next === mode) return;
+    if (entered > 0 && execPrice > 0) {
+      setAmount(
+        next === "UNITS"
+          ? fmtUnits(roundTo(entered / execPrice, dp), dp)
+          : (entered * execPrice).toFixed(2)
+      );
+    }
+    setMode(next);
+  }
+
+  function setMax() {
+    const units = maxShares ?? 0;
+    setAmount(inDollars ? (units * execPrice).toFixed(2) : String(units));
+  }
+
   function goReview(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    if (quantity <= 0) return setError("Enter a quantity.");
     if (isLimit && limit <= 0) return setError("Enter a limit price.");
+    if (quantity <= 0) return setError(inDollars ? "Enter an amount to spend." : "Enter a quantity.");
     if (!affordable) return setError("Not enough cash for this order.");
-    if (!enoughShares) return setError("You don't hold that many shares.");
+    if (!enoughShares) return setError(`You don't hold that ${isCryptoSymbol(symbol) ? "much" : "many shares"}.`);
     setReview(true);
   }
 
@@ -115,14 +159,14 @@ export default function TradeModal({
               <>
                 Limit order placed:{" "}
                 <strong>
-                  {side === "BUY" ? "Buy" : "Sell"} {quantity} {symbol}
+                  {side === "BUY" ? "Buy" : "Sell"} {fmtUnits(quantity, dp)} {symbol}
                 </strong>{" "}
                 at <strong>{formatCurrency(done.price)}</strong> or better. It fills automatically
                 when the price is reached (while this account is open).
               </>
             ) : (
               <>
-                {side === "BUY" ? "Bought" : "Sold"} <strong>{quantity}</strong> {symbol} at{" "}
+                {side === "BUY" ? "Bought" : "Sold"} <strong>{fmtUnits(quantity, dp)}</strong> {symbol} at{" "}
                 <strong>{formatCurrency(done.price)}</strong>.
               </>
             )}
@@ -148,7 +192,7 @@ export default function TradeModal({
               <ReviewRow label="Time in force" value={tif === "DAY" ? "Day (expires tonight)" : "Good til canceled"} />
             )}
             <ReviewRow label="Action" value={`${side === "BUY" ? "Buy" : "Sell"} ${symbol}`} />
-            <ReviewRow label="Quantity" value={String(quantity)} />
+            <ReviewRow label="Quantity" value={`${fmtUnits(quantity, dp)} ${unitWord}`} />
             <ReviewRow
               label={isLimit ? "Limit price" : "Market price"}
               value={formatCurrency(execPrice)}
@@ -216,24 +260,64 @@ export default function TradeModal({
           <PriceChart symbol={symbol} />
 
           <div>
-            <label className="mb-1 block text-sm font-medium">Quantity</label>
-            <input
-              type="number"
-              min="0"
-              step="any"
-              autoFocus
-              value={qty}
-              onChange={(e) => setQty(e.target.value)}
-              className={inputClass}
-              placeholder="0 (fractions allowed)"
-            />
+            <div className="mb-1 flex items-center justify-between gap-2">
+              <label className="text-sm font-medium">{inDollars ? "Amount to spend" : "Quantity"}</label>
+              <div className="flex gap-1 rounded-lg border border-border bg-background p-0.5">
+                {(
+                  [
+                    { key: "DOLLARS", label: "$" },
+                    { key: "UNITS", label: isCryptoSymbol(symbol) ? symbol.split("-")[0] : "Shares" },
+                  ] as { key: AmountMode; label: string }[]
+                ).map((t) => (
+                  <button
+                    key={t.key}
+                    type="button"
+                    onClick={() => switchMode(t.key)}
+                    className={`rounded-md px-2.5 py-1 text-xs font-medium transition ${
+                      mode === t.key ? "bg-card text-foreground shadow-sm" : "text-muted hover:text-foreground"
+                    }`}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="relative">
+              {inDollars && (
+                <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted">
+                  $
+                </span>
+              )}
+              <input
+                type="number"
+                min="0"
+                step="any"
+                autoFocus
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                className={`${inputClass} ${inDollars ? "pl-7" : ""}`}
+                placeholder={inDollars ? "0.00" : "0 (fractions allowed)"}
+              />
+            </div>
+            {/* Say what the other unit works out to, so the number is never a guess. */}
+            {entered > 0 && execPrice > 0 && (
+              <p className="mt-1 text-xs text-muted">
+                {inDollars ? (
+                  <>
+                    ≈ <span className="font-medium text-foreground">{fmtUnits(quantity, dp)}</span> {unitWord} at{" "}
+                    {formatCurrency(execPrice)}
+                  </>
+                ) : (
+                  <>
+                    ≈ <span className="font-medium text-foreground">{formatCurrency(estimate)}</span> at{" "}
+                    {formatCurrency(execPrice)}
+                  </>
+                )}
+              </p>
+            )}
             {side === "SELL" && (
-              <button
-                type="button"
-                onClick={() => setQty(String(maxShares ?? 0))}
-                className="mt-1 text-xs text-primary hover:underline"
-              >
-                Max: {maxShares}
+              <button type="button" onClick={setMax} className="mt-1 text-xs text-primary hover:underline">
+                Max: {inDollars ? formatCurrency((maxShares ?? 0) * execPrice) : `${maxShares} ${unitWord}`}
               </button>
             )}
           </div>
