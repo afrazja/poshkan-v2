@@ -85,15 +85,6 @@ function Kicker({ children }: { children: React.ReactNode }) {
   );
 }
 
-function Stat({ figure, label }: { figure: string; label: React.ReactNode }) {
-  return (
-    <div>
-      <p className="mb-[14px] ml-[-0.055em] text-[clamp(36px,3.4vw,50px)] font-medium leading-[1.1]">{figure}</p>
-      <p className="m-0 text-[13px] uppercase leading-5 tracking-[0.06em] text-[#e9e9edad]">{label}</p>
-    </div>
-  );
-}
-
 function ResearchPoint({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div>
@@ -222,40 +213,23 @@ export default async function LandingPage({
           />
           <div
             className="relative overflow-hidden rounded-[14px] bg-[#161826]"
-            style={{ aspectRatio: "16 / 10.4", boxShadow: SHADOW_MD }}
+            style={{ aspectRatio: "800 / 716", boxShadow: SHADOW_MD }}
           >
-            {/* Cut to the box's 16:10.4, so it fills it edge to edge without a zoom. */}
+            {/* The thing no other simulator has, first: the public NVDA page. Cut to the box's own
+                ratio so it fills it edge to edge without a zoom. */}
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src="/landing/accounts.png"
-              alt="Your accounts: one paper account per market — stocks, crypto and forex — each with its value, today’s move, unrealized and realized P&L"
+              src="/landing/hero-nvda.webp"
+              alt="The public NVDA page: where today’s price sits in its 12-month range, and every fall of 20% or more in ten years with how long each took to recover"
               className="block w-full"
             />
           </div>
         </figure>
       </section>
 
-      {/* ── Stat band (full-bleed) ── */}
-      <section
-        aria-label="Poshkan at a glance"
-        style={{
-          background:
-            "radial-gradient(900px 420px at 85% -40%, color-mix(in srgb, #353b80 70%, transparent), transparent 64%), #262a60",
-        }}
-      >
-        <div
-          className={`${SECTION} grid grid-cols-2 gap-x-7 gap-y-[42px] py-[52px] md:grid-cols-4 md:justify-between`}
-          style={{ paddingLeft: GUTTER, paddingRight: GUTTER }}
-        >
-          <Stat figure="3" label={<>Markets — stocks,<br />crypto, forex</>} />
-          <Stat figure="10 yrs" label={<>Of real closes behind<br />every symbol page</>} />
-          <Stat figure="1–10×" label={<>Simulated leverage,<br />per trade</>} />
-          <Stat figure="0" label={<>Deposits, withdrawals<br />or prize pools</>} />
-        </div>
-      </section>
-
       {/* ── Before you buy ── */}
-      <section id="research" className={`${SECTION} pt-[68px]`} style={{ paddingLeft: GUTTER, paddingRight: GUTTER }}>
+      <section id="research" className={`${SECTION} pt-[24px]`} style={{ paddingLeft: GUTTER, paddingRight: GUTTER }}>
+        <div className="mb-[52px]" style={FADE_RULE} />
         <div className="grid grid-cols-1 items-start gap-x-14 gap-y-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]">
           <div>
             <Kicker>Before you buy</Kicker>
@@ -305,14 +279,15 @@ export default async function LandingPage({
             <div className="overflow-hidden rounded-[14px] bg-[#161826]" style={{ boxShadow: SHADOW_MD }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src="/landing/before-you-buy.png"
-                alt="The public NVDA page: where the price sits in its 12-month range, and every 20% fall in ten years with how long each took to recover"
+                src="/landing/nvda-business.webp"
+                alt="Further down the NVDA page: what you own, whether it is making money, whether it is healthy and whether it is expensive, each answered in sentences"
                 className="block w-full"
               />
             </div>
             <figcaption className="mt-4 text-[13.5px] leading-[22px] text-[#e9e9ed9e]">
-              The live public page for NVDA. Seven falls of 20% or more in ten years, the deepest
-              66%, every one recovered — computed from real closes, not written by anyone.
+              Further down the same page: five years of revenue and profit, cash against debt, and
+              what you pay for a dollar of earnings — arithmetic on the numbers the company reports,
+              not anyone’s opinion.
             </figcaption>
           </figure>
         </div>

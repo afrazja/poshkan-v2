@@ -118,7 +118,8 @@ export default async function SymbolPage({ params }: { params: Promise<{ symbol:
       <section className="mt-8 rounded-2xl border border-border bg-card p-5">
         <h2 className="text-base font-semibold">Now try it without risking anything</h2>
         <p className="mt-1 text-sm leading-relaxed text-muted">
-          Poshkan is paper trading: real prices, virtual money. Buy {symbol} with $10,000 that isn&rsquo;t
+          {/* A real apostrophe: an &rsquo; entity in this text node made SWC drop the space after {symbol}. */}
+          Poshkan is paper trading: real prices, virtual money. Buy {symbol} with $10,000 that isn’t
           real, set a stop before you enter, and find out what your idea would actually have done.
         </p>
         <div className="mt-4 flex flex-wrap gap-2">
