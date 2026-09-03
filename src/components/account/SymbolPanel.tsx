@@ -153,19 +153,15 @@ export default function SymbolPanel({
             )}
           </div>
 
-          {/* A coin has no earnings date, so it gets no earnings strip — just
-              the alert on its own. */}
-          {isCrypto ? (
-            <div className="mt-4 flex justify-end">
-              <AlertForm symbol={symbol} currentPrice={quote?.price} />
-            </div>
-          ) : (
-            <div className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-background px-3 py-2 text-sm">
+          {/* A coin has no earnings date, so it gets no strip at all. The price
+              alert used to live here, which hid it from the research tab; it is
+              now down with the other actions, reachable from either tab. */}
+          {!isCrypto && (
+            <div className="mt-4 rounded-lg border border-border bg-background px-3 py-2 text-sm">
               <span className="text-muted">
                 Next earnings:{" "}
                 <span className="font-medium text-foreground">{fmtDate(quote?.earningsDate)}</span>
               </span>
-              <AlertForm symbol={symbol} currentPrice={quote?.price} />
             </div>
           )}
 
@@ -175,40 +171,49 @@ export default function SymbolPanel({
         <OwnerView symbol={symbol} />
       )}
 
-      <div className="mt-5 flex flex-wrap gap-2">
+      {/* The three ways to take a position, side by side. Long / Short is the
+          same act with borrowed money, so it belongs beside buy and sell rather
+          than tucked underneath where it read as a footnote. `bg-foreground`
+          inverts with the theme — white on black here, black on white in light
+          mode — so it stays distinct from the green and the red either way. */}
+      <div className="mt-5 flex gap-2">
         <button
           onClick={onBuy}
-          className="flex-1 rounded-lg bg-positive px-5 py-2.5 text-sm font-semibold text-white hover:opacity-90"
+          className="flex-1 rounded-lg bg-positive px-3 py-2.5 text-sm font-semibold text-white hover:opacity-90"
         >
           Buy
         </button>
         <button
           onClick={onSell}
           disabled={heldShares <= 0}
-          className="flex-1 rounded-lg bg-negative px-5 py-2.5 text-sm font-semibold text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+          className="flex-1 rounded-lg bg-negative px-3 py-2.5 text-sm font-semibold text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
         >
           Sell
         </button>
+        {onLeverage && (
+          <button
+            onClick={onLeverage}
+            title="Open a leveraged long or short position"
+            className="flex-1 rounded-lg bg-foreground px-3 py-2.5 text-sm font-semibold text-background transition hover:opacity-90"
+          >
+            Long / Short
+          </button>
+        )}
+      </div>
+
+      {/* Watching and alerting are not positions, so they sit on their own line.
+          The alert used to be buried in the chart tab; from here it works
+          whichever tab is open. */}
+      <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
         <button
           onClick={onToggleWatch}
           disabled={watchPending}
-          className="rounded-lg border border-border px-5 py-2.5 text-sm font-medium hover:bg-background disabled:opacity-50"
+          className="rounded-lg border border-border px-4 py-2 text-sm font-medium hover:bg-background disabled:opacity-50"
         >
           {watchPending ? "…" : inWatchlist ? "★ In watchlist" : "☆ Add to watchlist"}
         </button>
+        <AlertForm symbol={symbol} currentPrice={quote?.price} />
       </div>
-
-      {/* Leverage and shorting sit behind the research rather than on the page:
-          it is the riskiest thing here, so it is reached after reading, not
-          before. */}
-      {onLeverage && (
-        <button
-          onClick={onLeverage}
-          className="mt-2 w-full rounded-lg border border-border px-5 py-2 text-sm font-medium text-muted transition hover:bg-background hover:text-foreground"
-        >
-          Open a long / short position with leverage
-        </button>
-      )}
     </div>
   );
 }
