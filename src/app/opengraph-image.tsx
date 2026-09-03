@@ -86,16 +86,17 @@ export default function OgImage() {
             </div>
             <div style={{ fontSize: 40, fontWeight: 700 }}>Poshkan</div>
           </div>
-          <div style={{ marginTop: 40, fontSize: 72, fontWeight: 800, lineHeight: 1.1 }}>
+          {/* Three lines at 60px; at 72px the block ran edge to edge of the 630px card. */}
+          <div style={{ marginTop: 30, fontSize: 60, fontWeight: 800, lineHeight: 1.1 }}>
             Practice trading. Guided, not guessing.
           </div>
-          <div style={{ marginTop: 28, fontSize: 30, color: "rgba(255,255,255,0.75)", lineHeight: 1.4 }}>
+          <div style={{ marginTop: 22, fontSize: 26, color: "rgba(255,255,255,0.75)", lineHeight: 1.4 }}>
             A blank practice account teaches a beginner nothing. Poshkan puts the guidance beside
             every decision — virtual money, real prices.
           </div>
           <div
             style={{
-              marginTop: 36,
+              marginTop: 30,
               display: "flex",
               alignItems: "center",
               gap: 12,
