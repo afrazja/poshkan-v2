@@ -520,7 +520,7 @@ function ValueCard({ f }: { f: Fundamentals }) {
   const fpe = v.forwardPe != null && v.forwardPe > 0 ? v.forwardPe : null;
   const yieldPct = v.dividendYield ? (v.dividendYield > 1 ? v.dividendYield : v.dividendYield * 100) : 0;
   return (
-    <Card title="Is it expensive?" accent="violet">
+    <Card title="Is it expensive?" accent="fuchsia">
       {pe ? (
         <p>
           You pay <B>${pe.toFixed(0)}</B> for every $1 of last year’s profit
@@ -568,7 +568,7 @@ function OthersCard({ f }: { f: Fundamentals }) {
       ]
     : [];
   return (
-    <Card title="What others are doing" accent="indigo">
+    <Card title="What others are doing" accent="violet">
       {a && total > 0 && (
         <>
           <div className="flex h-2 overflow-hidden rounded-full bg-border">
@@ -622,7 +622,7 @@ function OthersCard({ f }: { f: Fundamentals }) {
 // Eight cards of grey-on-black read as one wall of text. Each question gets its
 // own tint and heading colour so the eye can find its way back to a card, and
 // so the section looks worth reading rather than like a terms-of-service page.
-type Accent = "blue" | "amber" | "orange" | "neutral" | "emerald" | "teal" | "violet" | "indigo";
+type Accent = "blue" | "amber" | "orange" | "neutral" | "emerald" | "teal" | "violet" | "fuchsia";
 
 const SURFACE: Record<Accent, string> = {
   blue: "border-blue-500/30 bg-blue-500/10",
@@ -632,7 +632,7 @@ const SURFACE: Record<Accent, string> = {
   emerald: "border-emerald-500/30 bg-emerald-500/10",
   teal: "border-teal-500/30 bg-teal-500/10",
   violet: "border-violet-500/30 bg-violet-500/10",
-  indigo: "border-indigo-500/30 bg-indigo-500/10",
+  fuchsia: "border-fuchsia-500/30 bg-fuchsia-500/10",
 };
 
 const HEADING: Record<Accent, string> = {
@@ -643,7 +643,7 @@ const HEADING: Record<Accent, string> = {
   emerald: "text-emerald-600 dark:text-emerald-400",
   teal: "text-teal-600 dark:text-teal-400",
   violet: "text-violet-600 dark:text-violet-400",
-  indigo: "text-indigo-600 dark:text-indigo-400",
+  fuchsia: "text-fuchsia-600 dark:text-fuchsia-400",
 };
 
 function Card({
