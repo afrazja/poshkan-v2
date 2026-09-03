@@ -108,7 +108,7 @@ function PriceCard({ p }: { p: PriceContext }) {
   const pos = y && y.high > y.low ? ((p.price - y.low) / (y.high - y.low)) * 100 : null;
   const window = y && y.days < 240 ? `the ${y.days} trading days we have` : "the past year";
   return (
-    <Card title="Where the price sits" className="sm:col-span-2">
+    <Card title="Where the price sits" accent="blue" className="sm:col-span-2">
       {y && (
         <>
           <div className="mt-1">
@@ -164,7 +164,7 @@ function DrawdownCard({ p }: { p: PriceContext }) {
   const inOne = !!cur && cur.depthPct >= d.thresholdPct;
   const recovered = d.episodes.filter((e) => e.recoveredDate != null).length;
   return (
-    <Card title="How bad does it get" className="sm:col-span-2">
+    <Card title="How bad does it get" accent="amber" className="sm:col-span-2">
       {d.count === 0 ? (
         <p>
           Has not fallen {d.thresholdPct}% from a peak in the {yrs} of history we have.
@@ -261,7 +261,7 @@ function BitcoinCard({ b, symbol }: { b: BitcoinComparison; symbol: string }) {
   }
 
   return (
-    <Card title="Is this a separate bet from Bitcoin?" className="sm:col-span-2">
+    <Card title="Is this a separate bet from Bitcoin?" accent="orange" className="sm:col-span-2">
       <div className="mt-1">
         <div className="relative h-1.5 rounded-full bg-border">
           <div
@@ -377,7 +377,7 @@ function MoneyCard({ f }: { f: Fundamentals }) {
   const h = (v: number | null) => (v == null ? 0 : (Math.abs(v) / max) * 100);
   const margin = money.profitMargin;
   return (
-    <Card title="Is it making money?">
+    <Card title="Is it making money?" accent="emerald">
       <div className="flex items-end gap-2">
         {years.map((y) => (
           <div key={y.year} className="flex flex-1 flex-col items-center gap-0.5">
@@ -494,7 +494,7 @@ function HealthCard({ f }: { f: Fundamentals }) {
   }
 
   return (
-    <Card title="Is it healthy?">
+    <Card title="Is it healthy?" accent="teal">
       <div className="space-y-1">
         {rows.map(([label, v]) => (
           <div key={label} className="grid grid-cols-[7.5rem_1fr_4rem] items-center gap-2 text-xs">
@@ -520,7 +520,7 @@ function ValueCard({ f }: { f: Fundamentals }) {
   const fpe = v.forwardPe != null && v.forwardPe > 0 ? v.forwardPe : null;
   const yieldPct = v.dividendYield ? (v.dividendYield > 1 ? v.dividendYield : v.dividendYield * 100) : 0;
   return (
-    <Card title="Is it expensive?">
+    <Card title="Is it expensive?" accent="violet">
       {pe ? (
         <p>
           You pay <B>${pe.toFixed(0)}</B> for every $1 of last year’s profit
@@ -568,7 +568,7 @@ function OthersCard({ f }: { f: Fundamentals }) {
       ]
     : [];
   return (
-    <Card title="What others are doing">
+    <Card title="What others are doing" accent="indigo">
       {a && total > 0 && (
         <>
           <div className="flex h-2 overflow-hidden rounded-full bg-border">
@@ -619,17 +619,54 @@ function OthersCard({ f }: { f: Fundamentals }) {
 
 /* ---------- bits ---------- */
 
-function Card({ title, children, className = "" }: { title: string; children: ReactNode; className?: string }) {
+// Eight cards of grey-on-black read as one wall of text. Each question gets its
+// own tint and heading colour so the eye can find its way back to a card, and
+// so the section looks worth reading rather than like a terms-of-service page.
+type Accent = "blue" | "amber" | "orange" | "neutral" | "emerald" | "teal" | "violet" | "indigo";
+
+const SURFACE: Record<Accent, string> = {
+  blue: "border-blue-500/30 bg-blue-500/10",
+  amber: "border-amber-500/30 bg-amber-500/10",
+  orange: "border-orange-500/30 bg-orange-500/10",
+  neutral: "border-border bg-background",
+  emerald: "border-emerald-500/30 bg-emerald-500/10",
+  teal: "border-teal-500/30 bg-teal-500/10",
+  violet: "border-violet-500/30 bg-violet-500/10",
+  indigo: "border-indigo-500/30 bg-indigo-500/10",
+};
+
+const HEADING: Record<Accent, string> = {
+  blue: "text-blue-600 dark:text-blue-400",
+  amber: "text-amber-600 dark:text-amber-400",
+  orange: "text-orange-600 dark:text-orange-400",
+  neutral: "text-muted",
+  emerald: "text-emerald-600 dark:text-emerald-400",
+  teal: "text-teal-600 dark:text-teal-400",
+  violet: "text-violet-600 dark:text-violet-400",
+  indigo: "text-indigo-600 dark:text-indigo-400",
+};
+
+function Card({
+  title,
+  accent = "neutral",
+  children,
+  className = "",
+}: {
+  title: string;
+  accent?: Accent;
+  children: ReactNode;
+  className?: string;
+}) {
   return (
-    <div className={`rounded-lg border border-border bg-background px-3 py-2.5 ${className}`}>
-      <div className="text-xs font-semibold text-muted">{title}</div>
-      <div className="mt-1.5 space-y-1.5 text-sm leading-snug">{children}</div>
+    <div className={`rounded-lg border px-3.5 py-3 ${SURFACE[accent]} ${className}`}>
+      <div className={`text-[13px] font-semibold ${HEADING[accent]}`}>{title}</div>
+      <div className="mt-2 space-y-2 text-sm leading-relaxed">{children}</div>
     </div>
   );
 }
 
 function B({ children }: { children: ReactNode }) {
-  return <span className="font-medium text-foreground">{children}</span>;
+  return <span className="font-semibold text-foreground">{children}</span>;
 }
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
