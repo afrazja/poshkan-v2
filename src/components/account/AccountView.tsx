@@ -120,7 +120,6 @@ export default function AccountView({
   const orders = initialOrders;
   const fxPositions = initialFxPositions;
   const isForex = account.type === "forex";
-  const isStocks = account.type === "stocks";
   // An empty stock account gives the wide column to the showcase: there is no
   // portfolio to read yet. It hands the width back the moment one is bought,
   // because an eight-column holdings table is unreadable at a third of the page.
@@ -536,42 +535,25 @@ export default function AccountView({
             leadWithIdeas ? "lg:order-1 lg:col-span-2" : "lg:order-2 lg:col-span-1"
           }`}
         >
-      {/* A stock account gives this column to the showcase instead of leverage:
-          a beginner opening an empty account needs somewhere to start, not a
-          margin ticket. Crypto keeps the long/short panel. */}
-      {isStocks ? (
-        <>
-          {/* Desktop only — on a phone this same showcase is the Ideas tab. */}
-          <div className="hidden lg:block">
-            <Showcase type={showcaseType} onSelect={selectSymbol} />
-          </div>
-          {/* Never strand a position: if this account still holds leveraged
-              trades from before, it keeps the panel to close them. */}
-          {fxPositions.some((p) => p.status === "open") && (
-            <LeveragePanel
-              accountId={account.id}
-              accountType={account.type}
-              cash={cash}
-              positions={fxPositions}
-              quotes={quotes}
-            />
-          )}
-        </>
-      ) : (
-        <>
-          <LeveragePanel
-            accountId={account.id}
-            accountType={account.type}
-            cash={cash}
-            positions={fxPositions}
-            quotes={quotes}
-          />
-          {/* Crypto keeps its long/short ticket and gains the showcase beneath
-              it; on a phone the same showcase is the Ideas tab instead. */}
-          <div className="hidden lg:block">
-            <Showcase type={showcaseType} onSelect={selectSymbol} />
-          </div>
-        </>
+      {/* Stock and crypto accounts give this column to the showcase instead of
+          leverage: a beginner opening an empty account needs somewhere to
+          start, not a margin ticket. */}
+      {/* Desktop only — on a phone this same showcase is the Ideas tab. */}
+      <div className="hidden lg:block">
+        <Showcase type={showcaseType} onSelect={selectSymbol} />
+      </div>
+
+      {/* Never strand a position: an account still holding leveraged trades
+          keeps the panel so they can be closed. Leverage now lives on forex
+          accounts only; this is the way out for anyone mid-trade. */}
+      {fxPositions.some((p) => p.status === "open") && (
+        <LeveragePanel
+          accountId={account.id}
+          accountType={account.type}
+          cash={cash}
+          positions={fxPositions}
+          quotes={quotes}
+        />
       )}
 
       <TradeCoach positions={fxPositions} cash={cash} />
