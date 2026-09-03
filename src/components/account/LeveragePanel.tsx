@@ -235,6 +235,12 @@ export function OpenModal({
   const [tp, setTp] = useState("");
   const [durUnit, setDurUnit] = useState<"off" | "min" | "hour">("off");
   const [durAmount, setDurAmount] = useState("60");
+  // The ticket walks four screens: which way, how big, the plan, then the
+  // check. A leveraged short is the most dangerous thing in this app, and a
+  // beginner meeting it as one dense form learns nothing about what any field
+  // means. Each screen explains its own fields in plain words.
+  const [step, setStep] = useState(1);
+  const [reason, setReason] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
@@ -305,6 +311,45 @@ export function OpenModal({
   const inputClass =
     "w-full rounded-lg border border-border bg-input px-3 py-2 text-sm outline-none focus:border-primary";
 
+  // ---- the plan, priced ----
+  const tpNum = tp.trim() ? Number(tp) : null;
+  const tpValid =
+    tpNum != null && tpNum > 0 && price != null && (direction === "LONG" ? tpNum > price : tpNum < price);
+  const rewardPerUnit = tpValid && price ? Math.abs(tpNum - price) : 0;
+  const rr = riskPerUnit > 0 && rewardPerUnit > 0 ? rewardPerUnit / riskPerUnit : 0;
+  const positionValue = price ? units * price : 0;
+  const onePctMove = positionValue * 0.01;
+
+  // Four deterministic checks - no AI, no opinion, just arithmetic on what was
+  // typed. Failing one never blocks the trade: a professional is asked these
+  // questions, not policed by them.
+  const checks = [
+    {
+      ok: slValid,
+      label: "Stop set before entry",
+      why: "Decide where you are wrong while you are still calm.",
+    },
+    {
+      ok: riskPct > 0 && riskPct <= 1,
+      label: "Risk under 1% of your cash",
+      why: "Small enough that being wrong twenty times in a row does not end you.",
+    },
+    {
+      ok: rr >= 1.5,
+      label: "Reward at least 1.5× the risk",
+      why: "So you can be right less than half the time and still come out ahead.",
+    },
+    {
+      ok: reason.trim().length >= 3,
+      label: "Reason written down",
+      why: "A trade you cannot explain in one line is a guess.",
+    },
+  ];
+  const passed = checks.filter((c) => c.ok).length;
+
+  const canSize = units > 0 && affordable;
+  const stepTitles = ["Which way", "How big", "The plan", "Check"];
+
   if (done) {
     return (
       <Modal title="Position opened" onClose={onClose}>
@@ -313,6 +358,12 @@ export function OpenModal({
             Opened <strong>{direction === "LONG" ? "Long" : "Short"}</strong> {units} {unit} of{" "}
             <strong>{symbol?.symbol}</strong>{price ? <> at <strong>{formatCurrency(price)}</strong></> : null}.
           </p>
+          {slValid && (
+            <p className="text-muted">
+              Your stop sits at {formatCurrency(slNum as number)}. If it is reached the position closes
+              itself — you do not have to be watching.
+            </p>
+          )}
           <button onClick={onClose} className="w-full rounded-lg bg-primary py-2.5 text-sm font-semibold text-primary-foreground hover:opacity-90">
             Done
           </button>
@@ -321,160 +372,304 @@ export function OpenModal({
     );
   }
 
+  // No symbol yet (opened from the panel rather than from a symbol): pick one
+  // before the walkthrough starts.
+  if (!symbol) {
+    return (
+      <Modal title="Open long / short" onClose={onClose}>
+        <div className="space-y-2">
+          <label className="block text-sm font-medium">
+            Which {accountType === "crypto" ? "coin" : "stock"}?
+          </label>
+          <SymbolSearch
+            assetType={accountType}
+            placeholder={accountType === "crypto" ? "Search crypto…" : "Search a stock…"}
+            onSelect={(r) => setSymbol({ symbol: r.symbol, name: r.name })}
+          />
+        </div>
+      </Modal>
+    );
+  }
+
   return (
-    <Modal title="Open long / short" onClose={onClose}>
+    <Modal title={`${symbol.symbol} · ${stepTitles[step - 1]}`} onClose={onClose}>
       <div className="space-y-4">
+        {/* Where we are in the four screens */}
+        <div className="flex gap-1">
+          {stepTitles.map((t, i) => (
+            <div
+              key={t}
+              className={`h-1 flex-1 rounded-full ${i + 1 <= step ? "bg-primary" : "bg-border"}`}
+              title={`${i + 1}. ${t}`}
+            />
+          ))}
+        </div>
+
         {error && (
           <div className="rounded-lg border border-negative/30 bg-negative/10 px-3 py-2 text-sm text-negative">{error}</div>
         )}
 
-        {!symbol ? (
-          <div>
-            <label className="mb-1 block text-sm font-medium">Symbol</label>
-            <SymbolSearch
-              assetType={accountType}
-              onSelect={(r) => setSymbol({ symbol: r.symbol, name: r.name })}
-              placeholder={accountType === "crypto" ? "Search crypto…" : "Search a stock…"}
-            />
-          </div>
-        ) : (
-          <div className="flex items-center justify-between rounded-lg bg-background px-3 py-2 text-sm">
-            <span>
-              {/* Rows that carry no company name pass the ticker as the name,
-                  which rendered as "ETH-USD ETH-USD". */}
-              <strong>{symbol.symbol}</strong>{" "}
-              {symbol.name && symbol.name !== symbol.symbol && (
-                <span className="text-muted">{symbol.name}</span>
-              )}
-            </span>
-            <span className="font-semibold">{price ? formatCurrency(price) : "…"}</span>
-          </div>
+        <div className="flex items-center justify-between rounded-lg bg-background px-3 py-2 text-sm">
+          <strong>{symbol.symbol}</strong>
+          <span className="font-semibold">{price ? formatCurrency(price) : "…"}</span>
+        </div>
+
+        {/* ---------- 1 - Which way ---------- */}
+        {step === 1 && (
+          <>
+            <p className="text-sm text-muted">
+              A leveraged position bets on direction. Pick the one you actually believe.
+            </p>
+            {([
+              {
+                key: "LONG" as const,
+                title: "Long — betting it rises",
+                body: "You make money if the price goes up, and lose if it falls. This is the ordinary way round.",
+              },
+              {
+                key: "SHORT" as const,
+                title: "Short — betting it falls",
+                body: "You make money if the price goes down. The position is sold first and bought back later, so a rise costs you — and a price can rise without limit.",
+              },
+            ]).map((o) => (
+              <button
+                key={o.key}
+                type="button"
+                onClick={() => setDirection(o.key)}
+                className={`w-full rounded-lg border px-3 py-3 text-left transition ${
+                  direction === o.key
+                    ? o.key === "LONG"
+                      ? "border-positive bg-positive/10"
+                      : "border-negative bg-negative/10"
+                    : "border-border hover:bg-background"
+                }`}
+              >
+                <div className="text-sm font-semibold">{o.title}</div>
+                <div className="mt-0.5 text-xs leading-relaxed text-muted">{o.body}</div>
+              </button>
+            ))}
+          </>
         )}
 
-        {symbol && (
+        {/* ---------- 2 - How big ---------- */}
+        {step === 2 && (
           <>
-            <div className="flex gap-1 rounded-lg border border-border bg-background p-1">
-              {(["LONG", "SHORT"] as const).map((d) => (
-                <button
-                  key={d}
-                  onClick={() => setDirection(d)}
-                  className={`flex-1 rounded-md py-2 text-sm font-semibold transition ${
-                    direction === d
-                      ? d === "LONG"
-                        ? "bg-positive text-white"
-                        : "bg-negative text-white"
-                      : "text-muted hover:text-foreground"
-                  }`}
-                >
-                  {d === "LONG" ? "Buy / Long ▲" : "Sell / Short ▼"}
-                </button>
-              ))}
-            </div>
-
             <div>
-              <label className="mb-1 block text-sm font-medium">Quantity ({unit})</label>
-              <input type="number" min="0" step="any" value={qty} onChange={(e) => setQty(e.target.value)} className={inputClass} placeholder="0" />
-              {slValid && onePctUnits > 0 ? (
-                <button
-                  type="button"
-                  onClick={() => setQty(String(onePctUnits))}
-                  className="mt-1 text-xs font-medium text-primary hover:underline"
-                >
-                  🎯 Size for 1% risk → {onePctUnits.toLocaleString("en-US")} {unit}
-                </button>
-              ) : (
-                <p className="mt-1 text-xs text-muted">Tip: set a stop-loss below to size this trade by risk.</p>
-              )}
+              <label className="mb-1 block text-sm font-medium">How many {unit}?</label>
+              <input type="number" min="0" step="any" autoFocus value={qty} onChange={(e) => setQty(e.target.value)} className={inputClass} placeholder="0" />
+              <p className="mt-1 text-xs text-muted">
+                {positionValue > 0
+                  ? `A position worth ${formatCurrency(positionValue)}. A 1% move either way is ${formatCurrency(onePctMove)}.`
+                  : "The size of the position, before leverage."}
+              </p>
             </div>
 
             <div>
               <label className="mb-1 block text-sm font-medium">Leverage</label>
               <div className="flex gap-1 rounded-lg border border-border bg-background p-1">
-                {TRADE_LEVERAGE_OPTIONS.map((x) => (
+                {TRADE_LEVERAGE_OPTIONS.map((l) => (
                   <button
-                    key={x}
+                    key={l}
                     type="button"
-                    onClick={() => setLev(x)}
-                    className={`flex-1 rounded-md py-2 text-sm font-semibold transition ${
-                      lev === x ? "bg-primary text-primary-foreground" : "text-muted hover:text-foreground"
+                    onClick={() => setLev(l)}
+                    className={`flex-1 rounded-md py-1.5 text-sm font-medium transition ${
+                      lev === l ? "bg-primary text-primary-foreground shadow-sm" : "text-muted hover:text-foreground"
                     }`}
                   >
-                    {x}×
+                    {l}×
                   </button>
                 ))}
               </div>
-              <p className="mt-1 text-xs text-muted">1× = no leverage (full margin). Higher = bigger position, bigger swings.</p>
+              <p className="mt-1 text-xs leading-relaxed text-muted">
+                Leverage is borrowed money. At <strong>{lev}×</strong> you control {formatCurrency(positionValue)} while
+                only {formatCurrency(margin)} of your cash is set aside — so every move counts {lev} times
+                against that cash. It multiplies losses exactly as much as gains.
+              </p>
             </div>
 
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="mb-1 block text-xs font-medium text-muted">Stop-loss (optional)</label>
-                <input type="number" min="0" step="any" value={sl} onChange={(e) => setSl(e.target.value)} className={inputClass}
-                  placeholder={direction === "LONG" ? "Below price" : "Above price"} />
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-medium text-muted">Take-profit (optional)</label>
-                <input type="number" min="0" step="any" value={tp} onChange={(e) => setTp(e.target.value)} className={inputClass}
-                  placeholder={direction === "LONG" ? "Above price" : "Below price"} />
-              </div>
+            <div className="space-y-1 rounded-lg border border-border bg-background px-3 py-2 text-sm">
+              <Row label="Position value" value={formatCurrency(positionValue)} />
+              <Row label="Cash set aside (margin)" value={formatCurrency(margin)} />
+              <Row label="Cash you have" value={formatCurrency(cash)} />
+            </div>
+            {units > 0 && !affordable && (
+              <p className="text-xs text-negative">
+                That needs more margin than you have. Lower the size, or raise the leverage to set aside less.
+              </p>
+            )}
+          </>
+        )}
+
+        {/* ---------- 3 - The plan ---------- */}
+        {step === 3 && (
+          <>
+            <div>
+              <label className="mb-1 block text-sm font-medium">Why this trade?</label>
+              <input
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                autoFocus
+                className={inputClass}
+                placeholder="One line — e.g. earnings beat, holding above the 20-day"
+              />
+              <p className="mt-1 text-xs text-muted">
+                Written before, this is a reason. Written after, it is an excuse. One line is enough.
+              </p>
             </div>
 
             <div>
-              <label className="mb-1 block text-xs font-medium text-muted">Trade duration (optional)</label>
-              <div className="flex gap-1">
-                {durUnit !== "off" && (
-                  <input
-                    type="number"
-                    min="1"
-                    step="1"
-                    value={durAmount}
-                    onChange={(e) => setDurAmount(e.target.value)}
-                    className="w-16 rounded-lg border border-border bg-input px-2 py-2 text-sm outline-none focus:border-primary"
-                  />
+              <label className="mb-1 block text-sm font-medium">Stop — the price where you are wrong</label>
+              <input type="number" min="0" step="any" value={sl} onChange={(e) => setSl(e.target.value)} className={inputClass}
+                placeholder={direction === "LONG" ? "Below the price" : "Above the price"} />
+              <p className="mt-1 text-xs leading-relaxed text-muted">
+                The position closes itself here, whether or not you are watching. It is the only field that
+                decides how much you can lose.
+                {riskAtStop > 0 && (
+                  <>
+                    {" "}
+                    At this stop you lose <strong className="text-foreground">{formatCurrency(riskAtStop)}</strong>
+                    {" "}— {riskPct.toFixed(2)}% of your cash.
+                  </>
                 )}
-                <select
-                  value={durUnit}
-                  onChange={(e) => setDurUnit(e.target.value as typeof durUnit)}
-                  className="flex-1 rounded-lg border border-border bg-input px-2 py-2 text-sm outline-none focus:border-primary"
-                >
-                  <option value="off">No auto-close</option>
-                  <option value="min">Minutes</option>
-                  <option value="hour">Hours</option>
-                </select>
-              </div>
-              <p className="mt-1 text-xs text-muted">Closes the position at market when the timer runs out.</p>
-            </div>
-
-            <div className="space-y-1 rounded-lg border border-border bg-background p-3 text-sm">
-              <Row label={`Notional`} value={price ? formatCurrency(units * price) : "…"} />
-              <Row label={`Margin required (${lev}:1)`} value={price ? formatCurrency(margin) : "…"} bold />
-              <Row label="Free cash" value={formatCurrency(cash)} />
-              {slValid && units > 0 && (
-                <div className="flex justify-between">
-                  <span className="text-muted">Risk at stop-loss</span>
-                  <span className={`font-semibold ${riskPct > 2 ? "text-amber-600 dark:text-amber-400" : ""}`}>
-                    {formatCurrency(riskAtStop)} ({riskPct.toFixed(1)}% of cash)
+                {slNum != null && !slValid && (
+                  <span className="text-negative">
+                    {" "}
+                    A {direction === "LONG" ? "long" : "short"} stop must sit{" "}
+                    {direction === "LONG" ? "below" : "above"} the current price.
                   </span>
-                </div>
+                )}
+              </p>
+              {onePctUnits > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setQty(String(onePctUnits))}
+                  className="mt-1 text-xs text-primary hover:underline"
+                >
+                  Size it to risk 1%: {onePctUnits} {unit}
+                </button>
               )}
             </div>
 
+            <div>
+              <label className="mb-1 block text-sm font-medium">Target — the price where you are right</label>
+              <input type="number" min="0" step="any" value={tp} onChange={(e) => setTp(e.target.value)} className={inputClass}
+                placeholder={direction === "LONG" ? "Above the price" : "Below the price"} />
+              <p className="mt-1 text-xs leading-relaxed text-muted">
+                Where the position takes its win automatically.
+                {rr > 0 && (
+                  <>
+                    {" "}
+                    You stand to make <strong className="text-foreground">{rr.toFixed(1)}×</strong> what you are
+                    risking, so this can be wrong {Math.round((1 / (1 + rr)) * 100)}% of the time and still break
+                    even.
+                  </>
+                )}
+              </p>
+            </div>
+
+            <div>
+              <label className="mb-1 block text-sm font-medium">Close it automatically after (optional)</label>
+              <div className="flex gap-1 rounded-lg border border-border bg-background p-1">
+                {([
+                  { k: "off" as const, l: "No timer" },
+                  { k: "min" as const, l: "Minutes" },
+                  { k: "hour" as const, l: "Hours" },
+                ]).map((o) => (
+                  <button key={o.k} type="button" onClick={() => setDurUnit(o.k)}
+                    className={`flex-1 rounded-md py-1.5 text-xs font-medium transition ${
+                      durUnit === o.k ? "bg-primary text-primary-foreground shadow-sm" : "text-muted hover:text-foreground"
+                    }`}>
+                    {o.l}
+                  </button>
+                ))}
+              </div>
+              {durUnit !== "off" && (
+                <input type="number" min="1" value={durAmount} onChange={(e) => setDurAmount(e.target.value)} className={`${inputClass} mt-2`} />
+              )}
+            </div>
+          </>
+        )}
+
+        {/* ---------- 4 - Check ---------- */}
+        {step === 4 && (
+          <>
+            <div className="space-y-1 rounded-lg border border-border bg-background px-3 py-2 text-sm">
+              <Row label="Direction" value={direction === "LONG" ? "Long — betting it rises" : "Short — betting it falls"} />
+              <Row label="Size" value={`${units} ${unit} · ${formatCurrency(positionValue)}`} />
+              <Row label="Leverage" value={`${lev}×`} />
+              <Row label="Cash set aside" value={formatCurrency(margin)} />
+              <Row label="Stop" value={slValid ? formatCurrency(slNum as number) : "none"} />
+              <Row label="Target" value={tpValid ? formatCurrency(tpNum as number) : "none"} />
+              <Row
+                label="You lose if stopped"
+                value={riskAtStop > 0 ? `${formatCurrency(riskAtStop)} · ${riskPct.toFixed(2)}% of cash` : "no stop set"}
+                bold
+              />
+            </div>
+
+            <div>
+              <div className="mb-1 flex items-center justify-between text-sm font-medium">
+                <span>Plan on record</span>
+                <span className={passed === 4 ? "text-positive" : "text-muted"}>{passed} of 4</span>
+              </div>
+              <div className="space-y-1">
+                {checks.map((c) => (
+                  <div key={c.label} className={`rounded-lg border px-3 py-2 text-xs ${c.ok ? "border-positive/30 bg-positive/10" : "border-amber-500/30 bg-amber-500/10"}`}>
+                    <div className="flex items-center gap-2">
+                      <span className={c.ok ? "text-positive" : "text-amber-600 dark:text-amber-400"}>{c.ok ? "✓" : "!"}</span>
+                      <span className="font-medium">{c.label}</span>
+                    </div>
+                    <div className="mt-0.5 pl-5 leading-relaxed text-muted">{c.why}</div>
+                  </div>
+                ))}
+              </div>
+              <p className="mt-2 text-xs text-muted">
+                Nothing here blocks the trade. These are the questions a professional answers before
+                entering — you are being asked, not stopped.
+              </p>
+            </div>
+          </>
+        )}
+
+        {/* ---------- navigation ---------- */}
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => (step === 1 ? onClose() : setStep(step - 1))}
+            className="rounded-lg border border-border px-4 py-2.5 text-sm font-medium hover:bg-background"
+          >
+            {step === 1 ? "Cancel" : "Back"}
+          </button>
+          {step < 4 ? (
             <button
+              type="button"
+              disabled={step === 2 && !canSize}
+              onClick={() => setStep(step + 1)}
+              className="flex-1 rounded-lg bg-primary py-2.5 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-40"
+            >
+              {step === 2 && !canSize ? "Enter a size you can afford" : "Next"}
+            </button>
+          ) : (
+            <button
+              type="button"
+              disabled={loading}
               onClick={submit}
-              disabled={loading || !price || units <= 0 || !affordable}
-              className={`w-full rounded-lg py-2.5 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-50 ${
+              className={`flex-1 rounded-lg py-2.5 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-50 ${
                 direction === "LONG" ? "bg-positive" : "bg-negative"
               }`}
             >
-              {loading ? "Opening…" : `Open ${direction === "LONG" ? "long" : "short"}`}
+              {loading ? "Opening…" : `Open ${direction === "LONG" ? "long" : "short"} position`}
             </button>
-            <p className="text-center text-xs text-muted">Auto-closes (stop-out) if the loss reaches your reserved margin.</p>
-          </>
-        )}
+          )}
+        </div>
+        <p className="text-center text-xs text-muted">
+          Auto-closes (stop-out) if the loss reaches the cash you set aside.
+        </p>
       </div>
     </Modal>
   );
 }
+
 
 // ---------------------------------------------------------------------------
 // Edit a leveraged position's stop-loss / take-profit (parity with forex).
