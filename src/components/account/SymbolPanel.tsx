@@ -105,8 +105,14 @@ export default function SymbolPanel({
         </div>
       </div>
 
-      {/* The read on what this is and what it costs, then the chart and news */}
-      <div className="mt-4 flex flex-wrap gap-1 rounded-lg border border-border bg-background p-1">
+      {/* The read on what this is and what it costs, then the chart and news.
+          Two equal halves with the live one filled in the brand colour: it
+          reads as a switch, and which side you are on is never in doubt. */}
+      <div
+        role="tablist"
+        aria-label="Symbol detail"
+        className="mt-4 grid grid-cols-2 gap-1 rounded-lg border border-border bg-background p-1"
+      >
         {(
           [
             { key: "owner", label: "Before you buy" },
@@ -115,9 +121,14 @@ export default function SymbolPanel({
         ).map((t) => (
           <button
             key={t.key}
+            type="button"
+            role="tab"
+            aria-selected={tab === t.key}
             onClick={() => setTab(t.key)}
-            className={`rounded-md px-4 py-1.5 text-sm font-medium transition ${
-              tab === t.key ? "bg-card text-foreground shadow-sm" : "text-muted hover:text-foreground"
+            className={`rounded-md px-4 py-2 text-sm font-medium transition ${
+              tab === t.key
+                ? "bg-primary text-primary-foreground shadow-sm"
+                : "text-muted hover:bg-card hover:text-foreground"
             }`}
           >
             {t.label}
