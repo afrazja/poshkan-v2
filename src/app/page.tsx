@@ -4,6 +4,7 @@ import { Inter } from "next/font/google";
 import { redirect } from "next/navigation";
 import RecoveryRedirect from "@/components/auth/RecoveryRedirect";
 import ContactForm from "@/components/landing/ContactForm";
+import HeroSlider, { type Slide } from "@/components/landing/HeroSlider";
 import { BTN_PRIMARY, FADE_RULE, SHADOW_MD } from "@/components/landing/lp";
 
 // Nocturne landing design — Inter throughout, 400 body / 500 headings.
@@ -75,6 +76,46 @@ const SECTION = "mx-auto max-w-[1200px]";
 // reason to sign up (with its one screenshot), three text-only cards, a short
 // comparison, and the form. Feature tours with a figure per section lost the
 // visitor before the form — so a new feature earns a card, not a section.
+
+// The hero's tour of the product: seven screens of the live app, one ratio, in
+// the order a new account meets them.
+const TOUR: Slide[] = [
+  {
+    src: "/landing/tour/01-accounts.webp",
+    alt: "The accounts page: the whole portfolio on top, then one paper account per market with its value, today’s move and open positions",
+    caption: "Your accounts: one paper account per market, the whole portfolio on top.",
+  },
+  {
+    src: "/landing/tour/02-stock-ideas.webp",
+    alt: "A stock account: holdings on the left, and on the right a shelf of ideas drawn from the whole US market",
+    caption: "A stock account: your holdings, and a shelf of ideas drawn from the whole US market.",
+  },
+  {
+    src: "/landing/tour/03-before-you-buy.webp",
+    alt: "The Before-you-buy panel for Apple inside the app: what you own, is it making money, is it healthy, is it expensive",
+    caption: "Before you buy, inside the app: is it making money, is it healthy, is it expensive.",
+  },
+  {
+    src: "/landing/tour/04-chart-news.webp",
+    alt: "The Chart and news tab for Apple: the price chart, open, high, low, market cap, P/E, dividend, next earnings and the latest headlines",
+    caption: "One tab over: the chart, the numbers and the news.",
+  },
+  {
+    src: "/landing/tour/05-crypto.webp",
+    alt: "A crypto account opening on the market map: every coin a block sized by its share of the market and coloured by today’s move, with the account summary below",
+    caption: "A crypto account opens on the market map: every coin sized by its share, coloured by the day.",
+  },
+  {
+    src: "/landing/tour/06-forex.webp",
+    alt: "A forex account: equity, free cash and margin on top, seven major currency pairs to pick from, and an empty open-positions list",
+    caption: "A forex account: seven major pairs, leverage chosen per trade, margin shown as you go.",
+  },
+  {
+    src: "/landing/tour/07-leaderboard.webp",
+    alt: "The leaderboard: every account ranked by percentage return, with trades, open positions, days active, pace and worst dip beside each",
+    caption: "The leaderboard: every account by percentage return, with trades, days active, pace and worst dip.",
+  },
+];
 
 function Kicker({ children }: { children: React.ReactNode }) {
   return (
@@ -205,7 +246,7 @@ export default async function LandingPage({
           </p>
         </div>
 
-        <figure className="relative m-0" style={{ marginRight: `calc(${GUTTER} * -1)` }}>
+        <figure className="relative m-0">
           <div
             aria-hidden
             className="pointer-events-none absolute blur-[28px]"
@@ -215,18 +256,8 @@ export default async function LandingPage({
                 "radial-gradient(60% 60% at 50% 40%, color-mix(in srgb, var(--lp-accent) 22%, transparent), transparent 70%)",
             }}
           />
-          <div
-            className="relative overflow-hidden rounded-[14px] bg-[#161826]"
-            style={{ aspectRatio: "800 / 716", boxShadow: SHADOW_MD }}
-          >
-            {/* The thing no other simulator has, first: the public NVDA page. Cut to the box's own
-                ratio so it fills it edge to edge without a zoom. */}
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="/landing/hero-nvda.webp"
-              alt="The public NVDA page: where today’s price sits in its 12-month range, and every fall of 20% or more in ten years with how long each took to recover"
-              className="block w-full"
-            />
+          <div className="relative">
+            <HeroSlider slides={TOUR} aspect="16 / 10.4" />
           </div>
         </figure>
       </section>
@@ -283,15 +314,15 @@ export default async function LandingPage({
             <div className="overflow-hidden rounded-[14px] bg-[#161826]" style={{ boxShadow: SHADOW_MD }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src="/landing/nvda-business.webp"
-                alt="Further down the NVDA page: what you own, whether it is making money, whether it is healthy and whether it is expensive, each answered in sentences"
+                src="/landing/before-you-buy.webp"
+                alt="The public NVDA page: where today’s price sits in its 12-month range, and every fall of 20% or more in ten years with how long each took to recover"
                 className="block w-full"
               />
             </div>
             <figcaption className="mt-4 text-[13.5px] leading-[22px] text-[#e9e9ed9e]">
-              Further down the same page: five years of revenue and profit, cash against debt, and
-              what you pay for a dollar of earnings — arithmetic on the numbers the company reports,
-              not anyone’s opinion.
+              The live public page for NVDA: where today’s price sits in its year, and every fall of
+              20% or more in ten years with how long each took to come back — computed from real
+              closes, not written by anyone.
             </figcaption>
           </figure>
         </div>
