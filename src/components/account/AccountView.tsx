@@ -82,7 +82,12 @@ export default function AccountView({
   >(null);
   const aiActive = !!autoSettings?.enabled;
   const [metricChart, setMetricChart] = useState<"holdings" | "pnl" | null>(null);
-  const [tab, setTab] = useState<Tab>("holdings");
+  // Nothing owned yet means nothing to show on Holdings, so a new stock
+  // account opens on Ideas. Computed from props, so the server and the first
+  // client render agree.
+  const [tab, setTab] = useState<Tab>(
+    account.type === "stocks" && initialPositions.length === 0 ? "ideas" : "holdings"
+  );
 
   // Restore the last tab the user had open on this account.
   useEffect(() => {
@@ -119,6 +124,10 @@ export default function AccountView({
   const fxPositions = initialFxPositions;
   const isForex = account.type === "forex";
   const isStocks = account.type === "stocks";
+  // An empty stock account gives the wide column to the showcase: there is no
+  // portfolio to read yet. It hands the width back the moment one is bought,
+  // because an eight-column holdings table is unreadable at a third of the page.
+  const leadWithIdeas = isStocks && positions.length === 0;
 
   // Symbols to keep priced live.
   const symbols = useMemo(() => {
@@ -490,7 +499,11 @@ export default function AccountView({
           familiar order (leverage → orders → tabs). */}
       {!isForex && (
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3 lg:items-start">
-        <div className="min-w-0 space-y-6 lg:order-2 lg:col-span-1">
+        <div
+          className={`min-w-0 space-y-6 ${
+            leadWithIdeas ? "lg:order-1 lg:col-span-2" : "lg:order-2 lg:col-span-1"
+          }`}
+        >
       {/* A stock account gives this column to the showcase instead of leverage:
           a beginner opening an empty account needs somewhere to start, not a
           margin ticket. Crypto keeps the long/short panel. */}
@@ -564,7 +577,11 @@ export default function AccountView({
       )}
         </div>
 
-        <div className="min-w-0 lg:order-1 lg:col-span-2">
+        <div
+          className={`min-w-0 ${
+            leadWithIdeas ? "lg:order-2 lg:col-span-1" : "lg:order-1 lg:col-span-2"
+          }`}
+        >
       {/* Holdings / Watchlist / History tabs */}
       <section id="account-tabs" className="scroll-mt-20">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
