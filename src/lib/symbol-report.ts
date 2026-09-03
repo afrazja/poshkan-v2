@@ -58,5 +58,7 @@ export function reportSummary(symbol: string, r: SymbolReport): string {
     );
   }
   if (bits.length === 0) return `${name}: price history, drawdowns and what the business earns.`;
-  return `${bits.join(". ")}.`;
+  // Each clause is written to stand alone, so joining them needs the second
+  // one capitalised — otherwise the search snippet reads "its high. it has".
+  return bits.map((b, i) => (i === 0 ? b : b.charAt(0).toUpperCase() + b.slice(1))).join(". ") + ".";
 }
