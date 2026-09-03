@@ -45,7 +45,7 @@ import {
 } from "@/app/dashboard/[accountId]/actions";
 import { formatNumber } from "@/lib/format";
 
-type Tab = "holdings" | "watchlist" | "history" | "insights";
+type Tab = "ideas" | "holdings" | "watchlist" | "history" | "insights";
 
 export default function AccountView({
   account,
@@ -87,10 +87,29 @@ export default function AccountView({
   // Restore the last tab the user had open on this account.
   useEffect(() => {
     const saved = localStorage.getItem(`poshkan-tab-${account.id}`);
-    if (saved === "holdings" || saved === "watchlist" || saved === "history" || saved === "insights") {
+    if (
+      saved === "ideas" ||
+      saved === "holdings" ||
+      saved === "watchlist" ||
+      saved === "history" ||
+      saved === "insights"
+    ) {
       setTab(saved);
     }
   }, [account.id]);
+  // Ideas is a phone-only tab, so a wide screen must never sit on it — the
+  // panel is hidden there and the tab would look empty. Runs after mount, so
+  // the first render still matches what the server sent.
+  useEffect(() => {
+    if (tab !== "ideas") return;
+    const wide = window.matchMedia("(min-width: 1024px)");
+    const snapBack = () => {
+      if (wide.matches) setTab("holdings");
+    };
+    snapBack();
+    wide.addEventListener("change", snapBack);
+    return () => wide.removeEventListener("change", snapBack);
+  }, [tab]);
   const [filter, setFilter] = useState("");
 
   const positions = initialPositions;
@@ -477,7 +496,10 @@ export default function AccountView({
           margin ticket. Crypto keeps the long/short panel. */}
       {isStocks ? (
         <>
-          <StockShowcase onSelect={selectSymbol} />
+          {/* Desktop only — on a phone this same showcase is the Ideas tab. */}
+          <div className="hidden lg:block">
+            <StockShowcase onSelect={selectSymbol} />
+          </div>
           {/* Never strand a position: if this account still holds leveraged
               trades from before, it keeps the panel to close them. */}
           {fxPositions.some((p) => p.status === "open") && (
@@ -549,11 +571,12 @@ export default function AccountView({
           <div className="flex flex-wrap gap-1 rounded-lg border border-border bg-card p-1">
             {(
               [
+                ...(isStocks ? [{ key: "ideas" as Tab, label: "Ideas", phoneOnly: true }] : []),
                 { key: "holdings", label: "Holdings", count: positions.length },
                 { key: "watchlist", label: "Watchlist", count: watchlist.length },
                 { key: "history", label: "History", count: transactions.length },
                 { key: "insights", label: "Insights" },
-              ] as { key: Tab; label: string; count?: number }[]
+              ] as { key: Tab; label: string; count?: number; phoneOnly?: boolean }[]
             ).map((t) => (
               <button
                 key={t.key}
@@ -565,8 +588,8 @@ export default function AccountView({
                   } catch {}
                 }}
                 className={`rounded-md px-4 py-1.5 text-sm font-medium transition ${
-                  tab === t.key ? "bg-background text-foreground shadow-sm" : "text-muted hover:text-foreground"
-                }`}
+                  t.phoneOnly ? "lg:hidden" : ""
+                } ${tab === t.key ? "bg-background text-foreground shadow-sm" : "text-muted hover:text-foreground"}`}
               >
                 {t.label}
                 {t.count ? ` (${t.count})` : ""}
@@ -575,7 +598,7 @@ export default function AccountView({
           </div>
 
           {/* Small filter for the current table (not on Insights) */}
-          {tab !== "insights" && (
+          {tab !== "insights" && tab !== "ideas" && (
             <div className="flex items-center gap-2">
               {exportableRows > 0 && (
                 <button
@@ -607,6 +630,15 @@ export default function AccountView({
             </div>
           )}
         </div>
+
+        {/* Phone only: on a narrow screen the right-hand column stacks on top,
+            so the showcase pushed holdings below a full screen of scrolling.
+            Here it is a tab instead. The desktop copy lives in that column. */}
+        {tab === "ideas" && (
+          <div className="lg:hidden">
+            <StockShowcase onSelect={selectSymbol} />
+          </div>
+        )}
 
         {tab === "holdings" && (
           <HoldingsTable

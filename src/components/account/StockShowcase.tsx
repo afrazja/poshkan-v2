@@ -9,16 +9,27 @@ import { formatCurrency, formatPercent, changeColor } from "@/lib/format";
 // its own 12-month range, so a jumping stock cannot be mistaken for a bargain.
 // Clicking a row opens the symbol panel, which lands on Before you buy.
 
+// Two copies of this mount on every stock account — one for the desktop column,
+// one for the phone's Ideas tab — and only ever one is visible. Share the fetch
+// so the hidden twin costs nothing.
+let shared: Promise<Shelf[]> | null = null;
+const loadShelves = () => {
+  if (!shared) {
+    shared = fetch("/api/showcase")
+      .then((r) => (r.ok ? r.json() : { shelves: [] }))
+      .then((j) => (j.shelves ?? []) as Shelf[])
+      .catch(() => [] as Shelf[]);
+  }
+  return shared;
+};
+
 export default function StockShowcase({ onSelect }: { onSelect: (symbol: string, name: string) => void }) {
   const [shelves, setShelves] = useState<Shelf[] | null>(null);
   const [active, setActive] = useState(0);
 
   useEffect(() => {
     let live = true;
-    fetch("/api/showcase")
-      .then((r) => (r.ok ? r.json() : { shelves: [] }))
-      .then((j) => live && setShelves(j.shelves ?? []))
-      .catch(() => live && setShelves([]));
+    loadShelves().then((s) => live && setShelves(s));
     return () => {
       live = false;
     };
