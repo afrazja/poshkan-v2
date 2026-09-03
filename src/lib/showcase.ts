@@ -1,5 +1,6 @@
 import "server-only";
 import { getQuotes } from "./marketdata";
+import { todaysMovers } from "./yahoo-screener";
 import type { Quote } from "./types";
 import {
   CRYPTO_MAJORS,
@@ -36,6 +37,10 @@ const MIN_CRYPTO_CAP = 100e6;
 // neither holds, and "Down most today" ends up listing gains. Rows that do not
 // qualify are dropped, and a shelf left empty disappears for the day — which is
 // itself the honest answer to "what is near its high?" when nothing is.
+// Movers come from the whole US market, not our list, so they need a floor of
+// their own: big enough that a beginner might have heard of it, which also
+// keeps out the pumped micro-caps that dominate an unfiltered gainers list.
+const MIN_MOVER_CAP = 2e9;
 const NEAR_LOW_MAX = 25;
 const NEAR_HIGH_MIN = 75;
 
@@ -122,12 +127,23 @@ function curated(all: ShowcaseRow[], order: string[], notes: Record<string, stri
 }
 
 async function buildStocks(): Promise<Shelf[]> {
-  const all = await priceAll(showcaseSymbols());
+  // Who moved most today is a question about the whole market, not about any
+  // list we keep: our 400 names missed Snowflake at +20.9% and Ciena at -9.7%
+  // on the day this was found. Ask Yahoo which symbols actually moved, then
+  // price them through the same cached path as everything else. If the
+  // screener is unreachable the shelves fall back to the universe alone.
+  const extra = await todaysMovers(MIN_MOVER_CAP).catch(() => [] as string[]);
+  const all = await priceAll(Array.from(new Set([...showcaseSymbols(), ...extra])));
+
   const stockSet = new Set(SHOWCASE_STOCKS);
+  const extraSet = new Set(extra);
   // Traded today, or not at all: a delisted or halted ticker keeps its last
   // price forever, which would park it permanently at the top of the
   // near-its-low shelf. Requiring volume drops those on their own.
-  const stocks = all.filter((r) => stockSet.has(r.symbol) && (r.volume ?? 0) > 0);
+  const tradedToday = (r: ShowcaseRow) => (r.volume ?? 0) > 0;
+  const stocks = all.filter((r) => stockSet.has(r.symbol) && tradedToday(r));
+  // The movers pool: our own large caps plus whatever the market threw up today.
+  const movers = all.filter((r) => (stockSet.has(r.symbol) || extraSet.has(r.symbol)) && tradedToday(r));
   const withRange = stocks.filter((r) => r.rangePct != null);
 
   return [
@@ -140,32 +156,35 @@ async function buildStocks(): Promise<Shelf[]> {
     {
       key: "gainers",
       label: "Up most today",
-      blurb: "Today's biggest risers. Check what the jump has done to the price before you follow it.",
-      rows: stocks.filter((r) => r.changePct > 0).sort((a, b) => b.changePct - a.changePct).slice(0, ROWS),
+      blurb:
+        "The biggest risers across the US market today. Check what the jump has done to the price before you follow it.",
+      rows: movers.filter((r) => r.changePct > 0).sort((a, b) => b.changePct - a.changePct).slice(0, ROWS),
     },
     {
       key: "losers",
       label: "Down most today",
-      blurb: "Today's biggest falls. A red day is not automatically a disaster — see how far it has fallen before.",
-      rows: stocks.filter((r) => r.changePct < 0).sort((a, b) => a.changePct - b.changePct).slice(0, ROWS),
+      blurb:
+        "The biggest falls across the US market today. A red day is not automatically a disaster — see how far it has fallen before.",
+      rows: movers.filter((r) => r.changePct < 0).sort((a, b) => a.changePct - b.changePct).slice(0, ROWS),
     },
     {
       key: "near-low",
       label: "Near 12-month low",
-      blurb: "Cheaper than they have been all year. Cheap for a reason, or on sale? The evidence is a click away.",
+      blurb:
+        "Large US companies cheaper than they have been all year. Cheap for a reason, or on sale? The evidence is a click away.",
       rows: withRange.filter((r) => (r.rangePct ?? 100) <= NEAR_LOW_MAX).sort((a, b) => (a.rangePct ?? 0) - (b.rangePct ?? 0)).slice(0, ROWS),
     },
     {
       key: "near-high",
       label: "Near 12-month high",
-      blurb: "Priced higher than at any point this year. Momentum, or paying up for it?",
+      blurb: "Large US companies priced higher than at any point this year. Momentum, or paying up for it?",
       rows: withRange.filter((r) => (r.rangePct ?? 0) >= NEAR_HIGH_MIN).sort((a, b) => (b.rangePct ?? 0) - (a.rangePct ?? 0)).slice(0, ROWS),
     },
     {
       key: "traded",
       label: "Most traded today",
       blurb: "Where the money went today, by dollars changing hands — not share count.",
-      rows: [...stocks]
+      rows: [...movers]
         .sort((a, b) => dollarsTraded(b, false) - dollarsTraded(a, false))
         .slice(0, ROWS)
         .map((r) => ({ ...r, note: `${usd(dollarsTraded(r, false))} traded${r.note ? ` · ${r.note}` : ""}` })),
