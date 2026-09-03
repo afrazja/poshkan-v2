@@ -28,6 +28,8 @@ interface Row {
 
 const MEDALS = ["🥇", "🥈", "🥉"];
 
+const MARKET_LABEL: Record<string, string> = { stocks: "Stocks", crypto: "Crypto", forex: "Forex" };
+
 // "3d" reads better than "3" under a column called Active; past a couple of
 // months the exact day count stops mattering.
 function dayLabel(days?: number): string {
@@ -46,7 +48,12 @@ export default async function LeaderboardPage({
   searchParams: Promise<{ view?: string }>;
 }) {
   const { view } = await searchParams;
-  const showAll = view === "all";
+  // One account per market means a trader can no longer stack the top with
+  // their own account collection, which is the only thing the old
+  // trader-vs-account split existed to prevent. Filtering by market is the
+  // division that still means something: a stocks account and a forex one are
+  // playing different games, and comparing them was always the weaker part.
+  const market = view === "stocks" || view === "crypto" || view === "forex" ? view : null;
   const supabase = await createClient();
   const {
     data: { user },
@@ -59,19 +66,7 @@ export default async function LeaderboardPage({
   // then live-reprice only the rows we actually display.
   rows.sort((a, b) => b.return_pct - a.return_pct || b.total_value - a.total_value);
 
-  // Default view: one entry per trader (their best account), so the board shows
-  // real competition instead of one user's account collection filling the top.
-  const accountCount = new Map<string, number>();
-  for (const r of rows) accountCount.set(r.user_id, (accountCount.get(r.user_id) ?? 0) + 1);
-  let ranked = rows;
-  if (!showAll) {
-    const seen = new Set<string>();
-    ranked = rows.filter((r) => {
-      if (seen.has(r.user_id)) return false; // rows are sorted best-first
-      seen.add(r.user_id);
-      return true;
-    });
-  }
+  const ranked = market ? rows.filter((r) => r.account_type === market) : rows;
 
   const total = ranked.length;
   const big = total > LIMIT;
@@ -149,7 +144,7 @@ export default async function LeaderboardPage({
     viewerRank = inTop >= 0 ? inTop + 1 : viewerIdx + 1;
   }
   const percentile = viewerRank ? Math.max(1, Math.ceil((viewerRank / total) * 100)) : null;
-  const entryNoun = showAll ? "accounts" : "traders";
+  const entryNoun = "accounts";
 
   // The process columns only exist once leaderboard-stats.sql has been run.
   // Detect it from the data rather than assuming, so the page is correct
@@ -158,7 +153,6 @@ export default async function LeaderboardPage({
 
   const renderRow = (r: Row, rank: number) => {
     const mine = user && r.user_id === user.id;
-    const others = (accountCount.get(r.user_id) ?? 1) - 1;
     return (
       <tr
         key={r.account_id}
@@ -192,9 +186,7 @@ export default async function LeaderboardPage({
               {r.style}
             </span>
           )}
-          {!showAll && others > 0 && (
-            <span className="ml-2 whitespace-nowrap text-xs text-muted">best of {others + 1}</span>
-          )}
+
         </td>
         <td
           className={`px-4 py-3 text-right font-semibold ${changeColor(
@@ -238,9 +230,9 @@ export default async function LeaderboardPage({
         <div>
           <h1 className="text-2xl font-bold tracking-tight">🏆 Leaderboard</h1>
           <p className="text-sm text-muted">
-            {showAll
-              ? "All accounts ranked by % return on the money put in, at live market prices."
-              : "Traders ranked by their best account's % return on the money put in, at live market prices."}
+            {market
+              ? `${MARKET_LABEL[market]} accounts ranked by % return on the money put in, at live market prices.`
+              : "Every account ranked by % return on the money put in, at live market prices."}
           </p>
         </div>
         <Link href="/dashboard" className="text-sm text-muted hover:text-foreground hover:underline">
@@ -248,23 +240,21 @@ export default async function LeaderboardPage({
         </Link>
       </div>
 
-      <div className="mb-4 flex items-center gap-1.5 text-xs">
-        <Link
-          href="/dashboard/leaderboard"
-          className={`rounded-full border px-3 py-1 font-medium ${
-            !showAll ? "border-primary bg-primary/10 text-primary" : "border-border text-muted hover:text-foreground"
-          }`}
-        >
-          Top per trader
-        </Link>
-        <Link
-          href="/dashboard/leaderboard?view=all"
-          className={`rounded-full border px-3 py-1 font-medium ${
-            showAll ? "border-primary bg-primary/10 text-primary" : "border-border text-muted hover:text-foreground"
-          }`}
-        >
-          All accounts
-        </Link>
+      <div className="mb-4 flex flex-wrap items-center gap-1.5 text-xs">
+        {([null, "stocks", "crypto", "forex"] as const).map((m) => {
+          const on = market === m;
+          return (
+            <Link
+              key={m ?? "all"}
+              href={m ? `/dashboard/leaderboard?view=${m}` : "/dashboard/leaderboard"}
+              className={`rounded-full border px-3 py-1 font-medium ${
+                on ? "border-primary bg-primary/10 text-primary" : "border-border text-muted hover:text-foreground"
+              }`}
+            >
+              {m ? MARKET_LABEL[m] : "All markets"}
+            </Link>
+          );
+        })}
       </div>
 
       {error ? (
@@ -326,7 +316,7 @@ export default async function LeaderboardPage({
 
       {big && viewerRank && percentile && (
         <p className="mt-3 text-sm font-medium">
-          Your best account ranks <span className="text-primary">#{viewerRank}</span> of{" "}
+          Your best account here ranks <span className="text-primary">#{viewerRank}</span> of{" "}
           {total.toLocaleString("en-US")} {entryNoun} · top {percentile}%
         </p>
       )}
