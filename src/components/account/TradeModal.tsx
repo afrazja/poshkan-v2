@@ -25,6 +25,10 @@ function unitDecimals(price: number): number {
   return Math.min(8, Math.max(2, Math.ceil(Math.log10(price / 0.005))));
 }
 const roundTo = (n: number, dp: number) => Math.round(n * 10 ** dp) / 10 ** dp;
+// Converting an amount always rounds DOWN: "spend $500" must never cost $500.01,
+// which would otherwise put an order for your whole cash balance a hundredth of
+// a cent out of reach and reject it.
+const floorTo = (n: number, dp: number) => Math.floor(n * 10 ** dp) / 10 ** dp;
 // toFixed always leaves a decimal point here (dp >= 2), so trimming zeros is safe.
 const fmtUnits = (n: number, dp: number) => n.toFixed(dp).replace(/\.?0+$/, "");
 
@@ -82,7 +86,14 @@ export default function TradeModal({
   const dp = unitDecimals(execPrice);
   const entered = Number(amount) || 0;
   const inDollars = mode === "DOLLARS";
-  const quantity = inDollars ? (execPrice > 0 ? roundTo(entered / execPrice, dp) : 0) : entered;
+  let quantity = inDollars ? (execPrice > 0 ? floorTo(entered / execPrice, dp) : 0) : entered;
+  // Selling the whole position in dollars: the amount was itself rounded to a
+  // cent, so dividing back lands a hair short. Within that margin it means "all
+  // of it" — snap, or a full exit leaves an unsellable speck behind forever.
+  if (side === "SELL" && inDollars && maxShares != null && quantity > 0) {
+    const tolerance = 2 * Math.max(10 ** -dp, execPrice > 0 ? 0.005 / execPrice : 0);
+    if (Math.abs(quantity - maxShares) <= tolerance) quantity = maxShares;
+  }
   const estimate = quantity * execPrice;
   const affordable = side === "BUY" ? estimate <= cash : true;
   const enoughShares = side === "SELL" ? quantity <= (maxShares ?? 0) : true;
