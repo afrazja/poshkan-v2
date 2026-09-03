@@ -14,6 +14,7 @@ export default function AccountMenu({
   onToggle,
   onRename,
   onMute,
+  onLeaderboard,
   onReset,
   onDelete,
   tone = "muted",
@@ -23,6 +24,7 @@ export default function AccountMenu({
   onToggle: () => void;
   onRename: () => void;
   onMute: () => void;
+  onLeaderboard: () => void;
   onReset: () => void;
   onDelete: () => void;
   tone?: "muted" | "faint";
@@ -50,6 +52,9 @@ export default function AccountMenu({
           <Item onClick={onRename}>Rename</Item>
           <Item onClick={onMute}>
             {acc.notify_enabled === false ? "🔔 Unmute notifications" : "🔕 Mute notifications"}
+          </Item>
+          <Item onClick={onLeaderboard}>
+            {acc.hidden_from_leaderboard ? "🏆 Show on leaderboard" : "🙈 Hide from leaderboard"}
           </Item>
           <Item onClick={onReset}>Reset</Item>
           <Item onClick={onDelete} danger>

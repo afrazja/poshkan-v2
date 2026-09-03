@@ -21,6 +21,8 @@ export interface Account {
   name: string;
   type: AccountType;
   cash_balance: number;
+  /** Opted out of the public leaderboard (leaderboard-stats.sql). */
+  hidden_from_leaderboard?: boolean;
   leverage?: number; // forex accounts only; defaults to 30
   ai_instruction?: string | null; // forex scanner: custom strategy (blank = default)
   ai_symbols?: string[] | null; // AI scanner: chosen symbols (blank = market default)

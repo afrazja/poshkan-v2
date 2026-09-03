@@ -22,6 +22,8 @@ interface Row {
   open_positions?: number;
   days_active?: number;
   max_drawdown_pct?: number;
+  trades_per_month?: number;
+  style?: string;
 }
 
 const MEDALS = ["🥇", "🥈", "🥉"];
@@ -174,6 +176,22 @@ export default async function LeaderboardPage({
           <span className="ml-2 rounded-md bg-background px-2 py-0.5 text-xs capitalize text-muted">
             {r.account_type}
           </span>
+          {r.style && (
+            <span
+              className={`ml-1 rounded-md px-2 py-0.5 text-xs capitalize ${
+                r.style === "investor"
+                  ? "bg-primary/10 text-primary"
+                  : "bg-orange-500/10 text-orange-600 dark:text-orange-400"
+              }`}
+              title={
+                r.style === "investor"
+                  ? "Buys and holds — measured over months, not days"
+                  : "Trades often — measured on how much was risked to get there"
+              }
+            >
+              {r.style}
+            </span>
+          )}
           {!showAll && others > 0 && (
             <span className="ml-2 whitespace-nowrap text-xs text-muted">best of {others + 1}</span>
           )}
@@ -192,6 +210,12 @@ export default async function LeaderboardPage({
             <td className="px-4 py-3 text-right text-muted tabular-nums">{r.trades ?? 0}</td>
             <td className="px-4 py-3 text-right text-muted tabular-nums">{r.open_positions ?? 0}</td>
             <td className="px-4 py-3 text-right text-muted tabular-nums">{dayLabel(r.days_active)}</td>
+            <td
+              className="px-4 py-3 text-right text-muted tabular-nums"
+              title="Trades per month — what the style label is measured from"
+            >
+              {r.trades_per_month == null ? "—" : Number(r.trades_per_month).toFixed(1)}
+            </td>
             <td
               className={`px-4 py-3 text-right tabular-nums ${
                 Number(r.max_drawdown_pct ?? 0) <= -20 ? "text-negative" : "text-muted"
@@ -272,6 +296,9 @@ export default async function LeaderboardPage({
                     </th>
                     <th className="px-4 py-3 text-right font-medium" title="Since the first trade">
                       Active
+                    </th>
+                    <th className="px-4 py-3 text-right font-medium" title="Trades per month">
+                      Pace
                     </th>
                     <th className="px-4 py-3 text-right font-medium" title="Deepest peak-to-trough dip">
                       Worst dip

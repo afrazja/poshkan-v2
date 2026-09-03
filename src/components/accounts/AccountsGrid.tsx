@@ -10,6 +10,7 @@ import {
   renameAccountAction,
   deleteAccountAction,
   setAccountNotifyAction,
+  setAccountLeaderboardAction,
 } from "@/app/dashboard/[accountId]/actions";
 import PortfolioBand from "./PortfolioBand";
 import AccountsTable from "./AccountsTable";
@@ -123,6 +124,12 @@ export default function AccountsGrid({
     onMute: async () => {
       setMenuFor(null);
       await setAccountNotifyAction(acc.id, acc.notify_enabled === false);
+      router.refresh();
+    },
+    onLeaderboard: async () => {
+      setMenuFor(null);
+      const res = await setAccountLeaderboardAction(acc.id, acc.hidden_from_leaderboard !== true);
+      if (res.error) setErr(res.error);
       router.refresh();
     },
     onReset: () => {

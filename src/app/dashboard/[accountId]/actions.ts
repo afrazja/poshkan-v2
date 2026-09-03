@@ -903,6 +903,24 @@ export async function setAccountNotifyAction(
   return {};
 }
 
+// Show or hide this account on the public leaderboard. Needs
+// supabase/leaderboard-stats.sql; until that runs the column does not exist and
+// the update reports it, which the caller surfaces rather than failing silently.
+export async function setAccountLeaderboardAction(
+  accountId: string,
+  hidden: boolean
+): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("accounts")
+    .update({ hidden_from_leaderboard: hidden })
+    .eq("id", accountId);
+  if (error) return { error: error.message };
+  revalidatePath("/dashboard");
+  revalidatePath("/dashboard/leaderboard");
+  return {};
+}
+
 // Permanently deletes the account; positions, transactions, watchlist, orders,
 // and snapshots cascade in the database.
 export async function deleteAccountAction(accountId: string): Promise<{ error?: string }> {

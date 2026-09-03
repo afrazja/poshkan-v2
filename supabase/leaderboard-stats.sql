@@ -21,6 +21,12 @@
 -- cannot CREATE OR REPLACE a function into a different RETURNS TABLE.
 -- ============================================================================
 
+-- Opting out. Not every account is a contestant: some exist to watch over
+-- someone else's, or to try something out. An account nobody is competing with
+-- should not sit at the top of a public board pretending to.
+alter table public.accounts
+  add column if not exists hidden_from_leaderboard boolean not null default false;
+
 drop function if exists public.get_leaderboard();
 
 create or replace function public.get_leaderboard()
@@ -37,7 +43,9 @@ returns table (
   trades integer,
   open_positions integer,
   days_active integer,
-  max_drawdown_pct numeric
+  max_drawdown_pct numeric,
+  trades_per_month numeric,
+  style text
 )
 language sql
 security definer set search_path = public
@@ -147,10 +155,25 @@ as $$
     coalesce(act.trades, 0)::integer as trades,
     coalesce(act.open_positions, 0)::integer as open_positions,
     coalesce(act.days_active, 1)::integer as days_active,
-    round(coalesce(dd.worst, 0) * 100, 2) as max_drawdown_pct
+    round(coalesce(dd.worst, 0) * 100, 2) as max_drawdown_pct,
+    -- Turnover is the honest way to tell an investor from a trader: it is
+    -- measured from what they did, not chosen by them. Anyone allowed to
+    -- declare their own style picks whichever league they are winning.
+    round(
+      coalesce(act.trades, 0)::numeric
+        / greatest(coalesce(act.days_active, 1)::numeric / 30.44, 0.25),
+      1
+    ) as trades_per_month,
+    case
+      when coalesce(act.trades, 0)::numeric
+             / greatest(coalesce(act.days_active, 1)::numeric / 30.44, 0.25) < 2
+      then 'investor'
+      else 'trader'
+    end as style
   from public.accounts a
   join public.profiles pr on pr.id = a.user_id
   join contrib c on c.account_id = a.id and c.contributions > 0
+    and a.hidden_from_leaderboard = false
   left join latest_snap ls on ls.account_id = a.id
   left join fallback fb on fb.account_id = a.id
   left join activity act on act.account_id = a.id
