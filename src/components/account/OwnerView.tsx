@@ -261,7 +261,9 @@ function BitcoinCard({ b, symbol }: { b: BitcoinComparison; symbol: string }) {
   }
 
   return (
-    <Card title="Is this a separate bet from Bitcoin?" accent="orange" className="sm:col-span-2">
+    {/* Teal, not the obvious Bitcoin orange: this card sits directly under the
+        amber drawdown card, and on a coin those two are most of the tab. */}
+    <Card title="Is this a separate bet from Bitcoin?" accent="teal" className="sm:col-span-2">
       <div className="mt-1">
         <div className="relative h-1.5 rounded-full bg-border">
           <div
