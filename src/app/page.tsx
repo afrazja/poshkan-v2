@@ -4,7 +4,7 @@ import { Inter } from "next/font/google";
 import { redirect } from "next/navigation";
 import RecoveryRedirect from "@/components/auth/RecoveryRedirect";
 import SignupCta from "@/components/landing/SignupCta";
-import { BTN_PRIMARY, BTN_RAISED, BTN_SECONDARY, FADE_RULE, RAISED_STYLE, SHADOW_MD } from "@/components/landing/lp";
+import { BTN_PRIMARY, BTN_SECONDARY, FADE_RULE, SHADOW_MD } from "@/components/landing/lp";
 
 // Nocturne landing design — Inter throughout, 400 body / 500 headings.
 const inter = Inter({ subsets: ["latin"], weight: ["400", "500"], display: "swap" });
@@ -174,9 +174,10 @@ export default async function LandingPage({
           <a href="#discipline" className="text-[#e9e9ed] hover:text-[var(--lp-accent-300)]">Discipline</a>
           <a href="#compare" className="text-[#e9e9ed] hover:text-[var(--lp-accent-300)]">Compare</a>
         </div>
-        {/* One sign-up button in the first screen: the hero's. The nav is not sticky, so a second one here only duplicated it. */}
+        {/* One sign-up button in the first screen: the hero's. The nav is not sticky, so a second one here only
+            duplicated it. Log in takes the slot in the same outlined style as every other button on the page. */}
         <div className="ml-auto flex items-center">
-          <Link href="/signup?tab=login" className={`${BTN_RAISED} px-[18px] py-2 text-[14px]`} style={RAISED_STYLE}>
+          <Link href="/signup?tab=login" className={`${BTN_PRIMARY} px-4 py-2 text-[14px]`}>
             Log in
           </Link>
         </div>
