@@ -137,8 +137,22 @@ function Treemap({
   onTile?: (r: ShowcaseRow) => void;
 }) {
   const tiles = squarify(rows, 0, 0, width, height);
+  const total = rows.reduce((sum, r) => sum + (r.marketCap ?? 0), 0);
+  // Pointing at a tile reads it out in full. A magnifier was the other idea and
+  // is the wrong tool: it enlarges pixels, and the tiles that need help are
+  // blank by choice, so zooming them just gives a bigger blank rectangle.
+  const [hover, setHover] = useState<{ tile: Tile; x: number; y: number } | null>(null);
+
   return (
-    <svg viewBox={`0 0 ${width} ${height}`} width={width} height={height} role="img" aria-label="Crypto market by size and today's move">
+    <div className="relative">
+    <svg
+      viewBox={`0 0 ${width} ${height}`}
+      width={width}
+      height={height}
+      role="img"
+      aria-label="Crypto market by size and today's move"
+      onMouseLeave={() => setHover(null)}
+    >
       {tiles.map((t) => {
         const { fill, opacity } = fillFor(t.changePct);
         const tickerText = ticker(t.symbol);
@@ -174,13 +188,24 @@ function Treemap({
           <g
             key={t.symbol}
             onClick={onTile ? () => onTile(t) : undefined}
+            onMouseMove={(e) => {
+              const box = e.currentTarget.ownerSVGElement?.getBoundingClientRect();
+              if (box) setHover({ tile: t, x: e.clientX - box.left, y: e.clientY - box.top });
+            }}
             className={onTile ? "cursor-pointer" : undefined}
             role={onTile ? "button" : undefined}
             aria-label={`${tickerText} ${priceText} ${t.changePct.toFixed(2)}%`}
           >
-            <title>{`${tickerText} · ${priceText} · ${t.changePct >= 0 ? "+" : ""}${t.changePct.toFixed(2)}% · ${capLabel(t.marketCap)}`}</title>
             <rect x={t.x} y={t.y} width={t.w} height={t.h} fill={fill} fillOpacity={opacity} />
-            <rect x={t.x} y={t.y} width={t.w} height={t.h} fill="none" stroke="var(--card)" strokeWidth={2} />
+            <rect
+              x={t.x}
+              y={t.y}
+              width={t.w}
+              height={t.h}
+              fill="none"
+              stroke={hover?.tile.symbol === t.symbol ? "var(--foreground)" : "var(--card)"}
+              strokeWidth={hover?.tile.symbol === t.symbol ? 2.5 : 2}
+            />
             {lines.map((l) => {
               const baseline = cursor + l.size * 0.86;
               cursor += l.size * 1.16;
@@ -203,6 +228,43 @@ function Treemap({
         );
       })}
     </svg>
+
+      {hover && (
+        <div
+          className="pointer-events-none absolute z-10 w-[190px] rounded-lg border border-border bg-card px-3 py-2 text-xs shadow-xl"
+          style={{
+            // Flip before the panel would run off an edge.
+            left: hover.x > width - 210 ? hover.x - 200 : hover.x + 14,
+            top: hover.y > height - 110 ? hover.y - 100 : hover.y + 14,
+          }}
+        >
+          <div className="flex items-baseline justify-between gap-2">
+            <span className="font-semibold">{ticker(hover.tile.symbol)}</span>
+            <span className={`font-medium tabular-nums ${changeColor(hover.tile.changePct)}`}>
+              {hover.tile.changePct >= 0 ? "+" : ""}
+              {hover.tile.changePct.toFixed(2)}%
+            </span>
+          </div>
+          <div className="truncate text-muted">{coinName(hover.tile.name)}</div>
+          <div className="mt-1 flex justify-between gap-2">
+            <span className="text-muted">Price</span>
+            <span className="tabular-nums">{coinPrice(hover.tile.price)}</span>
+          </div>
+          <div className="flex justify-between gap-2">
+            <span className="text-muted">Market value</span>
+            <span className="tabular-nums">{capLabel(hover.tile.marketCap)}</span>
+          </div>
+          {total > 0 && (
+            <div className="flex justify-between gap-2">
+              <span className="text-muted">Share of market</span>
+              <span className="tabular-nums">
+                {(((hover.tile.marketCap ?? 0) / total) * 100).toFixed(1)}%
+              </span>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
 
