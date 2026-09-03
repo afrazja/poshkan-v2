@@ -112,7 +112,15 @@ const capLabel = (v: number | null) =>
 const coinPrice = (v: number) =>
   v >= 1000 ? formatCurrency(v) : v >= 1 ? `$${v.toFixed(2)}` : v >= 0.01 ? `$${v.toFixed(4)}` : `$${v.toPrecision(2)}`;
 
+// Rough advance width of the app's sans font, as a fraction of the font size.
+// Good enough to decide whether a label fits its tile.
+const FONT_ASPECT = 0.62;
+// Below this a label is a smudge rather than information.
+const MIN_FONT = 7;
+
 const ticker = (symbol: string) => symbol.replace("-USD", "");
+const fitsWidth = (text: string, fontSize: number, width: number) =>
+  text.length * fontSize * FONT_ASPECT <= width * 0.9;
 // Only the trailing quote currency: a blind replace turns Yahoo's
 // "Tether USDt USD" into "Tethert USD".
 const coinName = (name: string) => name.replace(/\s+USD$/, "");
@@ -133,60 +141,64 @@ function Treemap({
     <svg viewBox={`0 0 ${width} ${height}`} width={width} height={height} role="img" aria-label="Crypto market by size and today's move">
       {tiles.map((t) => {
         const { fill, opacity } = fillFor(t.changePct);
-        const room = Math.min(t.w, t.h);
-        const size = Math.max(10, Math.min(30, room * 0.26));
-        // Only draw what the tile can actually hold, longest line first.
-        const showTicker = t.w > 42 && t.h > 26;
-        const showChange = t.w > 58 && t.h > 46;
-        const showPrice = t.w > 78 && t.h > 68;
+        const tickerText = ticker(t.symbol);
+        const changeText = `${t.changePct >= 0 ? "+" : ""}${t.changePct.toFixed(1)}%`;
+        const priceText = coinPrice(t.price);
+
+        // Fit the text to the tile rather than guessing at pixel thresholds.
+        // Try the richest layout first and fall back: three lines, then ticker
+        // plus the day's move, then the ticker alone. Sizing for one line first
+        // and then asking whether a second fits gets this backwards - it picks a
+        // font so tall that the percentage no longer has room.
+        const widthFont = (text: string) => (t.w * 0.9) / (text.length * FONT_ASPECT);
+        const three = Math.min(30, widthFont(tickerText), widthFont(priceText) / 0.78, widthFont(changeText) / 0.82, t.h * 0.33);
+        const two = Math.min(30, widthFont(tickerText), widthFont(changeText) / 0.82, t.h * 0.47);
+        const one = Math.min(30, widthFont(tickerText), t.h * 0.7);
+
+        const lines: { text: string; size: number; weight: number; opacity: number }[] = [];
+        if (three >= MIN_FONT) {
+          lines.push({ text: tickerText, size: three, weight: 600, opacity: 1 });
+          lines.push({ text: priceText, size: three * 0.78, weight: 400, opacity: 0.85 });
+          lines.push({ text: changeText, size: three * 0.82, weight: 400, opacity: 0.75 });
+        } else if (two >= MIN_FONT) {
+          lines.push({ text: tickerText, size: two, weight: 600, opacity: 1 });
+          lines.push({ text: changeText, size: two * 0.82, weight: 400, opacity: 0.8 });
+        } else if (one >= MIN_FONT) {
+          lines.push({ text: tickerText, size: one, weight: 600, opacity: 1 });
+        }
+
+        const blockHeight = lines.reduce((sum, l) => sum + l.size * 1.16, 0);
+        let cursor = t.y + t.h / 2 - blockHeight / 2;
+
         return (
           <g
             key={t.symbol}
             onClick={onTile ? () => onTile(t) : undefined}
             className={onTile ? "cursor-pointer" : undefined}
             role={onTile ? "button" : undefined}
-            aria-label={`${ticker(t.symbol)} ${coinPrice(t.price)} ${t.changePct.toFixed(2)}%`}
+            aria-label={`${tickerText} ${priceText} ${t.changePct.toFixed(2)}%`}
           >
-            <title>{`${ticker(t.symbol)} · ${coinPrice(t.price)} · ${t.changePct >= 0 ? "+" : ""}${t.changePct.toFixed(2)}% · ${capLabel(t.marketCap)}`}</title>
+            <title>{`${tickerText} · ${priceText} · ${t.changePct >= 0 ? "+" : ""}${t.changePct.toFixed(2)}% · ${capLabel(t.marketCap)}`}</title>
             <rect x={t.x} y={t.y} width={t.w} height={t.h} fill={fill} fillOpacity={opacity} />
             <rect x={t.x} y={t.y} width={t.w} height={t.h} fill="none" stroke="var(--card)" strokeWidth={2} />
-            {showTicker && (
-              <text
-                x={t.x + t.w / 2}
-                y={t.y + t.h / 2 - (showPrice ? size * 0.75 : showChange ? size * 0.1 : -size * 0.35)}
-                textAnchor="middle"
-                fontSize={size}
-                fontWeight={600}
-                fill="var(--foreground)"
-              >
-                {ticker(t.symbol)}
-              </text>
-            )}
-            {showPrice && (
-              <text
-                x={t.x + t.w / 2}
-                y={t.y + t.h / 2 + size * 0.35}
-                textAnchor="middle"
-                fontSize={size * 0.72}
-                fill="var(--foreground)"
-                fillOpacity={0.85}
-              >
-                {coinPrice(t.price)}
-              </text>
-            )}
-            {showChange && (
-              <text
-                x={t.x + t.w / 2}
-                y={t.y + t.h / 2 + (showPrice ? size * 1.4 : size * 1.05)}
-                textAnchor="middle"
-                fontSize={size * 0.68}
-                fill="var(--foreground)"
-                fillOpacity={0.75}
-              >
-                {t.changePct >= 0 ? "+" : ""}
-                {t.changePct.toFixed(1)}%
-              </text>
-            )}
+            {lines.map((l) => {
+              const baseline = cursor + l.size * 0.86;
+              cursor += l.size * 1.16;
+              return (
+                <text
+                  key={l.text}
+                  x={t.x + t.w / 2}
+                  y={baseline}
+                  textAnchor="middle"
+                  fontSize={l.size}
+                  fontWeight={l.weight}
+                  fill="var(--foreground)"
+                  fillOpacity={l.opacity}
+                >
+                  {l.text}
+                </text>
+              );
+            })}
           </g>
         );
       })}
