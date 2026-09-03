@@ -239,13 +239,12 @@ export default async function LandingPage({
             className="relative overflow-hidden rounded-[14px] bg-[#161826]"
             style={{ aspectRatio: "16 / 10.4", boxShadow: SHADOW_MD }}
           >
-            {/* Intentional zoom crop: 152% wide, top-left anchored. */}
+            {/* Cut to the box's 16:10.4, so it fills it edge to edge without a zoom. */}
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src="/landing/accounts.png"
-              alt="Poshkan dashboard: paper accounts across stocks, crypto and forex"
-              className="block"
-              style={{ width: "152%", maxWidth: "none" }}
+              alt="Your accounts: one paper account per market — stocks, crypto and forex — each with its value, today’s move, unrealized and realized P&L"
+              className="block w-full"
             />
           </div>
         </figure>
@@ -419,6 +418,38 @@ export default async function LandingPage({
         </p>
       </section>
 
+      {/* ── Crypto map ── */}
+      <section id="crypto" className={`${SECTION} pt-[68px]`} style={{ paddingLeft: GUTTER, paddingRight: GUTTER }}>
+        <div className="grid grid-cols-1 items-start gap-x-14 gap-y-5 pb-10 lg:grid-cols-2">
+          <div>
+            <Kicker>Crypto</Kicker>
+            <h2 className="m-0 max-w-[20ch] text-[clamp(28px,2.8vw,38px)] font-medium leading-[1.16] tracking-[-0.013em]">
+              The whole market in one picture
+            </h2>
+          </div>
+          <p className="m-0 text-[16.5px] leading-[28px] text-[#e9e9edcc]">
+            A crypto account opens on a map: every coin a block sized by its share of the market and
+            coloured by the day&rsquo;s move. It answers in one glance what a list of prices cannot
+            &mdash; how much of &ldquo;crypto&rdquo; is simply Bitcoin, and whether the coin you are about
+            to buy is a separate bet at all.
+          </p>
+        </div>
+        <figure className="m-0 max-w-[1000px]">
+          <div className="overflow-hidden rounded-[14px] bg-[#161826]" style={{ boxShadow: SHADOW_MD }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/landing/crypto-map.png"
+              alt="The crypto market as a treemap: Bitcoin filling most of the canvas, Ethereum and the other coins sized by market value and coloured by today’s move"
+              className="block w-full"
+            />
+          </div>
+          <figcaption className="mt-4 max-w-[56ch] text-[13.5px] leading-[22px] text-[#e9e9ed9e]">
+            Bitcoin alone is 64% of it. The dollar-pegged coins sit grey while everything around them
+            moves &mdash; the clearest explanation of a stablecoin there is.
+          </figcaption>
+        </figure>
+      </section>
+
       {/* ── Your record ── */}
       <section id="record" className={`${SECTION} pt-[68px]`} style={{ paddingLeft: GUTTER, paddingRight: GUTTER }}>
         <div className="grid grid-cols-1 items-start gap-12 lg:grid-cols-[minmax(0,366px)_minmax(0,1fr)]">
@@ -491,8 +522,8 @@ export default async function LandingPage({
             />
           </div>
           <figcaption className="mt-4 max-w-[56ch] text-[13.5px] leading-[22px] text-[#e9e9ed9e]">
-            Every account, filtered by market — a $13,600 crypto account outranks a $92,000 one on
-            percentage return.
+            Every account, filtered by market. Beside each return: trades, days active, pace, and
+            the worst dip endured — a $22,700 account outranks a $114,000 one on percentage return.
           </figcaption>
         </figure>
 
