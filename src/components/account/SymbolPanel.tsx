@@ -23,6 +23,7 @@ export default function SymbolPanel({
   onBuy,
   onSell,
   onToggleWatch,
+  onLeverage,
   watchPending,
 }: {
   symbol: string;
@@ -33,6 +34,8 @@ export default function SymbolPanel({
   onBuy: () => void;
   onSell: () => void;
   onToggleWatch: () => void;
+  /** Absent on markets where leverage is not offered. */
+  onLeverage?: () => void;
   watchPending?: boolean;
 }) {
   const [quote, setQuote] = useState<Quote | undefined>(liveQuote);
@@ -194,6 +197,18 @@ export default function SymbolPanel({
           {watchPending ? "…" : inWatchlist ? "★ In watchlist" : "☆ Add to watchlist"}
         </button>
       </div>
+
+      {/* Leverage and shorting sit behind the research rather than on the page:
+          it is the riskiest thing here, so it is reached after reading, not
+          before. */}
+      {onLeverage && (
+        <button
+          onClick={onLeverage}
+          className="mt-2 w-full rounded-lg border border-border px-5 py-2 text-sm font-medium text-muted transition hover:bg-background hover:text-foreground"
+        >
+          Open a long / short position with leverage
+        </button>
+      )}
     </div>
   );
 }

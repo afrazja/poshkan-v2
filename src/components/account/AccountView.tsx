@@ -10,7 +10,7 @@ import ForexPerformance from "./ForexPerformance";
 import ScannerIcon from "@/components/ScannerIcon";
 import EquitySpark from "./EquitySpark";
 import { TextSkeleton } from "@/components/Skeleton";
-import LeveragePanel from "./LeveragePanel";
+import LeveragePanel, { OpenModal as LeverageTicket } from "./LeveragePanel";
 import Showcase from "./Showcase";
 import TradeCoach from "./TradeCoach";
 import MarketStatusBadge from "./MarketStatusBadge";
@@ -85,6 +85,8 @@ export default function AccountView({
   // Insights reads the portfolio as a whole, so it belongs to the summary at
   // the top rather than sitting behind a tab beside the tables.
   const [insightsOpen, setInsightsOpen] = useState(false);
+  // The leveraged ticket, opened from a symbol rather than from a panel.
+  const [leverageFor, setLeverageFor] = useState<{ symbol: string; name: string } | null>(null);
   // Nothing owned yet means nothing to show on Holdings, so a new stock
   // account opens on Ideas. Computed from props, so the server and the first
   // client render agree.
@@ -520,6 +522,7 @@ export default function AccountView({
             onBuy={() => setTrade({ side: "BUY", symbol: selected.symbol, fromPanel: true })}
             onSell={() => setTrade({ side: "SELL", symbol: selected.symbol, fromPanel: true })}
             onToggleWatch={() => toggleWatch(selected.symbol)}
+            onLeverage={isForex ? undefined : () => setLeverageFor(selected)}
             watchPending={watchBusy === selected.symbol}
           />
         </Modal>
@@ -555,8 +558,6 @@ export default function AccountView({
           quotes={quotes}
         />
       )}
-
-      <TradeCoach positions={fxPositions} cash={cash} />
 
       {/* Pending limit orders */}
       {orders.length > 0 && (
@@ -722,6 +723,16 @@ export default function AccountView({
           maxShares={heldFor(trade.symbol)}
           showChart={!trade.fromPanel}
           onClose={() => setTrade(null)}
+        />
+      )}
+      {leverageFor && (
+        <LeverageTicket
+          accountId={account.id}
+          accountType={account.type}
+          cash={cash}
+          unit={account.type === "crypto" ? "coins" : "shares"}
+          initialSymbol={leverageFor}
+          onClose={() => setLeverageFor(null)}
         />
       )}
       {cashModal && (

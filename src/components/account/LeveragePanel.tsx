@@ -207,21 +207,26 @@ export default function LeveragePanel({
 }
 
 // ---------------------------------------------------------------------------
-function OpenModal({
+// Exported so the symbol panel can open this ticket directly for the symbol
+// already on screen, without the leveraged panel existing on the page at all.
+export function OpenModal({
   accountId,
   accountType,
   cash,
   unit,
+  initialSymbol = null,
   onClose,
 }: {
   accountId: string;
   accountType: string;
   cash: number;
   unit: string;
+  /** Skip the search step when the caller already knows the symbol. */
+  initialSymbol?: { symbol: string; name: string } | null;
   onClose: () => void;
 }) {
   const router = useRouter();
-  const [symbol, setSymbol] = useState<{ symbol: string; name: string } | null>(null);
+  const [symbol, setSymbol] = useState<{ symbol: string; name: string } | null>(initialSymbol);
   const [price, setPrice] = useState<number | null>(null);
   const [direction, setDirection] = useState<"LONG" | "SHORT">("LONG");
   const [lev, setLev] = useState<number>(1);
