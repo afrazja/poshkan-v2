@@ -45,7 +45,7 @@ import {
 } from "@/app/dashboard/[accountId]/actions";
 import { formatNumber } from "@/lib/format";
 
-type Tab = "ideas" | "holdings" | "watchlist" | "history" | "insights";
+type Tab = "ideas" | "holdings" | "watchlist" | "history";
 
 export default function AccountView({
   account,
@@ -82,6 +82,9 @@ export default function AccountView({
   >(null);
   const aiActive = !!autoSettings?.enabled;
   const [metricChart, setMetricChart] = useState<"holdings" | "pnl" | null>(null);
+  // Insights reads the portfolio as a whole, so it belongs to the summary at
+  // the top rather than sitting behind a tab beside the tables.
+  const [insightsOpen, setInsightsOpen] = useState(false);
   // Nothing owned yet means nothing to show on Holdings, so a new stock
   // account opens on Ideas. Computed from props, so the server and the first
   // client render agree.
@@ -92,13 +95,7 @@ export default function AccountView({
   // Restore the last tab the user had open on this account.
   useEffect(() => {
     const saved = localStorage.getItem(`poshkan-tab-${account.id}`);
-    if (
-      saved === "ideas" ||
-      saved === "holdings" ||
-      saved === "watchlist" ||
-      saved === "history" ||
-      saved === "insights"
-    ) {
+    if (saved === "ideas" || saved === "holdings" || saved === "watchlist" || saved === "history") {
       setTab(saved);
     }
   }, [account.id]);
@@ -142,9 +139,9 @@ export default function AccountView({
     orders.forEach((o) => s.add(o.symbol.toUpperCase()));
     fxPositions.filter((p) => p.status === "open").forEach((p) => s.add(p.symbol.toUpperCase()));
     if (selected) s.add(selected.symbol.toUpperCase());
-    if (tab === "insights") s.add("SPY"); // benchmark
+    if (insightsOpen) s.add("SPY"); // benchmark
     return Array.from(s);
-  }, [positions, watchlist, orders, selected, tab, isForex, fxPositions]);
+  }, [positions, watchlist, orders, selected, insightsOpen, isForex, fxPositions]);
 
   const { data: quotes = {}, isPending: quotesPending } = useQuotes(symbols);
   // Row sparklines for holdings + watchlist (skip on forex — pairs use the panel).
@@ -437,6 +434,39 @@ export default function AccountView({
             </>
           )}
         </div>
+
+        {/* Insights reads the whole portfolio — how concentrated it is, what it
+            is really a bet on — so it belongs to this summary rather than to a
+            tab sitting beside the tables, where nobody found it. */}
+        {!isForex && positions.length > 0 && (
+          <div className="mt-5 border-t border-border pt-3">
+            <button
+              type="button"
+              onClick={() => setInsightsOpen((v) => !v)}
+              aria-expanded={insightsOpen}
+              className="flex w-full items-center justify-between gap-2 text-sm font-medium text-muted transition hover:text-foreground"
+            >
+              <span>
+                Insights <span className="font-normal">· what this portfolio is really made of</span>
+              </span>
+              <span aria-hidden className="text-xs">
+                {insightsOpen ? "▴ Hide" : "▾ Show"}
+              </span>
+            </button>
+            {insightsOpen && (
+              <div className="mt-4">
+                <InsightsTab
+                  accountId={account.id}
+                  positions={positions}
+                  quotes={quotes}
+                  cash={cash}
+                  todayPnlPct={todayPnlPct}
+                  onSelect={(symbol) => selectSymbol(symbol)}
+                />
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Forex accounts: two columns on desktop — pair picker + positions in the
@@ -592,7 +622,6 @@ export default function AccountView({
                 { key: "holdings", label: "Holdings", count: positions.length },
                 { key: "watchlist", label: "Watchlist", count: watchlist.length },
                 { key: "history", label: "History", count: transactions.length },
-                { key: "insights", label: "Insights" },
               ] as { key: Tab; label: string; count?: number; phoneOnly?: boolean }[]
             ).map((t) => (
               <button
@@ -615,7 +644,7 @@ export default function AccountView({
           </div>
 
           {/* Small filter for the current table (not on Insights) */}
-          {tab !== "insights" && tab !== "ideas" && (
+          {tab !== "ideas" && (
             <div className="flex items-center gap-2">
               {exportableRows > 0 && (
                 <button
@@ -687,16 +716,6 @@ export default function AccountView({
           />
         )}
 
-        {tab === "insights" && (
-          <InsightsTab
-            accountId={account.id}
-            positions={positions}
-            quotes={quotes}
-            cash={cash}
-            todayPnlPct={todayPnlPct}
-            onSelect={(symbol) => selectSymbol(symbol)}
-          />
-        )}
       </section>
         </div>
       </div>

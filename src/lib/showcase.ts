@@ -39,6 +39,15 @@ export interface Shelf {
 let cache: { at: number; shelves: Shelf[] } | null = null;
 let inflight: Promise<Shelf[]> | null = null;
 
+// Money traded, at the scale people say it out loud: $35.0B, $412M.
+function usd(v: number): string {
+  if (!(v > 0)) return "$0";
+  if (v >= 1e12) return `$${(v / 1e12).toFixed(1)}T`;
+  if (v >= 1e9) return `$${(v / 1e9).toFixed(1)}B`;
+  if (v >= 1e6) return `$${(v / 1e6).toFixed(0)}M`;
+  return `$${Math.round(v / 1e3)}K`;
+}
+
 function rangePosition(price: number, low?: number, high?: number): number | null {
   if (low == null || high == null || !(high > low) || !(price > 0)) return null;
   return ((price - low) / (high - low)) * 100;
@@ -128,7 +137,15 @@ export async function getStockShowcase(): Promise<Shelf[]> {
         key: "traded",
         label: "Most traded today",
         blurb: "Where the money went today, by dollars changing hands — not share count.",
-        rows: [...traded].sort((a, b) => (b.volume ?? 0) * b.price - (a.volume ?? 0) * a.price).slice(0, ROWS),
+        // This shelf is about size of flow, so lead the note with the figure
+        // that ranked it rather than making the reader take it on trust.
+        rows: [...traded]
+          .sort((a, b) => (b.volume ?? 0) * b.price - (a.volume ?? 0) * a.price)
+          .slice(0, ROWS)
+          .map((r) => ({
+            ...r,
+            note: `${usd((r.volume ?? 0) * r.price)} traded${r.note ? ` · ${r.note}` : ""}`,
+          })),
       },
     ];
 
