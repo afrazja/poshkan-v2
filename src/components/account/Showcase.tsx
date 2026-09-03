@@ -51,8 +51,8 @@ export default function Showcase({
     <div className="rounded-2xl border border-border bg-card p-4">
       <h2 className="text-sm font-semibold">Ideas to look at</h2>
       <p className="mt-0.5 text-xs text-muted">
-        {type === "crypto" ? "The largest coins by value." : "Live from the largest US companies."} Nothing
-        here is a recommendation.
+        {type === "crypto" ? "The largest coins by value." : "Live US market data."} Each shelf says what it
+        is drawn from. Nothing here is a recommendation.
       </p>
 
       {!shelves ? (
