@@ -4,7 +4,14 @@ import { useEffect, useState } from "react";
 import { formatPercent, changeColor } from "@/lib/format";
 import AreaChart, { type ChartPoint } from "./AreaChart";
 
-const RANGES = ["1W", "1M", "3M", "6M", "1Y"] as const;
+const RANGES = [
+  { key: "1W", days: 7 },
+  { key: "1M", days: 30 },
+  { key: "3M", days: 90 },
+  { key: "6M", days: 180 },
+  { key: "1Y", days: 365 },
+] as const;
+type RangeKey = (typeof RANGES)[number]["key"];
 
 interface PerfPoint {
   date: string;
@@ -14,16 +21,22 @@ interface PerfPoint {
 
 // True performance history (% return) from daily snapshots vs the S&P 500.
 export default function PerformanceCard({ accountId }: { accountId: string }) {
-  const [range, setRange] = useState<(typeof RANGES)[number]>("3M");
+  const [range, setRange] = useState<RangeKey>("1M");
   const [points, setPoints] = useState<PerfPoint[]>([]);
+  const [since, setSince] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [pickedRange, setPickedRange] = useState(false);
 
   useEffect(() => {
     let active = true;
     setLoading(true);
     fetch(`/api/performance?accountId=${encodeURIComponent(accountId)}&range=${range}`)
       .then((r) => r.json())
-      .then((j) => active && setPoints(j.points ?? []))
+      .then((j) => {
+        if (!active) return;
+        setPoints(j.points ?? []);
+        setSince(j.since ?? null);
+      })
       .catch(() => active && setPoints([]))
       .finally(() => active && setLoading(false));
     return () => {
@@ -34,6 +47,24 @@ export default function PerformanceCard({ accountId }: { accountId: string }) {
   const portfolio: ChartPoint[] = points.map((p) => ({ label: p.date, value: p.portfolio }));
   const spy: ChartPoint[] = points.map((p) => ({ label: p.date, value: p.spy ?? NaN }));
   const last = points[points.length - 1];
+
+  // How much history exists at all. A range longer than this would draw the
+  // same short window under a longer name — which is how a two-week chart ends
+  // up labelled 1Y and disagreeing with every other site on the internet.
+  const daysOfHistory = since
+    ? Math.max(1, Math.round((Date.now() - Date.parse(`${since}T00:00:00Z`)) / 86_400_000))
+    : 0;
+  // Offer every range the data fills, plus the first one it doesn't, so the
+  // whole history is always reachable from a single button.
+  const lastEnabled = Math.max(0, RANGES.findIndex((r) => r.days >= daysOfHistory));
+  const enabled = (i: number) => !since || i <= lastEnabled;
+
+  // Land on the longest range that actually holds data, until the user picks.
+  useEffect(() => {
+    if (pickedRange || !since) return;
+    const best = RANGES[lastEnabled]?.key;
+    if (best && best !== range) setRange(best);
+  }, [since, lastEnabled, pickedRange, range]);
 
   return (
     <div className="rounded-2xl border border-border bg-card p-5">
@@ -56,19 +87,40 @@ export default function PerformanceCard({ accountId }: { accountId: string }) {
           </div>
         </div>
         <div className="flex gap-1">
-          {RANGES.map((r) => (
-            <button
-              key={r}
-              onClick={() => setRange(r)}
-              className={`rounded px-2 py-0.5 text-xs ${
-                r === range ? "bg-primary text-primary-foreground" : "text-muted hover:bg-background"
-              }`}
-            >
-              {r}
-            </button>
-          ))}
+          {RANGES.map((r, i) => {
+            const on = enabled(i);
+            return (
+              <button
+                key={r.key}
+                disabled={!on}
+                title={on ? undefined : `Only ${daysOfHistory} days of history so far`}
+                onClick={() => {
+                  setPickedRange(true);
+                  setRange(r.key);
+                }}
+                className={`rounded px-2 py-0.5 text-xs ${
+                  r.key === range
+                    ? "bg-primary text-primary-foreground"
+                    : on
+                      ? "text-muted hover:bg-background"
+                      : "cursor-not-allowed text-muted/35"
+                }`}
+              >
+                {r.key}
+              </button>
+            );
+          })}
         </div>
       </div>
+
+      {/* Say what the axis actually covers, so it can never be mistaken for a
+          longer window than the account has lived through. */}
+      {since && points.length >= 2 && (
+        <p className="mb-2 text-[11px] text-muted">
+          {daysOfHistory} days of history · since {new Date(`${since}T00:00:00Z`).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+          {lastEnabled < RANGES.length - 1 && " · longer ranges unlock as the days accumulate"}
+        </p>
+      )}
 
       {loading ? (
         <div className="flex h-[200px] items-center justify-center text-xs text-muted">Loading…</div>

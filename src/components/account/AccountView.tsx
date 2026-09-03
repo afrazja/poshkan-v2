@@ -139,7 +139,7 @@ export default function AccountView({
     orders.forEach((o) => s.add(o.symbol.toUpperCase()));
     fxPositions.filter((p) => p.status === "open").forEach((p) => s.add(p.symbol.toUpperCase()));
     if (selected) s.add(selected.symbol.toUpperCase());
-    if (insightsOpen) s.add("SPY"); // benchmark
+    if (insightsOpen) s.add("^GSPC"); // benchmark: the S&P 500 itself, not SPY
     return Array.from(s);
   }, [positions, watchlist, orders, selected, insightsOpen, isForex, fxPositions]);
 

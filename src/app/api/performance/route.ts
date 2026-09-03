@@ -4,7 +4,7 @@ import { getTimeSeries } from "@/lib/marketdata";
 
 const RANGES: Record<string, number> = { "1W": 8, "1M": 31, "3M": 93, "6M": 186, "1Y": 366 };
 
-// Portfolio performance from daily snapshots, with the S&P 500 (SPY) over the
+// Portfolio performance from daily snapshots, with the S&P 500 over the
 // same dates as a benchmark. The portfolio line is a TIME-WEIGHTED return:
 // each day's return excludes external cash flows (deposits, opening balances,
 // resets), then the daily returns compound — so adding virtual cash doesn't
@@ -30,7 +30,18 @@ export async function GET(request: Request) {
     .order("snapshot_date", { ascending: true });
 
   const rows = (snaps ?? []) as { snapshot_date: string; total_value: number }[];
-  if (rows.length < 2) return NextResponse.json({ points: [], snapshots: rows.length });
+
+  // The earliest snapshot for the whole account, ignoring the range window: a
+  // "1Y" button that silently draws eighteen days is worse than no button.
+  const { data: firstRow } = await supabase
+    .from("account_snapshots")
+    .select("snapshot_date")
+    .eq("account_id", accountId)
+    .order("snapshot_date", { ascending: true })
+    .limit(1);
+  const since = (firstRow?.[0] as { snapshot_date: string } | undefined)?.snapshot_date ?? null;
+
+  if (rows.length < 2) return NextResponse.json({ points: [], snapshots: rows.length, since });
 
   // External cash flows after the first snapshot — money moving in/out that
   // must not count as gain or loss.
@@ -49,9 +60,12 @@ export async function GET(request: Request) {
         : Number(f.cash_delta),
   }));
 
+  // ^GSPC is the S&P 500 itself — the series Google and every finance site
+  // quote. SPY tracks it but steps down on ex-dividend dates, which left our
+  // line permanently a fraction adrift from the number people check against.
   let spyCloses: { datetime: string; close: number }[] = [];
   try {
-    spyCloses = await getTimeSeries("SPY", "1day", days + 10);
+    spyCloses = await getTimeSeries("^GSPC", "1day", days + 10);
   } catch {
     // benchmark unavailable — still return the portfolio line
   }
@@ -93,5 +107,5 @@ export async function GET(request: Request) {
     });
   }
 
-  return NextResponse.json({ points, snapshots: rows.length });
+  return NextResponse.json({ points, snapshots: rows.length, since });
 }

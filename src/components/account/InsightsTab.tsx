@@ -75,7 +75,7 @@ export default function InsightsTab({
   const best = byPerf.slice(0, 3);
   const worst = byPerf.slice(-3).reverse().filter((r) => !best.includes(r));
 
-  const spy = quotes["SPY"];
+  const spy = quotes["^GSPC"];
 
   return (
     <div className="space-y-4">
@@ -175,7 +175,7 @@ export default function InsightsTab({
           <h3 className="mb-3 text-sm font-semibold">Today vs S&P 500</h3>
           <div className="space-y-3">
             <Bench label="Your portfolio" pct={todayPnlPct} />
-            <Bench label="S&P 500 (SPY)" pct={spy?.percentChange} />
+            <Bench label="S&P 500" pct={spy?.percentChange} />
           </div>
           <p className="mt-3 text-xs text-muted">
             Today&apos;s move of your holdings versus the broad market.
