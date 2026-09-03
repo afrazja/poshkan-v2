@@ -4,7 +4,7 @@ import { Inter } from "next/font/google";
 import { redirect } from "next/navigation";
 import RecoveryRedirect from "@/components/auth/RecoveryRedirect";
 import ContactForm from "@/components/landing/ContactForm";
-import { BTN_PRIMARY, BTN_SECONDARY, FADE_RULE, SHADOW_MD } from "@/components/landing/lp";
+import { BTN_PRIMARY, FADE_RULE, SHADOW_MD } from "@/components/landing/lp";
 
 // Nocturne landing design — Inter throughout, 400 body / 500 headings.
 const inter = Inter({ subsets: ["latin"], weight: ["400", "500"], display: "swap" });
@@ -199,12 +199,10 @@ export default async function LandingPage({
             mechanics, virtual money — and, before you buy anything, the context that says what the
             price in front of you actually means.
           </p>
+          {/* One action here. The public symbol pages are linked from the section that explains them. */}
           <div className="flex flex-wrap items-center gap-3">
             <a href="/signup" className={`${BTN_PRIMARY} px-[22px] py-3 text-[15px]`}>
               Create a free account
-            </a>
-            <a href="/symbol/NVDA" className={`${BTN_SECONDARY} px-[22px] py-3 text-[15px]`}>
-              See it for NVDA
             </a>
           </div>
           <p className="mt-5 text-[13.5px] leading-[22px] text-[#e9e9ed9e]">
