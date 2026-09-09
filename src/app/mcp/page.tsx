@@ -38,10 +38,11 @@ const TOOLS: { group: string; items: { name: string; desc: string }[] }[] = [
     ],
   },
   {
-    group: "Leveraged forex",
+    group: "Leveraged positions",
     items: [
+      { name: "open_crypto_position", desc: "Guarded crypto long/short at 1–2×: mandatory stop/target, at least 3:1 planned reward/risk, max 0.5% cash risk, one position, and a timed exit. Supports dry runs." },
       { name: "open_forex_position", desc: "Open a leveraged long/short with optional stop-loss, take-profit, and timed auto-close." },
-      { name: "list_forex_positions", desc: "Open positions with live rates, floating P&L, margin, and SL/TP." },
+      { name: "list_forex_positions", desc: "Leveraged positions across markets with margin, SL/TP and deadlines, or recent closed positions with realized P&L." },
       { name: "close_forex_position", desc: "Close a position at the live rate and bank the P&L." },
       { name: "place_forex_entry_order", desc: "Pending entry that triggers when the rate hits your level — buy pullbacks, sell rallies." },
       { name: "list_forex_orders", desc: "Pending entry orders with triggers and expiry." },
@@ -185,7 +186,7 @@ export default function McpPage() {
             <code className="rounded bg-card px-1">?key=pk_…</code>. Nothing to install.
           </p>
 
-          <h2 className="pt-4 text-lg font-bold text-foreground">The 15 tools</h2>
+          <h2 className="pt-4 text-lg font-bold text-foreground">The {TOOLS.reduce((count, group) => count + group.items.length, 0)} tools</h2>
           {TOOLS.map((g) => (
             <div key={g.group}>
               <h3 className="mb-2 mt-4 font-semibold text-foreground">{g.group}</h3>

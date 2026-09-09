@@ -327,6 +327,57 @@ function buildHandler(userId: string) {
       );
 
       server.tool(
+        "open_crypto_position",
+        "Open a guarded crypto LONG or SHORT with 1x or 2x leverage (default 2x), mandatory stop-loss and take-profit, and an atomic timed exit (default 72 hours, maximum 6 days). Enforces planned stop risk <= 0.5% of available cash, margin <= 25%, reward/risk >= 3, and one leveraged position with no pending entries. Never buys spot. Set dry_run=true to validate without opening. Requires mcp-crypto-risk.sql; missing support returns an error without opening a position.",
+        {
+          account_id: z.string().uuid(),
+          symbol: z.string().regex(/^[A-Za-z0-9]+-USD$/i),
+          direction: z.enum(["LONG", "SHORT"]),
+          units: z.number().positive(),
+          leverage: z.union([z.literal(1), z.literal(2)]).default(2),
+          stop_loss: z.number().positive(),
+          take_profit: z.number().positive(),
+          auto_close_minutes: z.number().int().min(1).max(8640).default(4320),
+          dry_run: z.boolean().default(false),
+        },
+        async ({ account_id, symbol, direction, units, leverage, stop_loss, take_profit, auto_close_minutes, dry_run }) => {
+          const account = await ownAccount(account_id);
+          if (!account || account.type !== "crypto") return err("Crypto account not found");
+          let rate: number;
+          try {
+            const quote = await getQuote(symbol);
+            const age = quote.asOf ? Date.now() - new Date(quote.asOf).getTime() : NaN;
+            if (quote.stale || !Number.isFinite(age) || age < -60_000 || age > 300_000) {
+              return err("A fresh crypto quote is required");
+            }
+            rate = quote.price;
+            if (!Number.isFinite(rate) || rate <= 0) return err("Could not get a valid price");
+          } catch (e) {
+            return err(`Price fetch failed: ${(e as Error).message}`);
+          }
+          const { data, error } = await db.rpc("mcp_open_crypto_position", {
+            p_account_id: account_id,
+            p_symbol: symbol.toUpperCase(),
+            p_direction: direction,
+            p_units: units,
+            p_rate: rate,
+            p_leverage: leverage,
+            p_stop_loss: stop_loss,
+            p_take_profit: take_profit,
+            p_auto_close_minutes: auto_close_minutes,
+            p_dry_run: dry_run,
+          });
+          if (error) {
+            if (error.code === "PGRST202" || error.code === "42883") {
+              return err("Guarded crypto trading is unavailable. Apply supabase/mcp-crypto-risk.sql before opening positions.");
+            }
+            return err(error.message);
+          }
+          return ok(data);
+        }
+      );
+
+      server.tool(
         "open_forex_position",
         "Open a leveraged forex position at the live rate on a FOREX account. symbol is a pair like EURUSD=X. units = position size (10000 = 1 mini lot). Optional stop_loss / take_profit prices, and auto_close_minutes for a timed exit. Margin is reserved from cash using the account's leverage.",
         {
@@ -392,34 +443,44 @@ function buildHandler(userId: string) {
 
       server.tool(
         "list_forex_positions",
-        "List open forex positions on a forex account, with live rate, floating P&L (USD), margin, SL/TP, and any auto-close time.",
-        { account_id: z.string().uuid() },
-        async ({ account_id }) => {
+        "List leveraged positions on any market account. Defaults to open positions; status=closed returns recent settled positions for loss tracking. Includes symbol, actual margin, SL/TP, opened/closed times, realized P&L and auto-close deadline.",
+        { account_id: z.string().uuid(), status: z.enum(["open", "closed"]).default("open") },
+        async ({ account_id, status }) => {
           const account = await ownAccount(account_id);
           if (!account) return err("Account not found");
-          const { data: positions } = await db
+          let query = db
             .from("fx_positions")
-            .select("id, symbol, direction, units, open_rate, margin, stop_loss, take_profit, auto_close_at")
-            .eq("account_id", account_id)
-            .eq("status", "open");
+            .select("id, symbol, direction, units, open_rate, margin, stop_loss, take_profit, auto_close_at, status, opened_at, closed_at, close_rate, pnl")
+            .eq("account_id", account_id);
+          query = status === "open" ? query.eq("status", "open") : query.neq("status", "open");
+          const { data: positions, error } = await query
+            .order(status === "open" ? "opened_at" : "closed_at", { ascending: false })
+            .limit(100);
+          if (error) return err(error.message);
           if (!positions?.length) return ok([]);
           const symbols = Array.from(new Set(positions.map((p) => p.symbol.toUpperCase())));
-          const quotes = await getQuotes(symbols);
+          const quotes = status === "open" ? await getQuotes(symbols) : {};
           return ok(
             positions.map((p) => {
               const q = quotes[p.symbol.toUpperCase()];
-              const rate = q?.price;
+              const rate = status === "open" ? q?.price : p.close_rate;
               const fl = rate
                 ? floatingPnl(p.direction as "LONG" | "SHORT", Number(p.units), Number(p.open_rate), rate, p.symbol)
                 : null;
               return {
                 position_id: p.id,
+                symbol: p.symbol,
                 pair: pairName(p.symbol),
+                status: p.status,
+                opened_at: p.opened_at,
+                closed_at: p.closed_at,
+                close_rate: p.close_rate,
+                realized_pnl: p.pnl == null ? null : Number(p.pnl),
                 direction: p.direction,
                 units: Number(p.units),
                 open_rate: Number(p.open_rate),
                 current_rate: rate ?? null,
-                floating_pnl: fl != null ? +fl.toFixed(2) : null,
+                floating_pnl: status === "open" && fl != null ? +fl.toFixed(2) : null,
                 margin: Number(p.margin),
                 stop_loss: p.stop_loss,
                 take_profit: p.take_profit,

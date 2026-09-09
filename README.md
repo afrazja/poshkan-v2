@@ -143,6 +143,7 @@ Then apply the remaining scripts in the order below, left to right within each r
 | 6 | `scanner-auto-close.sql` → `scanner-position-cap.sql` → `per-trade-leverage.sql` | Holding limits, position caps, and per-trade leverage. |
 | 7 | `custom-strategies.sql` | Current Strategy Lab configurations, backtests, and signals. |
 | 8 | `notifications.sql` → `account-notify.sql` → `scans.sql` | Notification center, account notification preferences, and public daily scans. |
+| 9 | `mcp-crypto-risk.sql` | Guarded MCP crypto entries: 1–2× leverage, atomic stops/targets/deadline, position and risk caps, fractional crypto units. |
 
 The legacy scanner tables are included because `scanner-position-cap.sql` and
 `per-trade-leverage.sql` alter them **and** add fields used by current features. Applying those
@@ -229,6 +230,16 @@ The dialog provides connection details; tokens are shown once, stored as hashes,
 The server scopes tools to the token owner's accounts. It supports account/holding reads,
 quotes, price history and indicators, symbol search, transactions, spot trades, and limit orders.
 Dedicated forex tools open/list/close positions and place/list/cancel pending entry orders.
+`open_crypto_position` opens leveraged crypto longs/shorts with mandatory SL/TP, 1–2× leverage,
+at most 0.5% of free cash in planned stop risk, at most 25% in margin, at least 3:1 planned
+reward/risk, and a timed exit within six days (72 hours by default). `dry_run: true` validates
+without trading. The account may have only one open leveraged position and no pending leveraged
+entries. The SQL RPC locks the account and saves the brackets/deadline with the position.
+Apply `mcp-crypto-risk.sql` before using this tool: it returns an unavailable error if the RPC
+is missing and never falls back to the legacy `fx_open` RPC's fixed 30× margin calculation.
+`list_forex_positions` reads leveraged positions across markets; `status: "closed"` returns
+recent settled positions for realized-loss tracking. Timed and bracket exits depend on the
+market-check worker running with available market data; they are not guaranteed execution times.
 
 ## Development reference
 
