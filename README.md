@@ -144,6 +144,7 @@ Then apply the remaining scripts in the order below, left to right within each r
 | 7 | `custom-strategies.sql` | Current Strategy Lab configurations, backtests, and signals. |
 | 8 | `notifications.sql` → `account-notify.sql` → `scans.sql` | Notification center, account notification preferences, and public daily scans. |
 | 9 | `mcp-crypto-risk.sql` | Guarded MCP crypto entries: 1–2× leverage, atomic stops/targets/deadline, position and risk caps, fractional crypto units. |
+| 10 | `crypto-cloud-monitor.sql` | Durable cloud scan claims and atomic trade receipts. Requires `mcp-crypto-risk.sql`. |
 
 The legacy scanner tables are included because `scanner-position-cap.sql` and
 `per-trade-leverage.sql` alter them **and** add fields used by current features. Applying those
@@ -242,6 +243,38 @@ recent settled positions for realized-loss tracking. Timed and bracket exits dep
 market-check worker running with available market data; they are not guaranteed execution times.
 
 ## Development reference
+
+### Crypto monitoring while your computer is off
+
+`.github/workflows/crypto-cloud-monitor.yml` calls `POST /api/cron/crypto-monitor` on
+GitHub-hosted runners twice per hour. This runs independently of Codex and your PC.
+GitHub schedules are best-effort and may be delayed or dropped; this is not an exact
+30-minute or guaranteed stop-execution service. The existing market-check worker also
+handles stored brackets and timed exits.
+
+Apply `supabase/mcp-crypto-risk.sql`, then `supabase/crypto-cloud-monitor.sql`. Set repository
+variable `CRYPTO_MONITOR_ACCOUNT_ID` to the chosen crypto account UUID and
+`CRYPTO_MONITOR_ENABLED` to `true`; the workflow uses the existing `CRON_SECRET` repository
+secret. Set the variable to `false` to stop this workflow, or disable it in GitHub Actions.
+The global `AUTO_TRADE_ENABLED=false` server setting blocks new entries while the worker
+continues checking exits. Turn off the account's legacy AI auto-trading to avoid two bots.
+
+The cloud analyst uses the account owner's Claude API key saved in Poshkan and the app's
+existing Opus 4.8 model. API usage is billed to that key, separately from any Codex subscription;
+there is no operator-key fallback. Missing keys/migrations block entries and are reported in
+the workflow summary. `status` checks prerequisites without trading, `preview` analyzes without
+trading, and `run` may open a qualifying paper position. No mode forces a test trade.
+
+Only BTC, ETH and SOL leveraged longs/shorts are considered. Closed 15-minute/hourly/daily
+candles drive the analysis. Server checks enforce 2× leverage, at most 0.5% available-cash
+planned stop risk, at most 25% cash margin, at least 3:1 planned reward/risk, one leveraged
+position, mandatory SL/TP and a 72-hour deadline. Existing spot holdings are preserved.
+The database claims each account's 30-minute scan once and commits the trade receipt with
+the cash mutation, so retries return the original receipt. Receipts and analysis live in
+the owner-readable `crypto_monitor_runs` table. Entry/exit and new actionable failure notices
+use Poshkan's existing notification center and configured push subscriptions.
+
+Run policy checks with `node --experimental-strip-types --test scripts/crypto-monitor-policy.test.mjs`.
 
 | Location | Responsibility |
 | --- | --- |

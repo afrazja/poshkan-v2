@@ -1,0 +1,59 @@
+name: Crypto cloud monitor
+
+on:
+  schedule:
+    - cron: '17,47 * * * *'
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Status checks prerequisites; preview analyzes without trading; run manages paper positions and may enter a qualifying setup.'
+        type: choice
+        options: [status, preview, run]
+        default: status
+
+permissions:
+  contents: read
+concurrency:
+  group: crypto-cloud-monitor
+  cancel-in-progress: false
+
+jobs:
+  monitor:
+    if: vars.CRYPTO_MONITOR_ENABLED == 'true' || (github.event_name == 'workflow_dispatch' && inputs.mode != 'run')
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Run hosted paper crypto monitor
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          ACCOUNT_ID: ${{ vars.CRYPTO_MONITOR_ACCOUNT_ID }}
+          REQUEST_MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || 'run' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CRON_SECRET" || { echo '::error::Missing CRON_SECRET'; exit 1; }
+          [[ "$ACCOUNT_ID" =~ ^[0-9a-fA-F-]{36}$ ]] || { echo '::error::Missing or invalid CRYPTO_MONITOR_ACCOUNT_ID'; exit 1; }
+          request=$(jq -nc --arg account_id "$ACCOUNT_ID" --arg mode "$REQUEST_MODE" '{account_id:$account_id,mode:$mode}')
+          # No retries on a mutation; the database keeps an atomic run receipt.
+          code=$(curl -sS --connect-timeout 10 --max-time 75 -o response.json -w '%{http_code}' \
+            -X POST 'https://www.poshkan.com/api/cron/crypto-monitor' \
+            -H "Authorization: Bearer $CRON_SECRET" -H 'Content-Type: application/json' --data "$request")
+          if [ "$code" != '200' ]; then
+            echo "::error::Cloud monitor returned HTTP $code; inspect account state before retrying"
+            exit 1
+          fi
+          # Detailed trading records stay in Supabase; do not publish balances,
+          # position IDs, credentials or private analysis in public workflow logs.
+          jq '{status,scanned_at,blockers,markets_checked:[.quotes[]?.symbol]}' response.json
+          status=$(jq -r '.status' response.json)
+          {
+            echo '### Poshkan paper crypto monitor'
+            echo "Result: **$status**"
+            echo 'Cloud schedule: every 30 minutes; GitHub scheduling is best-effort.'
+            jq -r '.blockers[]? | "- " + .' response.json
+            echo 'Trade receipts and analysis are stored privately in Supabase; trade notifications appear in Poshkan.'
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ "$status" = 'failed' ]; then
+            echo '::error::The monitor needs attention; inspect its private scan history and account state'
+            exit 1
+          fi
