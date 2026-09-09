@@ -38,26 +38,16 @@ export default async function DashboardPage() {
     .select("*")
     .order("created_at", { ascending: false });
 
-  // Getting-started checklist flags (each query is a cheap existence check).
+  // Check trade existence independently of the ledger's row limit. Opening
+  // balances and deposits do not count as trades; leveraged positions do.
   const { data: anyTrade } = await supabase
     .from("transactions")
     .select("id")
     .in("side", ["BUY", "SELL"])
     .limit(1);
-  // Anything actually running: a live custom strategy, or the AI scanner flag
-  // on the account itself (RLS scopes both to the owner).
-  const { data: liveStrategies } = await supabase
-    .from("custom_strategies")
-    .select("id")
-    .eq("status", "live")
-    .limit(1);
   const checks = {
     hasAccount: (accounts?.length ?? 0) > 0,
-    hasTrade: (anyTrade?.length ?? 0) > 0,
-    hasScanner:
-      (liveStrategies?.length ?? 0) > 0 ||
-      ((accounts ?? []) as Array<{ auto_trade_enabled?: boolean | null }>).some((a) => !!a.auto_trade_enabled),
-    hasAlert: (alerts?.length ?? 0) > 0,
+    hasTrade: (anyTrade?.length ?? 0) > 0 || (fxAll?.length ?? 0) > 0,
   };
 
   // Live market value per account (batched quotes, server-side cache).
@@ -147,6 +137,7 @@ export default async function DashboardPage() {
   // them. "Cash available" is the money NOT in the market — the dollar figure
   // and its share of the portfolio, not the deployed inverse.
   const accountRows = (accounts ?? []) as Account[];
+  const starterAccount = accountRows.find((account) => account.type === "stocks") ?? accountRows[0];
   const band = accountRows.reduce(
     (b, a) => {
       const s = summary[a.id];
@@ -204,7 +195,9 @@ export default async function DashboardPage() {
           Each account is an independent paper-trading portfolio.
         </p>
       </div>
-      {checks.hasAccount ? <GettingStarted checks={checks} /> : <WelcomeHero />}
+      {starterAccount ? (
+        <GettingStarted key={starterAccount.user_id} checks={checks} userId={starterAccount.user_id} accountId={starterAccount.id} />
+      ) : <WelcomeHero />}
       <AlertsCard alerts={(alerts ?? []) as Alert[]} />
       <AccountsGrid
         accounts={accountRows}

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Wallet, FlaskConical, History, Trophy } from "lucide-react";
+import { Wallet, SlidersHorizontal, History, Trophy } from "lucide-react";
 
 const items = [
   {
@@ -13,14 +13,15 @@ const items = [
       p === "/dashboard" ||
       (p.startsWith("/dashboard/") &&
         !p.startsWith("/dashboard/scanners") &&
+        !p.startsWith("/dashboard/advanced") &&
         !p.startsWith("/dashboard/leaderboard") &&
         !p.startsWith("/dashboard/history")),
   },
   {
-    href: "/dashboard/scanners",
-    label: "Lab",
-    Icon: FlaskConical,
-    match: (p: string) => p.startsWith("/dashboard/scanners"),
+    href: "/dashboard/advanced",
+    label: "Advanced",
+    Icon: SlidersHorizontal,
+    match: (p: string) => p.startsWith("/dashboard/advanced") || p.startsWith("/dashboard/scanners"),
   },
   {
     href: "/dashboard/history",
@@ -50,6 +51,7 @@ export default function BottomNav() {
           <Link
             key={it.href}
             href={it.href}
+            aria-current={active ? "page" : undefined}
             className={`flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] font-medium transition ${
               active ? "text-primary" : "text-muted hover:text-foreground"
             }`}

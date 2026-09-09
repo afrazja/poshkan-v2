@@ -219,8 +219,8 @@ export default function AccountsGrid({
     </>
   );
 
-  // No accounts yet: the band has nothing to summarise, but WelcomeHero points
-  // down at this action, so the primary action itself stays.
+  // No accounts yet: keep account creation available alongside the welcome
+  // screen even though the portfolio band has nothing to summarise.
   if (accounts.length === 0) {
     return (
       <div data-nocturne>

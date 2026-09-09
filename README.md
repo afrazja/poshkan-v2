@@ -10,8 +10,12 @@ Live app: [www.poshkan.com](https://www.poshkan.com).
 
 ## Features
 
-- **Accounts for each market** — independent portfolios, configurable starting cash, a funded
-  demo account, watchlists, and cash adjustments.
+- **Accounts for each market** — independent portfolios, configurable virtual starting cash,
+  watchlists, and cash adjustments.
+- **Beginner onboarding** — create a paper account, research a company, make a paper trade,
+  and review the decision in History. Account/trade completion is automatic; research and review
+  are self-confirmed, with progress saved per user in the current browser. Strategy Lab lives
+  under **Advanced** in dashboard navigation.
 - **Spot and leveraged trading** — stock/crypto market and limit orders, plus leveraged
   long/short positions across all three markets with per-trade leverage and stop-loss/take-profit.
   Forex covers seven major pairs, pending entry orders, scaled exits, and timed auto-close.
