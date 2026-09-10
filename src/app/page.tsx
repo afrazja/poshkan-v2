@@ -211,7 +211,7 @@ export default async function LandingPage({
           <Link href="/signup?tab=login" className="text-[14px] text-[#e9e9edad] hover:text-[var(--lp-accent-300)]">
             Log in
           </Link>
-          <Link href="/signup" className={`${BTN_PRIMARY} [--lp-accent:#5eead4] px-4 py-2 text-[14px]`}>
+          <Link href="/signup" className={`${BTN_PRIMARY} px-4 py-2 text-[14px]`}>
             Create a free account
           </Link>
         </div>
