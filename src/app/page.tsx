@@ -208,7 +208,7 @@ export default async function LandingPage({
           <a href="#contact" className="text-[#e9e9ed] hover:text-[var(--lp-accent-300)]">Contact</a>
         </div>
         <div className="ml-auto flex items-center gap-5">
-          <Link href="/signup?tab=login" className="text-[14px] text-[#e9e9edad] hover:text-[var(--lp-accent-300)]">
+          <Link href="/signup?tab=login" className="text-[14px] text-[var(--lp-accent)] hover:text-[var(--lp-accent-300)]">
             Log in
           </Link>
           <Link href="/signup" className={`${BTN_PRIMARY} px-4 py-2 text-[14px]`}>
