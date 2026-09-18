@@ -1,7 +1,8 @@
 # Local Neon migration rehearsal
 
 This branch adds `/neon-preview` for password recovery, sign-in and a read-only
-portfolio summary. It is not a replacement for the existing Supabase application.
+portfolio summary, details, holdings, and paginated transaction/forex history.
+It is not a replacement for the existing Supabase application.
 No production deployment or trading/job cutover is included.
 
 ## Configuration
@@ -28,8 +29,9 @@ return 404. Analytics is disabled. No service-role Supabase key is required.
 The official `@neondatabase/auth/next/server` SDK performs sign-in, password-reset
 requests and token-based password resets. Server Actions use Next.js origin checks.
 Recovery links return to `/neon-preview/reset` on localhost:3025. Open them on the
-same computer while the preview runs. No admin role is needed. Email delivery and
-the owner's successful sign-in still require the user's interactive verification.
+same computer while the preview runs. No admin role is needed. On September 18,
+the owner confirmed password setup/sign-in and provided a screenshot showing
+their four imported portfolios. Login verification is complete for this owner.
 
 The data layer obtains the Neon session server-side, requires the configured
 preview user ID, then joins `poshkan_stage.auth_links` by that UUID. Email addresses
@@ -52,10 +54,22 @@ be required at cutover because Supabase remains live.
 - `npx eslint src/app/neon-preview src/lib/neon-preview src/proxy.ts src/app/layout.tsx`
 - `npm run build` with preview configuration
 - `node scripts/check-neon-preview.mjs` with the launcher's environment: read-only
-  connection, exact owner-account set, unknown/missing identity rejection, disabled
-  application-access flag. This deliberately does not simulate a real login.
+  connection, exact owner-account set and holdings, every ledger/forex page with
+  stable ordering and exact decimal strings, unknown/missing identity rejection,
+  foreign account-ID rejection, disabled application-access flag. This does not
+  simulate a real login.
+- `node scripts/check-neon-details-ui.mjs` after a build: actual presentation
+  component rendered with synthetic data, fractional amounts, UTC dates, empty
+  states and pagination. Generated HTML is outside the repository under ignored
+  migration artifacts and is not exposed by the app.
 - Browser checks: password form and sign-in navigation; unauthenticated portfolio
   redirect; missing reset token; cron, MCP and normal dashboard blocked.
+
+Account details are at `/neon-preview/portfolio/[accountId]`. The server checks
+the authenticated identity and account ownership for each request. History is
+paged at 50 entries with independent `transactions` and `forex` page parameters.
+Unknown and unauthorized account IDs have the same unavailable response. Numeric
+details are formatted from decimal strings without binary floating-point rounding.
 
 Official API references reviewed September 18, 2026:
 

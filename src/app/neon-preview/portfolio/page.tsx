@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { readPreviewPortfolio } from "@/lib/neon-preview/portfolio";
 import { signOut } from "../actions";
 
@@ -18,6 +19,7 @@ export default async function PortfolioPage() {
           <h2 className="mt-2 text-xl font-semibold">{account.name}</h2>
           <p className="my-4 text-2xl">${Number(account.cashBalance).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span className="text-sm text-slate-400">cash</span></p>
           <p className="text-slate-400">{account.holdings} holdings · {account.openForex} open forex positions · {account.transactions} ledger entries</p>
+          <Link href={`/neon-preview/portfolio/${account.id}`} className="mt-5 inline-block text-teal-300 underline" aria-label={`View ${account.name} details and history`}>View details and history →</Link>
         </article>)}
       </div>
       {result.accounts.length === 0 && <p>No portfolios were found for your mapped account.</p>}

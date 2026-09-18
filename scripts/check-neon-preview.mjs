@@ -7,7 +7,7 @@ import ts from 'typescript';
 // session. This validates database scoping, not the user's end-to-end sign-in.
 const source = await readFile(new URL('../src/lib/neon-preview/portfolio-query.ts', import.meta.url), 'utf8');
 const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ESNext } }).outputText;
-const { portfolioQuery } = await import(`data:text/javascript;base64,${Buffer.from(compiled).toString('base64')}`);
+const { portfolioQuery, accountQuery } = await import(`data:text/javascript;base64,${Buffer.from(compiled).toString('base64')}`);
 const connection = new pg.Client({
   connectionString: process.env.NEON_PREVIEW_DATABASE_URL,
   connectionTimeoutMillis: 15000,
@@ -29,11 +29,39 @@ try {
     const denied = (await connection.query(portfolioQuery, params)).rows[0];
     assert.equal(denied.authorized, false);
     assert.deepEqual(denied.accounts, []);
+    assert.equal((await connection.query(accountQuery, [...params, valid.accounts[0].id, 0, 0])).rows.length, 0);
+  }
+  for (const summary of valid.accounts) {
+    const detail = (await connection.query(accountQuery, [owner, owner, summary.id, 0, 0])).rows[0].account;
+    assert.equal(detail.id, summary.id);
+    assert.equal(detail.cashBalance, summary.cashBalance);
+    const holdings = (await connection.query('SELECT id, quantity::text, avg_cost::text FROM poshkan_stage.positions WHERE account_id = $1 ORDER BY symbol, id', [summary.id])).rows;
+    assert.deepEqual(detail.holdings.map(p => [p.id, p.quantity, p.averageCost]), holdings.map(p => [p.id, p.quantity, p.avg_cost]));
+    const ledger = (await connection.query('SELECT id, cash_delta::text, quantity::text, price::text FROM poshkan_stage.transactions WHERE account_id = $1 ORDER BY created_at DESC, id DESC', [summary.id])).rows;
+    const forex = (await connection.query('SELECT id, units::text, open_rate::text, margin::text, pnl::text FROM poshkan_stage.fx_positions WHERE account_id = $1 ORDER BY opened_at DESC, id DESC', [summary.id])).rows;
+    assert.equal(detail.transactionCount, ledger.length);
+    assert.equal(detail.forexCount, forex.length);
+    const ledgerPages = [];
+    const forexPages = [];
+    for (let offset = 0; offset < Math.max(1, ledger.length, forex.length); offset += 50) {
+      const page = (await connection.query(accountQuery, [owner, owner, summary.id, offset, offset])).rows[0].account;
+      assert.ok(page.transactions.length <= 50 && page.forex.length <= 50);
+      ledgerPages.push(...page.transactions);
+      forexPages.push(...page.forex);
+    }
+    assert.deepEqual(ledgerPages.map(t => [t.id, t.cashDelta, t.quantity, t.price]), ledger.map(t => [t.id, t.cash_delta, t.quantity, t.price]));
+    assert.deepEqual(forexPages.map(f => [f.id, f.units, f.openRate, f.margin, f.pnl]), forex.map(f => [f.id, f.units, f.open_rate, f.margin, f.pnl]));
+  }
+  const foreignAccount = (await connection.query(`SELECT a.id FROM poshkan_stage.accounts a
+    WHERE a.user_id <> (SELECT legacy_user_id FROM poshkan_stage.auth_links WHERE neon_user_id = $1) LIMIT 1`, [owner])).rows[0];
+  assert.ok(foreignAccount, 'Need an unrelated account to prove account-ID tampering is denied');
+  for (const accountId of [stranger, foreignAccount.id]) {
+    assert.equal((await connection.query(accountQuery, [owner, owner, accountId, 0, 0])).rows.length, 0);
   }
   const access = await connection.query('SELECT application_access_enabled FROM poshkan_stage.auth_links WHERE neon_user_id = $1', [owner]);
   assert.equal(access.rows[0].application_access_enabled, false);
   await connection.query('ROLLBACK');
-  console.log('PASS: read-only connection; mapped owner gets exactly their portfolios; missing and unrelated identities get no records; production access stays disabled.');
+  console.log('PASS: read-only connection; exact owner portfolios, holdings and paginated ledger/forex records; missing/unrelated identities and foreign account IDs denied; production access stays disabled.');
 } catch (error) {
   console.error('Preview database verification failed:', error.code || error.name);
   process.exitCode = 1;
