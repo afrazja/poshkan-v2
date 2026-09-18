@@ -8,7 +8,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 Poshkan is a **launched paper-trading platform** (virtual money only): US stocks, crypto, and
 leveraged forex, with an AI trade coach, leaderboard, and an MCP server so Claude can act on
-accounts. Live at **https://trade.poshkan.com** (Vercel, auto-deploys from `main`).
+accounts. Live at **https://poshkan.com** (confirmed by owner; Vercel, auto-deploys from `main`).
 
 ## Architecture in one breath
 Next.js 16 App Router + TypeScript + Tailwind v4 (class dark mode) · Supabase (auth +

@@ -5,6 +5,10 @@ portfolio summary, details, holdings, and paginated transaction/forex history.
 It is not a replacement for the existing Supabase application.
 No production deployment or trading/job cutover is included.
 
+A separate local trading rehearsal is now available at `/neon-preview/trading`.
+It changes only `poshkan_trade_test` account copies; the pages described below
+continue reading the unchanged `poshkan_stage` snapshot. See `neon-trading-preview.md`.
+
 ## Configuration
 
 The preview is off unless `POSHKAN_NEON_PREVIEW=1`, and is always off on Vercel.

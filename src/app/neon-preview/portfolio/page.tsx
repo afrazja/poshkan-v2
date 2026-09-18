@@ -13,6 +13,7 @@ export default async function PortfolioPage() {
     </div>
     {result.status === "forbidden" ? <p role="alert">This Neon account has no access to the local portfolio test.</p> : <>
       <p className="mb-7 text-slate-400">Read-only snapshot from September 18, 2026. Balances below are cash, not current portfolio valuations. Trading and live prices will be tested in the next migration stage.</p>
+      {process.env.NEON_TRADING_PREVIEW === "1" && <Link href="/neon-preview/trading" className="mb-7 inline-block rounded-lg border border-teal-300/50 px-5 py-3 text-teal-300">Open trading test (separate account copies) →</Link>}
       <div className="grid gap-4 sm:grid-cols-2">
         {result.accounts.map(account => <article key={account.id} className="rounded-xl border border-white/10 bg-white/5 p-6">
           <p className="text-sm uppercase text-teal-300">{account.type}</p>
