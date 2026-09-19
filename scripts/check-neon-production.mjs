@@ -9,11 +9,13 @@ export async function verifyProduction(db,{migration,run,user,legacy}) {
   await db.query(readFileSync(join(migration,'generated/production/install-live.sql'),'utf8'));
   const accounts=(await db.query('SELECT id,cash_balance::text FROM poshkan_live.accounts ORDER BY id')).rows;
   assert.deepEqual(accounts,(await db.query('SELECT id,cash_balance::text FROM poshkan_live_stage.accounts ORDER BY id')).rows);
+  assert.equal((await db.query('SELECT count(*)::int AS n FROM poshkan_live.trade_watch_state')).rows[0].n,(await db.query('SELECT count(*)::int AS n FROM poshkan_live_stage.trade_watch_state')).rows[0].n);
   const c=await db.connect();
   const oldMode=process.env.POSHKAN_DATABASE_MODE;
   try {
     await c.query('SET SESSION AUTHORIZATION poshkan_live_runtime');
     await assert.rejects(c.query('SELECT * FROM poshkan_live.accounts'),/permission denied/);
+    await assert.rejects(c.query('SELECT * FROM poshkan_live.trade_watch_state'),/permission denied/);
     await assert.rejects(c.query('SET ROLE poshkan_trade_preview'),/permission denied/);
     await assert.rejects(c.query('SELECT * FROM poshkan_live_stage.accounts'),/permission denied/);
     await c.query('BEGIN');
