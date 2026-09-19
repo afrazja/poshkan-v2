@@ -1,3 +1,4 @@
+import { databaseSchema } from './schema.mjs';
 // Server-side translation of the existing PostgREST query builder. No HTTP SQL
 // endpoint is exposed. SQL identifiers are validated; all values are parameters.
 const identifier = value => {
@@ -13,7 +14,7 @@ export async function executeQuery(client, url, init = {}, scope = 'app') {
   const table = url.pathname.split('/').pop();
   const allowed = scope === 'cache' ? cacheTables : scope === 'services' ? serviceTables : tables;
   if (!allowed.has(table)) throw new Error('Unsupported application table');
-  const target = `poshkan_trade_test.${identifier(table)}`;
+  const target = `${databaseSchema()}.${identifier(table)}`;
   const params = [];
   const bind = value => { params.push(value); return `$${params.length}`; };
   const bindColumn=(key,value)=>bind(['rules','last_backtest','quote','results','report','payload'].includes(key)&&value!==null?JSON.stringify(value):value);
@@ -23,7 +24,7 @@ export async function executeQuery(client, url, init = {}, scope = 'app') {
   let selection = search.get('select') || '*';
   if (table === 'fx_tp_levels' && selection.includes('fx_positions!inner(account_id)')) {
     selection = selection.replace(',fx_positions!inner(account_id)', '');
-    join = ' JOIN poshkan_trade_test.fx_positions AS fx_positions ON fx_positions.id=t.position_id';
+    join = ` JOIN ${databaseSchema()}.fx_positions AS fx_positions ON fx_positions.id=t.position_id`;
   }
   const column = name => name.startsWith('fx_positions.') && join ? `fx_positions.${identifier(name.slice(13))}` : `t.${identifier(name)}`;
   for (const [key, value] of search) {

@@ -1,16 +1,19 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { updateSession } from "@/lib/supabase/middleware";
-import { previewEnabled, fullAppEnabled } from "@/lib/neon-preview/config";
+import { previewEnabled, fullAppEnabled, productionEnabled } from "@/lib/neon-preview/config";
 
 // Next.js 16 "proxy" convention (formerly "middleware"). Runs on every matched
 // request to refresh the Supabase session and guard protected routes.
 export default async function proxy(request: NextRequest) {
-  if (previewEnabled()) {
+  if (previewEnabled() || productionEnabled()) {
     const { pathname } = request.nextUrl;
     if (fullAppEnabled()) {
-      if(pathname==='/auth/reset') return NextResponse.redirect(new URL('/neon-preview/reset'+request.nextUrl.search,request.url));
+      if(productionEnabled() && pathname.startsWith('/neon-preview')) return new NextResponse(null,{status:404});
+      if(productionEnabled() && (pathname.startsWith('/dashboard/scanners') || pathname.startsWith('/dashboard/advanced'))) return NextResponse.redirect(new URL('/dashboard',request.url));
+      if(pathname==='/auth/reset' && previewEnabled()) return NextResponse.redirect(new URL('/neon-preview/reset'+request.nextUrl.search,request.url));
       if(pathname==='/auth/callback'||pathname==='/auth/confirm') return new NextResponse('Use the email login in this local test',{status:404});
       if (pathname.startsWith('/api/cron/') || pathname.startsWith('/api/mcp/')) {
+        if(productionEnabled() && !['/api/cron/market-check','/api/cron/snapshots'].includes(pathname)) return new NextResponse('Optional service is disabled',{status:404});
         if(process.env.POSHKAN_NEON_SERVICES!=='1') return new NextResponse('Local services are disabled',{status:404});
         if(pathname.startsWith('/api/cron/') && (!process.env.CRON_SECRET || request.headers.get('authorization')!==`Bearer ${process.env.CRON_SECRET}`)) return new NextResponse('Unauthorized',{status:401});
         return NextResponse.next();

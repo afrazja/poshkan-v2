@@ -1,7 +1,7 @@
 "use server";
 import { fullAppEnabled } from "@/lib/neon-preview/config";
 import { appTrading } from "@/lib/neon-app/trading";
-import { servicesEnabled } from "@/lib/neon-app/services";
+import { captureDeliveries } from '@/lib/neon-preview/config';
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
@@ -704,7 +704,7 @@ export async function sendTestNotificationAction(): Promise<{ sent?: number; err
       body: "Push notifications are working on this device.",
       url: "/dashboard",
     });
-    if (servicesEnabled()) return { message: 'Test notification captured in the local Neon test. No message was sent to your devices.' };
+    if (captureDeliveries()) return { message: 'Test notification captured in the local Neon test. No message was sent to your devices.' };
     if (sent === 0) {
       return { error: "No device received it — tap 'Enable notifications' first, or push isn't configured (VAPID)." };
     }

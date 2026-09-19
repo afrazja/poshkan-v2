@@ -6,7 +6,7 @@ import SiteFooter from "@/components/SiteFooter";
 import ThemeSync from "@/components/ThemeSync";
 import SessionWatcher from "@/components/SessionWatcher";
 import BottomNav from "@/components/BottomNav";
-import { fullAppEnabled } from '@/lib/neon-preview/config';
+import { fullAppEnabled, previewEnabled } from '@/lib/neon-preview/config';
 
 export default async function DashboardLayout({
   children,
@@ -40,7 +40,7 @@ export default async function DashboardLayout({
       <ThemeSync theme={theme} />
       <SessionWatcher />
       <div className="flex min-h-screen flex-col">
-        {fullAppEnabled() && <div className="bg-amber-100 px-4 py-2 text-center text-sm text-amber-950">Local Neon test · Trades and settings affect the test copy. The live site is unchanged.</div>}
+        {previewEnabled() && <div className="bg-amber-100 px-4 py-2 text-center text-sm text-amber-950">Local Neon test · Trades and settings affect the test copy. The live site is unchanged.</div>}
         <TopBar username={username} email={user.email ?? ""} accounts={accounts ?? []} />
         <main className="mx-auto w-full max-w-6xl flex-1 px-4 pt-6 pb-24 sm:px-6 sm:pb-6">
           {children}

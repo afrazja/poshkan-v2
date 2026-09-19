@@ -1,9 +1,10 @@
+import { databaseSchema } from '../neon-app/schema.mjs';
 import "server-only";
 import { Pool, type PoolClient } from "pg";
 import YahooFinance from "yahoo-finance2";
 import { z } from "zod";
 import { previewAuth } from "./auth";
-import { requirePreview } from "./config";
+import { requirePreview, productionEnabled, approvedUserId, databaseUrl } from "./config";
 import { checkedQuote, tradeInput, type TradingAccount } from "./trade-input";
 import { assetTypeError } from "../assets";
 
@@ -12,20 +13,21 @@ const yahoo = new YahooFinance({ suppressNotices: ["yahooSurvey"] });
 
 export async function actor() {
   requirePreview();
-  if (process.env.NEON_TRADING_PREVIEW !== "1") throw new Error("Trading preview is disabled");
+  if (!productionEnabled() && process.env.NEON_TRADING_PREVIEW !== "1") throw new Error("Trading preview is disabled");
   const { data, error } = await previewAuth().getSession({ query: { disableCookieCache: true } });
-  if (error || !data?.user?.id || data.user.id !== process.env.NEON_PREVIEW_USER_ID) throw new Error("Sign in to your approved Neon account first.");
+  if (error || !data?.user?.id || data.user.id !== approvedUserId()) throw new Error("Sign in to your approved Neon account first.");
   return data.user.id;
 }
 
 export async function transaction<T>(userId: string, work: (client: PoolClient) => Promise<T>, role: 'app' | 'services' | 'cache' = 'app') {
-  if (!process.env.NEON_PREVIEW_DATABASE_URL) throw new Error("Database configuration missing");
-  pool ??= new Pool({ connectionString: process.env.NEON_PREVIEW_DATABASE_URL, max: 3, connectionTimeoutMillis: 15000, idleTimeoutMillis: 10000 });
+  if (!databaseUrl()) throw new Error("Database configuration missing");
+  pool ??= new Pool({ connectionString: databaseUrl(), max: 3, connectionTimeoutMillis: 15000, idleTimeoutMillis: 10000 });
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
     await client.query("SET LOCAL statement_timeout = '15000ms'");
-    await client.query(role === 'services' ? 'SET LOCAL ROLE poshkan_preview_services' : role === 'cache' ? 'SET LOCAL ROLE poshkan_preview_cache' : 'SET LOCAL ROLE poshkan_trade_preview');
+    const roles = productionEnabled() ? { app: 'poshkan_live_app', services: 'poshkan_live_services', cache: 'poshkan_live_cache' } : { app: 'poshkan_trade_preview', services: 'poshkan_preview_services', cache: 'poshkan_preview_cache' };
+    await client.query(`SET LOCAL ROLE ${roles[role]}`);
     await client.query("SELECT set_config('poshkan.neon_user_id',$1,true)", [userId]);
     const result = await work(client);
     await client.query("COMMIT");
@@ -38,16 +40,16 @@ export async function transaction<T>(userId: string, work: (client: PoolClient) 
 
 export async function readTradingAccounts(): Promise<TradingAccount[]> {
   const userId = await actor();
-  return transaction(userId, async c => (await c.query("SELECT poshkan_trade_test.state() AS accounts")).rows[0].accounts);
+  return transaction(userId, async c => (await c.query(`SELECT ${databaseSchema()}.state() AS accounts`)).rows[0].accounts);
 }
 
 export async function placePreviewTrade(requestId: unknown, rawInput: unknown) {
   const userId = await actor();
   const request = z.uuid().parse(requestId);
   const command = tradeInput.parse(rawInput);
-  const completed = await transaction(userId, async c => (await c.query("SELECT poshkan_trade_test.completed($1,$2::jsonb) AS result", [request, command])).rows[0].result);
+  const completed = await transaction(userId, async c => (await c.query(`SELECT ${databaseSchema()}.completed($1,$2::jsonb) AS result`, [request, command])).rows[0].result);
   if (completed) return completed as Record<string,string>;
-  const accounts: TradingAccount[] = await transaction(userId, async c => (await c.query("SELECT poshkan_trade_test.state() AS accounts")).rows[0].accounts);
+  const accounts: TradingAccount[] = await transaction(userId, async c => (await c.query(`SELECT ${databaseSchema()}.state() AS accounts`)).rows[0].accounts);
   const account = accounts.find(a => a.id === command.accountId);
   if (!account) throw new Error("Account not found");
   let symbol: string;
@@ -69,5 +71,5 @@ export async function placePreviewTrade(requestId: unknown, rawInput: unknown) {
   // Re-verify the session after the external price request; the RPC also
   // rechecks mapping, bans and ownership under the balance lock.
   if (await actor() !== userId) throw new Error("Your session changed. Sign in again.");
-  return transaction(userId, async c => (await c.query("SELECT poshkan_trade_test.command($1,$2::jsonb,$3::numeric) AS result", [request, command, price])).rows[0].result as Record<string,string>);
+  return transaction(userId, async c => (await c.query(`SELECT ${databaseSchema()}.command($1,$2::jsonb,$3::numeric) AS result`, [request, command, price])).rows[0].result as Record<string,string>);
 }

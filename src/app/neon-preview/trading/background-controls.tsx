@@ -5,6 +5,7 @@ import type { WorkerState } from "@/lib/neon-preview/worker-state";
 import { backgroundStatus, setBackground } from "./actions";
 
 export function BackgroundControls({initial}: {initial: WorkerState}) {
+  const cloud=process.env.NEXT_PUBLIC_POSHKAN_DATABASE_MODE==='neon';
   const [state,setState]=useState(initial);
   const [busy,setBusy]=useState(false);
   const [message,setMessage]=useState("");
@@ -33,14 +34,14 @@ export function BackgroundControls({initial}: {initial: WorkerState}) {
     changing.current=true;setBusy(true);setMessage("");
     try {
       const response=await setBackground(!state.enabled);
-      if(response.state) {setState(response.state);setMessage(response.state.enabled?"Background checks will start within 30 seconds. You can close this page.":"Background execution is stopped.");router.refresh();}
+      if(response.state) {setState(response.state);setMessage(response.state.enabled?(cloud?"Background checks resume on the next scheduled run.":"Background checks will start within 30 seconds. You can close this page."):"Background execution is stopped.");router.refresh();}
       else setMessage(response.error??"The setting could not be changed.");
     } catch {setMessage("Connection interrupted. Refresh the page to confirm the current setting.");}
     finally {changing.current=false;setBusy(false);}
   }
   return <section className="mt-10 rounded-xl border border-teal-300/30 bg-teal-300/5 p-6" aria-label="Background order checks">
     <h2 className="text-2xl font-semibold">Background order checks</h2>
-    <p className="mt-3 text-slate-300">Checks continue after you close this page while this PC is awake and connected. This is the local Neon test; your live Poshkan app is unchanged.</p>
+    <p className="mt-3 text-slate-300">{cloud?'Scheduled checks run on the server while your browser is closed. The status below shows whether the service has contacted the app recently.':'Checks continue after you close this page while this PC is awake and connected. This is the local Neon test; your live Poshkan app is unchanged.'}</p>
     <p className="mt-3 font-medium">{state.enabled?(state.online?"Running in the background":"Enabled, but the background process is offline"):"Order execution is stopped"}</p>
     <p className="mt-1 text-sm text-slate-400">Background process: {state.online?"connected":"offline"}. {state.lastSeen?`Last contact: ${new Date(state.lastSeen).toUTCString()}.`:"Waiting for its first connection."}</p>
     <button type="button" onClick={()=>void change()} disabled={busy||(!state.online&&!state.enabled)} className="mt-5 rounded-lg border border-teal-300/40 px-5 py-3 text-teal-200 disabled:opacity-50">{busy?"Updating…":state.enabled?"Stop background checks":"Start background checks"}</button>

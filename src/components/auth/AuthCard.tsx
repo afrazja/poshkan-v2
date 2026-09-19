@@ -181,7 +181,7 @@ export default function AuthCard({
 
   return (
     <div className="w-full max-w-md rounded-2xl border border-border bg-card p-8 shadow-sm">
-      {localNeon && <p className="mb-5 text-sm text-muted">Local Neon test. Sign in with the email and password you used in the migration preview.</p>}
+      {localNeon && process.env.NEXT_PUBLIC_POSHKAN_DATABASE_MODE!=='neon' && <p className="mb-5 text-sm text-muted">Local Neon test. Sign in with the email and password you used in the migration preview.</p>}
       {!localNeon && <div className="mb-6 flex rounded-lg bg-background p-1">
         <button
           onClick={() => {

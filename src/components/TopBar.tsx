@@ -151,12 +151,12 @@ export default function TopBar({
           >
             <Trophy size={15} aria-hidden /> Leaderboard
           </Link>
-          <Link
+          {process.env.NEXT_PUBLIC_POSHKAN_DATABASE_MODE!=='neon' && <Link
             href="/dashboard/advanced"
             className="hidden items-center gap-1.5 rounded-lg px-2 py-1 text-sm font-medium text-muted transition hover:bg-background hover:text-foreground sm:inline-flex"
           >
             <SlidersHorizontal size={15} aria-hidden /> Advanced
-          </Link>
+          </Link>}
           <Link
             href="/dashboard/history"
             className="hidden items-center gap-1.5 rounded-lg px-2 py-1 text-sm font-medium text-muted transition hover:bg-background hover:text-foreground sm:inline-flex"
@@ -195,7 +195,7 @@ export default function TopBar({
                 >
                   Change password
                 </button>
-                <button
+                {process.env.NEXT_PUBLIC_POSHKAN_DATABASE_MODE!=='neon' && <><button
                   onClick={() => {
                     setShowApiAccess(true);
                     setSettingsOpen(false);
@@ -212,7 +212,7 @@ export default function TopBar({
                   className="w-full rounded-md px-3 py-2 text-left text-sm hover:bg-background"
                 >
                   Your Claude API key (for AI)
-                </button>
+                </button></>}
                 <button
                   onClick={enablePush}
                   className="w-full rounded-md px-3 py-2 text-left text-sm hover:bg-background"

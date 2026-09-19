@@ -1,3 +1,5 @@
+import { approvedUserId } from '../neon-preview/config';
+import { databaseSchema } from './schema.mjs';
 import 'server-only';
 import { createClient as supabaseClient, AuthSessionMissingError, type SupabaseClient } from '@supabase/supabase-js';
 import { transaction } from '../neon-preview/trading';
@@ -11,8 +13,8 @@ export async function appUser() {
     if(!fullAppEnabled()) return null;
     const {data} = await previewAuth().getSession({query:{disableCookieCache:true}});
     const id=data?.user.id;
-    if(!id||id!==process.env.NEON_PREVIEW_USER_ID) return null;
-    const legacy = await transaction(id,async c=>(await c.query('SELECT poshkan_trade_test.actor() AS id')).rows[0].id as string);
+    if(!id||id!==approvedUserId()) return null;
+    const legacy = await transaction(id,async c=>(await c.query(`SELECT ${databaseSchema()}.actor() AS id`)).rows[0].id as string);
     return {id:legacy,email:data?.user.email ?? '',neonId:id,aud:'authenticated',app_metadata:{},user_metadata:{},created_at:String(data?.user.createdAt??'')};
   } catch { return null; }
 }
@@ -31,9 +33,9 @@ export function createNeonClient(): SupabaseClient {
           const name=url.pathname.split('/').pop();
           const args=JSON.parse(String(init?.body||'{}'));
           const result=await transaction(id,async c=>{
-            if(name==='get_leaderboard') return (await c.query("SELECT coalesce(jsonb_agg(r),'[]') AS result FROM poshkan_trade_test.get_leaderboard() r")).rows[0].result;
-            if(name==='create_account') return (await c.query("SELECT poshkan_trade_test.app_account('CREATE',NULL,$1) AS result",[{name:args.p_name,type:args.p_type,amount:args.p_initial_cash}])).rows[0].result.id;
-            if(name==='adjust_cash') return (await c.query('SELECT poshkan_trade_test.app_account($1,$2,$3) AS result',[args.p_mode,args.p_account_id,{amount:args.p_amount}])).rows[0].result;
+            if(name==='get_leaderboard') return (await c.query(`SELECT coalesce(jsonb_agg(r),'[]') AS result FROM ${databaseSchema()}.get_leaderboard() r`)).rows[0].result;
+            if(name==='create_account') return (await c.query(`SELECT ${databaseSchema()}.app_account('CREATE',NULL,$1) AS result`,[{name:args.p_name,type:args.p_type,amount:args.p_initial_cash}])).rows[0].result.id;
+            if(name==='adjust_cash') return (await c.query(`SELECT ${databaseSchema()}.app_account($1,$2,$3) AS result`,[args.p_mode,args.p_account_id,{amount:args.p_amount}])).rows[0].result;
             throw new Error('This service is not connected in the local app yet.');
           });
           return Response.json(result);

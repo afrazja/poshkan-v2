@@ -1,4 +1,5 @@
 import { verifyServices } from "./check-neon-services.mjs";
+import { verifyProduction } from './check-neon-production.mjs';
 import { verifyAi } from './check-neon-ai.mjs';
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, readFileSync, writeFileSync, unlinkSync } from 'node:fs';
@@ -144,7 +145,8 @@ try {
   checks.push(...await verifyApp(db,{user,legacy,account,command}));
   for (const file of ["services-engine.sql","service-guards.sql","mcp-guard.sql","services-schedule.sql","ai-scanner.sql"]) await db.query(readFileSync(join(app,"neon",file),"utf8"));
   checks.push(...await verifyServices(db,{user,legacy,account}));
-  checks.push(...await verifyAi(db,{user,legacy,account}));
+  if(process.env.CHECK_NEON_PRODUCTION==='1') checks.push(...await verifyProduction(db,{migration,run,user,legacy}));
+  else checks.push(...await verifyAi(db,{user,legacy,account}));
   writeFileSync(join(migration,'generated/trading-test-result.json'),JSON.stringify({passed:true,checks},null,2));
   console.log(JSON.stringify({passed:true,checks}));
 } finally {

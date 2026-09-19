@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendEmail } from "@/lib/email";
 import { recordLogin } from "@/lib/login-stats";
-import { fullAppEnabled, previewOrigin } from '@/lib/neon-preview/config';
+import { fullAppEnabled, passwordResetUrl } from '@/lib/neon-preview/config';
 import { previewAuth } from '@/lib/neon-preview/auth';
 import { neonLoginFailure } from '@/lib/neon-preview/login-error';
 
@@ -103,7 +103,7 @@ export async function resetPasswordAction(
   const id = identifier.trim();
   if (fullAppEnabled()) {
     if (!id.includes('@')) return {error:'Enter your email address.'};
-    try { await previewAuth().requestPasswordReset({email:id,redirectTo:previewOrigin+'/neon-preview/reset'}); return {}; }
+    try { await previewAuth().requestPasswordReset({email:id,redirectTo:passwordResetUrl()}); return {}; }
     catch {return {error:'Password recovery is temporarily unavailable.'};}
   }
   if (!id) return { error: "Enter your email or username first." };

@@ -2,7 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { neonSession, neonSignOut } from './auth-actions';
 // Authentication only. Database access remains in authenticated server actions.
 export function neonBrowser():SupabaseClient {
-  const unavailable=async()=>({error:{message:'The local migration test uses your existing email account. New signups and social login will be enabled at cutover.'}});
+  const unavailable=async()=>({error:{message:'Use your existing email account to sign in. New signups and social login are disabled.'}});
   return {auth:{getUser:neonSession,signOut:neonSignOut,signUp:unavailable,signInWithOAuth:unavailable,
     onAuthStateChange(callback:(event:string)=>void) {
       let active=true;

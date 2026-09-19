@@ -329,7 +329,7 @@ export default function AccountView({
       </div>
 
       {/* Active scanners on this account — tap to configure/disable in place */}
-      {aiActive && (
+      {aiActive && process.env.NEXT_PUBLIC_POSHKAN_DATABASE_MODE!=='neon' && (
         <div className="flex flex-wrap items-center gap-2 text-xs">
           <span className="text-muted">Active scanners</span>
           {(

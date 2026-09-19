@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { previewAuth } from "@/lib/neon-preview/auth";
-import { previewOrigin, fullAppEnabled } from "@/lib/neon-preview/config";
+import { passwordResetUrl, fullAppEnabled, productionEnabled } from "@/lib/neon-preview/config";
 
 export type FormState = { error?: string; message?: string };
 
@@ -24,10 +24,10 @@ export async function requestReset(_state: FormState, data: FormData): Promise<F
   if (!email || email.length > 254) return { error: "Enter your email address." };
   try {
     const { error } = await previewAuth().requestPasswordReset({
-      email, redirectTo: `${previewOrigin}/neon-preview/reset`,
+      email, redirectTo: passwordResetUrl(),
     });
     if (error) return { error: "Neon could not send the reset link. Check that email authentication is enabled in Neon Auth settings, then try again." };
-    return { message: "If this email has a Neon account, a reset link has been sent. Open it on this computer while this preview is running." };
+    return { message: "If this email has a Neon account, a reset link has been sent. Open the newest link to set your password." };
   } catch {
     return { error: "Could not reach Neon password recovery. Please try again." };
   }
@@ -50,5 +50,5 @@ export async function resetPassword(_state: FormState, data: FormData): Promise<
 
 export async function signOut() {
   await previewAuth().signOut();
-  redirect("/neon-preview");
+  redirect(productionEnabled()?"/signup?tab=login":"/neon-preview");
 }

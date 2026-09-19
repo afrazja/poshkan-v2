@@ -45,7 +45,7 @@ export default function BottomNav() {
       className="fixed inset-x-0 bottom-0 z-30 flex border-t border-border bg-card/95 backdrop-blur sm:hidden"
       style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
     >
-      {items.map((it) => {
+      {items.filter(it=>process.env.NEXT_PUBLIC_POSHKAN_DATABASE_MODE!=='neon'||it.href!=='/dashboard/advanced').map((it) => {
         const active = it.match(path);
         return (
           <Link

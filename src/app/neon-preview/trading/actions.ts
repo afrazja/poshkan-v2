@@ -15,7 +15,7 @@ export async function setBackground(enabled: unknown) {
     revalidatePath("/neon-preview/trading");
     return {state};
   } catch(error) {
-    return {error:error instanceof Error && error.message==="Background process is offline"?"The background process is offline. Restart the local preview to reconnect it.":"Could not change background execution. Refresh to confirm its current status."};
+    return {error:error instanceof Error && error.message==="Background process is offline"?"The background service has not connected recently. Check its connection before starting.":"Could not change background execution. Refresh to confirm its current status."};
   }
 }
 

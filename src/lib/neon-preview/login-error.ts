@@ -11,7 +11,7 @@ export function neonLoginFailure(error: unknown) {
   const status = typeof value.status === 'number' && Number.isInteger(value.status) ? value.status : 0;
   let message = 'Neon sign-in is temporarily unavailable. Please try again.';
   if (['INVALID_EMAIL_OR_PASSWORD', 'INVALID_PASSWORD', 'INVALID_EMAIL', 'USER_NOT_FOUND'].includes(code)) {
-    message = 'Neon did not accept this email and password. Use the app password you set in the Neon test, which may differ from your live Poshkan password.';
+    message = 'This email and password were not accepted. Use your new Poshkan password, or request a password-reset link.';
   } else if (status === 429 || ['TOO_MANY_REQUESTS', 'RATE_LIMITED'].includes(code)) {
     message = 'Too many sign-in attempts. Please wait a few minutes and try again.';
   } else if (code === 'EMAIL_NOT_VERIFIED') {

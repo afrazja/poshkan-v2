@@ -1,3 +1,5 @@
+import { databaseSchema } from './schema.mjs';
+import { productionEnabled } from '../neon-preview/config';
 import 'server-only';
 import YahooFinance from 'yahoo-finance2';
 import { z } from 'zod';
@@ -20,13 +22,14 @@ const proposalSchema = z.object({
 type Account = { id: string; user_id: string; type: string; ai_symbols: string[] | null; ai_instruction: string | null; auto_trade_enabled: boolean };
 
 export async function runNeonAiScan(preview = false, accountId?: string) {
+  if (productionEnabled()) return { blocked: 'AI scans are disabled.' };
   // A manually requested preview may call Claude, but never claims a signal or
   // places a trade. Repeated paid scans require a separate explicit opt-in.
   if (!preview && process.env.POSHKAN_NEON_AI_SCANS !== '1')
     return { blocked: 'Scheduled AI scans are disabled for this local rehearsal.' };
   const db = createNeonServiceClient();
   const accounts = await serviceWork(async c => (await c.query<Account>(
-    'SELECT id,user_id,type,ai_symbols,ai_instruction,auto_trade_enabled FROM poshkan_trade_test.accounts WHERE ($1::uuid IS NULL OR id=$1) ORDER BY id', [accountId ?? null])).rows);
+    `SELECT id,user_id,type,ai_symbols,ai_instruction,auto_trade_enabled FROM ${databaseSchema()}.accounts WHERE ($1::uuid IS NULL OR id=$1) ORDER BY id`, [accountId ?? null])).rows);
   if (!accounts.length) return { blocked: 'No approved account found.' };
   const apiKey = await getUserAnthropicKey(db, accounts[0].user_id);
   if (!apiKey) return { blocked: 'The saved Claude API key could not be unlocked. Check the original encryption key and the account API key.' };
@@ -48,22 +51,22 @@ export async function runNeonAiScan(preview = false, accountId?: string) {
       const proposal = proposalSchema.parse(analysis.setup);
       if (!symbols.some(s => s.toUpperCase() === proposal.pair)) throw new Error('Unexpected symbol');
       if (preview) { results.push({ accountId: account.id, status: 'preview validated', entry: false }); continue; }
-      const signal = await serviceWork(async c => (await c.query('SELECT poshkan_trade_test.claim_ai_signal($1,$2) AS id', [account.id, proposal])).rows[0].id as string | null);
+      const signal = await serviceWork(async c => (await c.query(`SELECT ${databaseSchema()}.claim_ai_signal($1,$2) AS id`, [account.id, proposal])).rows[0].id as string | null);
       if (!signal) { results.push({ accountId: account.id, status: 'duplicate skipped' }); continue; }
       let entered = false;
       if (process.env.AUTO_TRADE_ENABLED === 'true' && account.auto_trade_enabled && proposal.entryType === 'market') {
         try {
-          const exposure = await serviceWork(async c => (await c.query<{symbol:string}>("SELECT DISTINCT symbol FROM poshkan_trade_test.fx_positions WHERE account_id=$1 AND status='open'", [account.id])).rows);
+          const exposure = await serviceWork(async c => (await c.query<{symbol:string}>(`SELECT DISTINCT symbol FROM ${databaseSchema()}.fx_positions WHERE account_id=$1 AND status='open'`, [account.id])).rows);
           const quotes = Object.fromEntries(await Promise.all([...new Set([proposal.pair, ...exposure.map(p => p.symbol)])].map(async symbol => {
             const quote = await yahoo.quote(symbol);
             return [symbol, { price: checkedQuote(symbol, quote, true), at: quote.regularMarketTime }];
           })));
-          const receipt = await serviceWork(async c => (await c.query('SELECT poshkan_trade_test.execute_ai_signal($1,$2) AS receipt', [signal, quotes])).rows[0].receipt);
+          const receipt = await serviceWork(async c => (await c.query(`SELECT ${databaseSchema()}.execute_ai_signal($1,$2) AS receipt`, [signal, quotes])).rows[0].receipt);
           entered = Boolean(receipt?.positionId);
         } catch {
           // A response may be lost after commit: reconcile the durable receipt
           // before reporting an alert. Do not guess or submit a second signal.
-          const receipt = await serviceWork(async c => (await c.query('SELECT receipt FROM poshkan_trade_test.fx_scan_alerts WHERE id=$1', [signal])).rows[0]?.receipt);
+          const receipt = await serviceWork(async c => (await c.query(`SELECT receipt FROM ${databaseSchema()}.fx_scan_alerts WHERE id=$1`, [signal])).rows[0]?.receipt);
           entered = Boolean(receipt?.positionId);
         }
       }

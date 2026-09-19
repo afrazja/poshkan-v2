@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { productionEnabled } from '@/lib/neon-preview/config';
 import { servicesEnabled } from "@/lib/neon-app/services";
 import { createAdminClient } from "@/lib/service-client";
 import { getQuotes } from "@/lib/marketdata";
@@ -22,7 +23,7 @@ export async function GET(request: Request) {
   // Piggyback: the public /scans results are computed alongside this daily
   // cron (both Vercel cron slots are taken). Runs concurrently with the
   // snapshot work; failures must never break snapshots.
-  const scansPromise = dailyScans(request)
+  const scansPromise = productionEnabled() ? Promise.resolve({disabled:true}) : dailyScans(request)
     .then((r) => r.json())
     .catch((e) => ({ error: String(e) }));
 

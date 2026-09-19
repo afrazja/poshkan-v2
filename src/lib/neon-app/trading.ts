@@ -1,3 +1,4 @@
+import { databaseSchema } from './schema.mjs';
 import 'server-only';
 import { randomUUID } from 'node:crypto';
 import YahooFinance from 'yahoo-finance2';
@@ -34,24 +35,24 @@ export async function appTrading(action:string,input:Record<string,unknown>):Pro
       result=await saveOrder(request,{action,accountId,positionId:input.positionId,levels});
     } else if(action==='EDIT_ENTRY') {
       const orderId=z.uuid().parse(input.orderId);
-      const item=await transaction(user,async c=>(await c.query('SELECT symbol FROM poshkan_trade_test.fx_orders WHERE id=$1 AND account_id=$2 AND status=\'pending\'',[orderId,accountId])).rows[0]);
+      const item=await transaction(user,async c=>(await c.query(`SELECT symbol FROM ${databaseSchema()}.fx_orders WHERE id=$1 AND account_id=$2 AND status='pending'`,[orderId,accountId])).rows[0]);
       if(!item) throw new Error('Account not found');
       const quote=await yahoo.quote(String(item.symbol));
       const price=checkedQuote(item.symbol,quote,true);
       if(await actor()!==user) throw new Error('Sign in again.');
-      await transaction(user,c=>c.query('SELECT poshkan_trade_test.app_edit_entry($1,$2,$3,$4,$5,$6)',[orderId,accountId,decimal(input.entryRate),nullable(input.stopLoss),nullable(input.takeProfit),price]));
+      await transaction(user,c=>c.query(`SELECT ${databaseSchema()}.app_edit_entry($1,$2,$3,$4,$5,$6)`,[orderId,accountId,decimal(input.entryRate),nullable(input.stopLoss),nullable(input.takeProfit),price]));
     } else if(action==='DELETE') {
-      await transaction(user,c=>c.query("SELECT poshkan_trade_test.app_account('DELETE',$1,'{}')",[accountId]));
+      await transaction(user,c=>c.query(`SELECT ${databaseSchema()}.app_account('DELETE',$1,'{}')`,[accountId]));
     } else if(['CHECK_LIMIT','CHECK_ENTRY','CHECK_POSITION'].includes(action)) {
       const id=z.uuid().parse(input.orderId??input.positionId);
       const kind=action==='CHECK_LIMIT'?'LIMIT':action==='CHECK_ENTRY'?'ENTRY':'POSITION';
-      const candidates=await transaction(user,async c=>(await c.query('SELECT poshkan_trade_test.order_candidates() AS items')).rows[0].items as {id:string;kind:string;accountId:string;symbol:string}[]);
+      const candidates=await transaction(user,async c=>(await c.query(`SELECT ${databaseSchema()}.order_candidates() AS items`)).rows[0].items as {id:string;kind:string;accountId:string;symbol:string}[]);
       const item=candidates.find(c=>c.id===id && c.kind===kind && (!accountId||c.accountId===accountId));
       if(!item) return base;
       let price:string|null=null,at:Date|null=null;
       try { const quote=await yahoo.quote(item.symbol); price=checkedQuote(item.symbol,quote,kind!=='LIMIT'); at=quote.regularMarketTime??null; } catch {}
       if(await actor()!==user) throw new Error('Sign in again.');
-      const checked=await transaction(user,async c=>(await c.query('SELECT poshkan_trade_test.check_order($1,$2,$3,$4,$5,$6) AS result',[kind,id,item.accountId,item.symbol,price,at])).rows[0].result);
+      const checked=await transaction(user,async c=>(await c.query(`SELECT ${databaseSchema()}.check_order($1,$2,$3,$4,$5,$6) AS result`,[kind,id,item.accountId,item.symbol,price,at])).rows[0].result);
       revalidatePath('/dashboard','layout');
       return {...base,filled:checked.status==='filled',closed:checked.status==='closed',reason:checked.reason,levels:checked.levels??0,price:price?Number(price):undefined};
     } else throw new Error('Unsupported operation');

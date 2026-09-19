@@ -1,6 +1,7 @@
+import { captureDeliveries } from './neon-preview/config';
 import "server-only";
 import webpush from "web-push";
-import { servicesEnabled, captureDelivery } from "./neon-app/services";
+import { captureDelivery } from "./neon-app/services";
 import { createAdminClient } from "@/lib/service-client";
 
 // Send a web-push notification to every device a user has subscribed.
@@ -31,7 +32,7 @@ export async function sendPushToUser(
     } catch {}
   }
 
-  if (servicesEnabled()) { await captureDelivery("push", userId, payload); return 0; }
+  if (captureDeliveries()) { await captureDelivery("push", userId, payload); return 0; }
   const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
   const privateKey = process.env.VAPID_PRIVATE_KEY;
   if (!publicKey || !privateKey) return 0;
