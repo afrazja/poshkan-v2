@@ -10,7 +10,7 @@ import { assetTypeError } from "../assets";
 let pool: Pool | undefined;
 const yahoo = new YahooFinance({ suppressNotices: ["yahooSurvey"] });
 
-async function actor() {
+export async function actor() {
   requirePreview();
   if (process.env.NEON_TRADING_PREVIEW !== "1") throw new Error("Trading preview is disabled");
   const { data, error } = await previewAuth().getSession({ query: { disableCookieCache: true } });
@@ -18,7 +18,7 @@ async function actor() {
   return data.user.id;
 }
 
-async function transaction<T>(userId: string, work: (client: PoolClient) => Promise<T>) {
+export async function transaction<T>(userId: string, work: (client: PoolClient) => Promise<T>) {
   if (!process.env.NEON_PREVIEW_DATABASE_URL) throw new Error("Database configuration missing");
   pool ??= new Pool({ connectionString: process.env.NEON_PREVIEW_DATABASE_URL, max: 3, connectionTimeoutMillis: 15000, idleTimeoutMillis: 10000 });
   const client = await pool.connect();

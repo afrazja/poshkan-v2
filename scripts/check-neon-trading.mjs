@@ -6,6 +6,7 @@ import { dirname, resolve, join } from 'node:path';
 import { createServer } from 'node:net';
 import assert from 'node:assert/strict';
 import pg from 'pg';
+import { verifyOrders } from './check-neon-orders.mjs';
 
 const app = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const migration = resolve(app, '../poshkan-neon-migration');
@@ -128,6 +129,9 @@ try {
   } finally { restricted.release(); }
   assert.equal((await db.query('SELECT count(*)::int AS n FROM poshkan_stage.auth_links WHERE application_access_enabled')).rows[0].n,0);
   checks.push('executor cannot read tables or retain an identity across transactions; original stage stays disabled');
+  await db.query(readFileSync(join(app,'neon/orders-preview-setup.sql'),'utf8'));
+  await db.query(readFileSync(join(app,'neon/orders-engine.sql'),'utf8'));
+  checks.push(...await verifyOrders(db,{user,legacy,account,command,balance}));
   writeFileSync(join(migration,'generated/trading-test-result.json'),JSON.stringify({passed:true,checks},null,2));
   console.log(JSON.stringify({passed:true,checks}));
 } finally {

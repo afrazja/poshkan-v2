@@ -6,7 +6,7 @@ const source=readFileSync(new URL('../src/lib/neon-preview/trade-input.ts',impor
 const compiled=ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText;
 const componentModule={exports:{}};
 new Function('require','module','exports',compiled)(createRequire(import.meta.url),componentModule,componentModule.exports);
-const {tradeInput,checkedQuote}=componentModule.exports;
+const {tradeInput,orderInput,checkedQuote}=componentModule.exports;
 const input={action:'SPOT',accountId:'00000000-0000-4000-8000-000000000001',symbol:'aapl',side:'BUY',quantity:'0.00000001'};
 assert.equal(tradeInput.parse(input).symbol,'AAPL');
 for(const bad of [{...input,price:1},{...input,quantity:'NaN'},{...input,quantity:'-1'},{...input,quantity:'1e9'},{...input,accountId:'anything'}]) assert.equal(tradeInput.safeParse(bad).success,false);
@@ -16,4 +16,9 @@ assert.equal(checkedQuote('AAPL',q,false,now),'123.45000000');
 for(const bad of [{...q,regularMarketPrice:NaN},{...q,regularMarketPrice:Infinity},{...q,regularMarketTime:new Date(now-301000)},{...q,regularMarketTime:new Date(NaN)},{...q,marketState:'CLOSED'},{...q,currency:'EUR'},{...q,symbol:'MSFT'},{...q,quoteType:'OPTION'}]) assert.throws(()=>checkedQuote('AAPL',bad,false,now));
 assert.equal(checkedQuote('USDJPY=X',{...q,symbol:'USDJPY=X',currency:'JPY',quoteType:'CURRENCY',regularMarketPrice:150},true,now),'150.000000');
 assert.equal(checkedQuote('BTC-USD',{...q,symbol:'BTC-USD',quoteType:'CRYPTOCURRENCY',marketState:'CLOSED'},false,now),'123.45000000');
+const queued={action:'PLACE_LIMIT',accountId:input.accountId,symbol:'AAPL',direction:'BUY',quantity:'2',target:'100',expiryHours:null};
+assert.equal(orderInput.safeParse(queued).success,true);
+for(const bad of [{...queued,price:99},{...queued,quantity:'NaN'},{...queued,quoteAt:new Date().toISOString()},{...queued,accountId:'bad'},{...queued,expiryHours:-1}]) assert.equal(orderInput.safeParse(bad).success,false);
+assert.equal(orderInput.safeParse({action:'SET_TIMER',accountId:input.accountId,positionId:input.accountId,minutes:1.5}).success,false);
+assert.equal(orderInput.safeParse({action:'SET_LEVELS',accountId:input.accountId,positionId:input.accountId,levels:[{price:'1.2',units:'0'}]}).success,false);
 console.log('PASS: strict command inputs reject supplied prices; quote checks reject stale/nonfinite/mismatched/closed/unsupported feeds.');

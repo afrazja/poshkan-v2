@@ -15,7 +15,7 @@ The copied mapping enables only the private trading test. The owner can compare
 the immutable imported snapshot against independently changing test balances.
 
 The `poshkan_trade_preview` role has schema usage and execute permission for the
-three entry points, with no direct table access. RLS is enabled on every test
+explicit trading/order entry points, with no direct table access. RLS is enabled on every test
 table; SECURITY DEFINER functions check the explicit Neon-to-legacy mapping,
 bans, and account ownership. Public execution is revoked. The Next.js server
 verifies the Neon session and sets an identity inside a transaction after
@@ -35,8 +35,8 @@ A dedicated login role/credential remains required before production cutover.
 - 1×, 2×, 5× and 10× leverage, matching the current app's choices.
 - Full/partial closing, proportional margin release, USD-base forex conversion,
   realized P&L rounded consistently to cents, loss capped at reserved margin.
-- Saving validated stop-loss/take-profit prices. These levels are **not executed
-  automatically** until the worker migration is completed.
+- Saving validated stop-loss/take-profit prices, evaluated by the test checks
+  described below.
 
 The source backup's `fx_open` ignored its margin argument and forced 30× leverage;
 this conflicts with the current UI. The new test engine calculates margin itself
@@ -73,14 +73,69 @@ must be USD. Server Actions reject browser-supplied price fields.
 - Browser signed-out guard, plus synthetic rendering of the actual form. The
   synthetic fixture cannot call any trading action and is not an app route.
 
-The owner has verified Neon login and read-only portfolios in their own browser.
-An interactive trade from that signed-in browser remains to be confirmed; tests
-do not impersonate the owner or manufacture an authenticated session.
+The owner verified Neon login and read-only portfolios in their own browser and
+confirmed the manual trade test on September 19, 2026. Tests do not impersonate
+the owner or manufacture an authenticated session.
+
+## Pending orders and exits
+
+`neon/orders-preview-setup.sql` is a one-time additive migration. It copies all
+source `orders`, `fx_orders`, and `fx_tp_levels` into the trading test schema,
+preserving their identifiers and values. It enables RLS and adds only scoped
+foreign keys, expiry/failure fields and eight-decimal units support. It refuses
+existing tables. `neon/orders-engine.sql` contains replaceable functions.
+The external `install-orders-preview.ps1 -UpdateOnly` refreshes functions without
+recreating the copied tables. Reapplying the core trading engine revokes order
+grants, so apply the order engine afterward.
+
+The local page provides limit buy/sell orders, leveraged entries with explicit
+above/below triggers, cancellation, optional 24-hour expiry, timed full closes
+(0 clears the timer), and up to three scaled take-profit levels in the form
+(the validated API accepts ten). New expiries are calculated in the database;
+retries retain the same payload and request ID. Legacy DAY orders expire when
+their New York calendar date has passed. Cash/holdings are checked at fill time,
+not reserved at placement.
+
+**Check now** runs a single pass. **Start automatic checks** repeats while the
+page remains open, approximately every 15 seconds; browsers may throttle hidden
+tabs. **Stop checks** prevents subsequent passes. An already-running server pass
+may finish. Reloading/closing the page disables future checks. No background job
+or unattended worker has been enabled in this stage. All checks use the current
+verified, explicitly approved Neon user and recheck ownership under database
+locks; there is no service-account or missing-identity bypass.
+
+Fills lock the account before the order/position. The order status change and
+trade are one transaction. Concurrent checks/cancellation serialize; terminal
+orders cannot fill again. Insufficient funds/holdings or gap-invalidated entry
+protection roll back all trade writes and mark the order canceled with a domain
+reason. Unexpected database failures roll back that item's check and are reported
+as failed in the summary, without preventing other items from being checked.
+
+The server obtains fresh validated quotes and the database rechecks quote age
+after acquiring locks. A closed market or unavailable quote prevents execution;
+orders can still expire. Timed closes defer until an executable price exists.
+Priority is margin stop, stop-loss, single take-profit, timer, then scaled levels.
+Stops and timed/margin exits use the observed price (including adverse gaps);
+take-profit levels fill conservatively at the stored target. This changes the
+old source stop behavior, which filled at the stop even after a gap. These checks
+use sampled quotes, not candle highs/lows, so an intraperiod touch may be missed.
+Scaled fills and partial closes commit together, nearest target first; invalid
+replacement levels roll back without removing the existing ones.
+
+Additional verification: all three copied tables compare exactly with the source
+values in the disposable database; concurrent placement/fill/cancel, failed-fill
+accounting, quote age/identity/symbol guards, offline expiry, both entry triggers,
+gap handling, long/short partial exits, timers and privilege denial are exercised
+by `scripts/check-neon-orders.mjs` through the main trading test runner. The live
+Neon check places/fills an order and verifies the balance/retry result inside a
+transaction that is fully rolled back. Synthetic UI rendering covers all four
+order forms; it never submits real trades. The owner's interactive confirmation
+so far covers the preceding manual-trade step, not these new order controls.
 
 ## Still required for complete migration
 
-Pending/limit order placement and atomic fills; automatic SL/TP, scaled exits and
-timed closes; scanners, market caches, background jobs and MCP authorization;
+Unattended execution with an explicit worker identity; scanners, market caches,
+background jobs and MCP authorization;
 conversion of the original full app routes; restricted production credentials;
 trusted auth domain `https://poshkan.com`; fresh final data reconciliation and
 production deployment. Do not pause Supabase yet.
