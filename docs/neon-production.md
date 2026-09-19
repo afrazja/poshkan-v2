@@ -25,3 +25,11 @@ The fresh September 19 snapshot contains 33 application tables, 63,545 rows, and
 The core PostgreSQL fixture tests pass, including an isolated production install, role-denial checks, production query adapter, atomic trade retry, pause/resume, and rollback. Read-only checks on Neon confirm source equality for portfolios, positions, ledger, orders, profiles, snapshots, watchlists, alerts, notifications, email preferences, and push subscriptions. The runtime sees four owned portfolios and cannot access the test schema. The production-mode build, TypeScript and targeted lint checks pass; the local browser shows four portfolios, prices, and settings without API controls.
 
 Before promotion: verify trusted login domains and the staged deployment, stop source-side writes/background jobs for the final comparison or refresh, then promote and verify login/data through the public domain. Keep Supabase available until these pass. A rollback after accepting Neon writes requires reconciling those writes; do not simply point back to stale Supabase data. Do not pause/delete Supabase while the migration remains staged.
+
+## Hosted verification, September 19
+
+Commit `4d2f6c7` is staged as deployment `dpl_w6ABNwWj55mDXSN67b3GdnH82zDq` at `https://poshkan-v2-nhr9tqivc-afzjavan-7827s-projects.vercel.app`. Its Vercel build is READY. The protected, cron-authenticated `market-check?status=1` probe returns HTTP 200, database Neon, four portfolios, and background execution disabled. This probe never trades or sends notifications. Vercel preview access uses the existing account's CLI-generated protection bypass; deployment protection remains on.
+
+The public `www.poshkan.com` alias was verified to remain on `dpl_F7YpSomMNALC9JQVa3UcVTExEbaz`, the original Supabase deployment. Production environment variables are prepared for the staged release; existing deployment variables and notification/cron credentials are preserved. Do not push main before the cutover is ready, because automatic production deployments would use the new settings.
+
+Neon Auth was inspected: email login enabled, signup disabled, localhost allowed, and only `https://trade.poshkan.com` in trusted domains. Approval to add the two actual Poshkan domains is pending. No source freeze, domain promotion, or Supabase pause has been performed.
