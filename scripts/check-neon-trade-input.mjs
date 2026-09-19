@@ -5,7 +5,7 @@ import ts from 'typescript';
 const source=readFileSync(new URL('../src/lib/neon-preview/trade-input.ts',import.meta.url),'utf8');
 const compiled=ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText;
 const componentModule={exports:{}};
-new Function('require','module','exports',compiled)(createRequire(import.meta.url),componentModule,componentModule.exports);
+new Function('require','module','exports',compiled)(createRequire(new URL('../src/lib/neon-preview/trade-input.ts',import.meta.url)),componentModule,componentModule.exports);
 const {tradeInput,orderInput,checkedQuote}=componentModule.exports;
 const input={action:'SPOT',accountId:'00000000-0000-4000-8000-000000000001',symbol:'aapl',side:'BUY',quantity:'0.00000001'};
 assert.equal(tradeInput.parse(input).symbol,'AAPL');

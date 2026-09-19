@@ -96,13 +96,10 @@ retries retain the same payload and request ID. Legacy DAY orders expire when
 their New York calendar date has passed. Cash/holdings are checked at fill time,
 not reserved at placement.
 
-**Check now** runs a single pass. **Start automatic checks** repeats while the
-page remains open, approximately every 15 seconds; browsers may throttle hidden
-tabs. **Stop checks** prevents subsequent passes. An already-running server pass
-may finish. Reloading/closing the page disables future checks. No background job
-or unattended worker has been enabled in this stage. All checks use the current
-verified, explicitly approved Neon user and recheck ownership under database
-locks; there is no service-account or missing-identity bypass.
+**Check now** runs one pass using the signed-in user. The earlier page-only timer
+has been replaced by the explicit background controls described below. Manual
+checks and background checks share the same atomic execution function and may
+safely overlap. Both recheck the configured owner under database locks.
 
 Fills lock the account before the order/position. The order status change and
 trade are one transaction. Concurrent checks/cancellation serialize; terminal
@@ -111,7 +108,7 @@ protection roll back all trade writes and mark the order canceled with a domain
 reason. Unexpected database failures roll back that item's check and are reported
 as failed in the summary, without preventing other items from being checked.
 
-The server obtains fresh validated quotes and the database rechecks quote age
+The web server and background process share one quote validator. The database rechecks quote age
 after acquiring locks. A closed market or unavailable quote prevents execution;
 orders can still expire. Timed closes defer until an executable price exists.
 Priority is margin stop, stop-loss, single take-profit, timer, then scaled levels.
@@ -132,9 +129,64 @@ transaction that is fully rolled back. Synthetic UI rendering covers all four
 order forms; it never submits real trades. The owner's interactive confirmation
 so far covers the preceding manual-trade step, not these new order controls.
 
+## Background execution on this PC
+
+`neon/worker-preview-setup.sql` creates a separate `poshkan_preview_worker`
+NOINHERIT role and an RLS-protected control row bound to the approved Neon user.
+The one-time provisioner sets a random login password. The external
+`install-background-worker.ps1` saves it with Windows DPAPI in the ignored
+`secrets/neon-worker-credential.xml`. An encrypted pending file is retained if
+provisioning is interrupted; do not overwrite it or rerun the one-time setup.
+
+The worker login can execute only claim, poll, check and report functions. It
+cannot read account tables, place trades, change its owner, enable itself or
+assume the web runtime role. Entry points validate PostgreSQL SESSION_USER before
+establishing the configured owner's identity internally. They then reuse the
+existing ownership and ban checks. Setting a role or identity variable cannot
+impersonate the worker. Its trusted credential must never reach a browser or Data
+API; the process supplies server-validated execution quotes.
+
+The signed-in owner controls **Start background checks** / **Stop background
+checks**. Installation starts stopped. Enabling requires a recent heartbeat.
+Enabled passes repeat approximately every 15 seconds plus execution time; paused
+processes check settings every 30 seconds without fetching prices or trading.
+These heartbeats still use Neon compute. Stop the process when this local
+rehearsal is no longer needed; hosted scheduling and its cost controls remain
+part of production migration.
+
+Worker fills hold a shared lock on the control row. Stopping takes the exclusive
+lock, waiting for an active fill to finish before confirming stopped. Subsequent
+worker fills return paused, even if they fetched a quote earlier. Manual Check
+now remains available. The app displays a heartbeat and counts-only last-pass
+summary, marks the process offline after 90 seconds without contact, and refreshes
+balances when a completed check changes.
+
+`scripts/neon-order-worker.mjs` is a separate Node process, independent of Next.js,
+the browser and browser sessions. It uses a direct TLS-verified restricted login,
+retries connection failures and applies quote/database timeouts. A connection-
+scoped advisory lease prevents duplicate processes from polling; connection loss
+releases it. Missing prices permit expiration only.
+
+`start-background-worker.ps1` launches the process in a hidden window, stripping
+owner-database and authentication secrets from its inherited environment. Logs
+under ignored `generated/` contain status messages, not credentials or account
+records. The local preview launcher also starts the worker; duplicate launches
+exit after failing to acquire the lease. This is not a Windows startup task or
+cloud deployment. It stops at PC shutdown and pauses during sleep; restarting the
+local preview reconnects it.
+
+Tests use a real restricted login in the disposable database to verify fills
+without a browser, privilege denial, SESSION_USER impersonation, singleton lease,
+page/worker races, pause during a price request, bans, unavailable prices, expiry
+and reconnect with pause retained. `check-background-worker.ps1` verified the
+installed login on Neon using only one temporary account/order, then removed its
+records and restored paused settings. The actual hidden process was observed
+online with exactly one restricted database session while Next.js was stopped.
+Synthetic UI fixtures cover start and stop states with inactive controls.
+
 ## Still required for complete migration
 
-Unattended execution with an explicit worker identity; scanners, market caches,
+Hosted scheduling for the tested worker; scanners, market caches, other
 background jobs and MCP authorization;
 conversion of the original full app routes; restricted production credentials;
 trusted auth domain `https://poshkan.com`; fresh final data reconciliation and

@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
+import { useCallback, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import type { OrderState, TradingAccount } from "@/lib/neon-preview/trade-input";
 import { order, runOrderChecks } from "./actions";
@@ -13,8 +13,7 @@ export function OrderControls({accounts,state}: {accounts: TradingAccount[]; sta
   const [busy,setBusy] = useState(false);
   const [message,setMessage] = useState("");
   const [checking,setChecking] = useState(false);
-  const [automatic,setAutomatic] = useState(false);
-  const [checkMessage,setCheckMessage] = useState("Checks are stopped.");
+  const [checkMessage,setCheckMessage] = useState("Ready for a manual check.");
   const request = useRef<string|null>(null);
   const saving = useRef(false);
   const running = useRef(false);
@@ -27,20 +26,15 @@ export function OrderControls({accounts,state}: {accounts: TradingAccount[]; sta
     running.current=true; setChecking(true);
     try {
       const response=await runOrderChecks();
-      if (response.error) {setCheckMessage(response.error);setAutomatic(false);}
+      if (response.error) setCheckMessage(response.error);
       else if (response.result) {
         const r=response.result;
         setCheckMessage(`Checked at ${new Date().toLocaleTimeString()}: ${r.filled} filled · ${r.closed} closed · ${r.scaled} scaled exits · ${r.canceled} canceled · ${r.expired} expired · ${r.waiting} waiting · ${r.unavailable} without a current price · ${r.failed} failed.`);
         router.refresh();
       }
-    } catch {setCheckMessage("Connection interrupted. Completed fills will not repeat on the next check.");setAutomatic(false);}
+    } catch {setCheckMessage("Connection interrupted. Completed fills will not repeat on the next check.");}
     finally {running.current=false;setChecking(false);}
   },[router]);
-  useEffect(() => {
-    if (!automatic) return;
-    const timer=setInterval(()=>{void check();},15000);
-    return ()=>clearInterval(timer);
-  },[automatic,check]);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -74,8 +68,8 @@ export function OrderControls({accounts,state}: {accounts: TradingAccount[]; sta
     <h2 className="text-2xl font-semibold">Pending orders and automatic exits</h2>
     <p className="text-slate-400">Orders use your test accounts. Cash and holdings are checked when an order fills; they are not reserved. Stop losses use the observed market price, so a gap can close beyond the stop.</p>
     <div className="rounded-xl border border-teal-300/20 bg-teal-300/5 p-5">
-      <p className="mb-4">{automatic?"Automatic checks are on while this page stays open. Browsers may slow checks in background tabs.":"Start checks to check prices about every 15 seconds while this page stays open."} Closing this page stops future checks. A check already in progress may finish.</p>
-      <div className="flex flex-wrap gap-3"><button type="button" className={button} onClick={()=>{setAutomatic(v=>!v);if(!automatic) void check();}}>{automatic?"Stop checks":"Start automatic checks"}</button><button type="button" className={button} disabled={checking} onClick={()=>void check()}>{checking?"Checking…":"Check now"}</button></div>
+      <p className="mb-4">Run one immediate check of pending orders and exits using current market prices.</p>
+      <button type="button" className={button} disabled={checking} onClick={()=>void check()}>{checking?"Checking…":"Check now"}</button>
       <p role="status" className="mt-3 text-sm text-slate-300">{checkMessage}</p>
     </div>
     <form onSubmit={submit} onChange={()=>{request.current=null;pending.current=null;setMessage("");}} className="rounded-xl border border-white/10 bg-white/5 p-6">

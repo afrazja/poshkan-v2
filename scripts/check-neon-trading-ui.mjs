@@ -32,12 +32,26 @@ for(const operation of ['PLACE_LIMIT','PLACE_ENTRY','SET_TIMER','SET_LEVELS']) {
     return actualRequire(name);
   },orderModule,orderModule.exports);
   const rendered=renderToStaticMarkup(React.createElement(orderModule.exports.OrderControls,{accounts,state}));
-  assert.ok(rendered.includes('Start automatic checks')&&rendered.includes('Check now')&&rendered.includes('Cancel order'));
+  assert.ok(rendered.includes('Check now')&&rendered.includes('Cancel order'));
   assert.ok(!rendered.includes('name="price"'),'The order form must not accept execution prices');
   if(operation==='PLACE_ENTRY') assert.ok(rendered.includes('AT_OR_BELOW')&&rendered.includes('name="stopLoss"'));
   if(operation==='SET_TIMER') assert.ok(rendered.includes('name="minutes"'));
   if(operation==='SET_LEVELS') assert.ok(rendered.includes('name="price2"')&&rendered.includes('name="units2"'));
   if(operation==='PLACE_LIMIT') html+=rendered;
+}
+const backgroundSource=readFileSync(join(root,'src/app/neon-preview/trading/background-controls.tsx'),'utf8');
+const backgroundCompiled=ts.transpileModule(backgroundSource,{compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX,esModuleInterop:true}}).outputText;
+const backgroundModule={exports:{}};
+new Function('require','module','exports',backgroundCompiled)(name=>{
+  if(name==='next/navigation') return {useRouter:()=>({refresh(){}})};
+  if(name==='./actions') return {};
+  return actualRequire(name);
+},backgroundModule,backgroundModule.exports);
+for(const enabled of [false,true]) {
+  const rendered=renderToStaticMarkup(React.createElement(backgroundModule.exports.BackgroundControls,{initial:{enabled,online:true,lastSeen:'2026-09-19T00:00:00Z',lastCheck:null,summary:null}}));
+  assert.ok(rendered.includes(enabled?'Stop background checks':'Start background checks'));
+  assert.ok(rendered.includes('while this PC is awake'));
+  if(!enabled) html+=rendered;
 }
 const styles=readdirSync(join(root,'.next/static/chunks')).filter(f=>f.endsWith('.css')).map(f=>readFileSync(join(root,'.next/static/chunks',f),'utf8')).join('\n');
 writeFileSync(resolve(root,'../poshkan-neon-migration/generated/trading-ui-fixture.html'),`<!doctype html><html lang="en" class="dark"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Trading controls — synthetic visual check</title><style>${styles}</style></head><body><main class="min-h-screen bg-slate-950 px-6 py-12 text-slate-100"><div class="mx-auto max-w-4xl"><p class="mb-5 text-teal-300">UI TEST · SYNTHETIC DATA · CONTROLS INACTIVE</p><h1 class="mb-7 text-3xl">Trading test</h1>${html}</div></main></body></html>`);

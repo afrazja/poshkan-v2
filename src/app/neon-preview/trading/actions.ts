@@ -2,6 +2,22 @@
 import { revalidatePath } from "next/cache";
 import { placePreviewTrade } from "@/lib/neon-preview/trading";
 import { checkOrders, saveOrder } from "@/lib/neon-preview/orders";
+import { changeWorker, readWorker } from "@/lib/neon-preview/background";
+
+export async function backgroundStatus() {
+  try {return {state:await readWorker()};}
+  catch {return {error:"Background status unavailable. Check your connection and sign in again if needed."};}
+}
+export async function setBackground(enabled: unknown) {
+  try {
+    if(typeof enabled!=="boolean") throw new Error("Invalid setting");
+    const state=await changeWorker(enabled);
+    revalidatePath("/neon-preview/trading");
+    return {state};
+  } catch(error) {
+    return {error:error instanceof Error && error.message==="Background process is offline"?"The background process is offline. Restart the local preview to reconnect it.":"Could not change background execution. Refresh to confirm its current status."};
+  }
+}
 
 export async function order(requestId: unknown, input: unknown): Promise<{ result?: Record<string,string>; error?: string }> {
   try {

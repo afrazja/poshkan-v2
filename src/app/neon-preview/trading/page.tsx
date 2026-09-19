@@ -5,13 +5,14 @@ import { readTradingAccounts } from "@/lib/neon-preview/trading";
 import { TradingForm } from "./trading-form";
 import { readOrders } from "@/lib/neon-preview/orders";
 import { OrderControls } from "./order-controls";
+import { readWorker } from "@/lib/neon-preview/background";
+import { BackgroundControls } from "./background-controls";
 
 export default async function TradingPage() {
   if (process.env.NEON_TRADING_PREVIEW !== "1") notFound();
   const { data } = await previewAuth().getSession({ query: { disableCookieCache: true } });
   if (!data?.user) redirect("/neon-preview");
-  const accounts = await readTradingAccounts();
-  const orders = await readOrders();
+  const [accounts,orders,worker] = await Promise.all([readTradingAccounts(),readOrders(),readWorker()]);
   return <>
     <Link href="/neon-preview/portfolio" className="text-teal-300 underline">← Imported portfolios</Link>
     <h1 className="mt-6 text-3xl font-semibold">Trading test</h1>
@@ -25,6 +26,7 @@ export default async function TradingPage() {
         <ul className="mt-3 space-y-2 text-sm text-slate-300">{a.forex.map(f => <li key={f.id}>{f.symbol} · {f.direction} · {f.units} units · ${f.margin} margin · SL {f.stopLoss ?? "—"} / TP {f.takeProfit ?? "—"}</li>)}</ul>
       </article>)}
     </section>
+    {worker && <BackgroundControls initial={worker} />}
     {orders && <OrderControls accounts={accounts} state={orders} />}
   </>;
 }
