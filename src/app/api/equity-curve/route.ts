@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
 
 // Daily account-value history from account_snapshots — the equity curve.
 // Works for any account type (forex included), unlike /api/holdings-history
@@ -19,7 +18,7 @@ export async function GET(request: Request) {
   const { data: account } = await supabase.from("accounts").select("id").eq("id", accountId).single();
   if (!account) return NextResponse.json({ error: "Account not found" }, { status: 404 });
 
-  const { data: snaps } = await createAdminClient()
+  const { data: snaps } = await supabase
     .from("account_snapshots")
     .select("snapshot_date, total_value")
     .eq("account_id", accountId)

@@ -4,6 +4,8 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendEmail } from "@/lib/email";
 import { recordLogin } from "@/lib/login-stats";
+import { fullAppEnabled, previewOrigin } from '@/lib/neon-preview/config';
+import { previewAuth } from '@/lib/neon-preview/auth';
 
 const GENERIC_LOGIN_ERROR = "Invalid email/username or password.";
 
@@ -14,6 +16,11 @@ export async function signInAction(
   password: string
 ): Promise<{ error?: string }> {
   const id = identifier.trim();
+  if (fullAppEnabled()) {
+    if (!id.includes('@')) return {error:'Use your email address for the Neon login.'};
+    try { const {error}=await previewAuth().signIn.email({email:id,password}); return error?{error:GENERIC_LOGIN_ERROR}:{}; }
+    catch {return {error:'Sign-in is temporarily unavailable. Try again.'};}
+  }
   if (!id || !password) return { error: "Enter your email/username and password." };
 
   let email = id;
@@ -85,6 +92,11 @@ export async function resetPasswordAction(
   origin: string
 ): Promise<{ error?: string }> {
   const id = identifier.trim();
+  if (fullAppEnabled()) {
+    if (!id.includes('@')) return {error:'Enter your email address.'};
+    try { await previewAuth().requestPasswordReset({email:id,redirectTo:previewOrigin+'/neon-preview/reset'}); return {}; }
+    catch {return {error:'Password recovery is temporarily unavailable.'};}
+  }
   if (!id) return { error: "Enter your email or username first." };
 
   let email = id;

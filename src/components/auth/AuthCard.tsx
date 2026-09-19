@@ -29,8 +29,9 @@ export default function AuthCard({
   next?: string;
 }) {
   const router = useRouter();
+  const localNeon=process.env.NEXT_PUBLIC_POSHKAN_NEON==='1';
   const destination = safeNext(next);
-  const [tab, setTab] = useState<Tab>(defaultTab);
+  const [tab, setTab] = useState<Tab>(localNeon?'login':defaultTab);
 
   // shared
   const [email, setEmail] = useState(initialEmail);
@@ -180,7 +181,8 @@ export default function AuthCard({
 
   return (
     <div className="w-full max-w-md rounded-2xl border border-border bg-card p-8 shadow-sm">
-      <div className="mb-6 flex rounded-lg bg-background p-1">
+      {localNeon && <p className="mb-5 text-sm text-muted">Local Neon test. Sign in with the email and password you used in the migration preview.</p>}
+      {!localNeon && <div className="mb-6 flex rounded-lg bg-background p-1">
         <button
           onClick={() => {
             setTab("login");
@@ -203,7 +205,7 @@ export default function AuthCard({
         >
           Create account
         </button>
-      </div>
+      </div>}
 
       {tab === "signup" && (
         <p className="mb-4 rounded-lg border border-primary/20 bg-primary/10 px-3 py-2 text-center text-xs text-muted">
@@ -217,7 +219,7 @@ export default function AuthCard({
         </div>
       )}
 
-      <button
+      {!localNeon && <><button
         type="button"
         onClick={handleGoogleSignIn}
         disabled={loading || googleLoading}
@@ -235,12 +237,12 @@ export default function AuthCard({
         <span className="h-px flex-1 bg-border" />
         <span className="text-xs uppercase tracking-wide text-muted">or</span>
         <span className="h-px flex-1 bg-border" />
-      </div>
+      </div></>}
 
       {tab === "login" ? (
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
-            <label className="mb-1 block text-sm font-medium">Email or username</label>
+            <label className="mb-1 block text-sm font-medium">{localNeon?'Email':'Email or username'}</label>
             <input
               type="text"
               autoCapitalize="none"

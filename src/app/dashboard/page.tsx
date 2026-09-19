@@ -7,10 +7,14 @@ import { MARKET_GROUPS } from "@/components/accounts/nocturne";
 import { summarizeFreshness } from "@/lib/quote-freshness";
 import AlertsCard from "@/components/accounts/AlertsCard";
 import GettingStarted from "@/components/accounts/GettingStarted";
+import { fullAppEnabled } from '@/lib/neon-preview/config';
+import { readWorker } from '@/lib/neon-preview/background';
+import { BackgroundControls } from '@/app/neon-preview/trading/background-controls';
 import WelcomeHero from "@/components/accounts/WelcomeHero";
 import type { Account, Position, Alert, Quote, Transaction } from "@/lib/types";
 
 export default async function DashboardPage() {
+  const worker=fullAppEnabled()?await readWorker().catch(()=>null):null;
   const supabase = await createClient();
 
   const { data: accounts } = await supabase
@@ -189,6 +193,7 @@ export default async function DashboardPage() {
 
   return (
     <div>
+      {worker && <div className="mb-6 rounded-xl bg-slate-950 p-4 text-slate-100"><BackgroundControls initial={worker}/></div>}
       <div className="mb-6">
         <h1 className="text-2xl font-bold tracking-tight">Your accounts</h1>
         <p className="text-sm text-muted">

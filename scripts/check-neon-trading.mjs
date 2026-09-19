@@ -8,6 +8,7 @@ import assert from 'node:assert/strict';
 import pg from 'pg';
 import { verifyOrders } from './check-neon-orders.mjs';
 import { verifyWorker } from './check-neon-worker.mjs';
+import { verifyApp } from './check-neon-app.mjs';
 
 const app = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const migration = resolve(app, '../poshkan-neon-migration');
@@ -136,6 +137,9 @@ try {
   await db.query(readFileSync(join(app,'neon/worker-preview-setup.sql'),'utf8'));
   await db.query(readFileSync(join(app,'neon/worker-engine.sql'),'utf8'));
   checks.push(...await verifyWorker(db,{user,legacy,account,balance}));
+  await db.query(readFileSync(join(app,'neon/app-preview-setup.sql'),'utf8'));
+  await db.query(readFileSync(join(app,'neon/app-engine.sql'),'utf8'));
+  checks.push(...await verifyApp(db,{user,legacy,account,command}));
   writeFileSync(join(migration,'generated/trading-test-result.json'),JSON.stringify({passed:true,checks},null,2));
   console.log(JSON.stringify({passed:true,checks}));
 } finally {

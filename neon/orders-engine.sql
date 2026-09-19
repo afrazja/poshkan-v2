@@ -52,6 +52,10 @@ BEGIN
   IF action IN ('PLACE_LIMIT','PLACE_ENTRY') THEN
     IF p_command->>'expiryHours' IS NOT NULL AND p_command->>'expiryHours'<>'24' THEN RAISE EXCEPTION 'Invalid order expiry'; END IF;
     expires:=CASE WHEN p_command->>'expiryHours'='24' THEN clock_timestamp()+interval '24 hours' ELSE NULL END;
+    IF p_command->>'expiryMinutes' IS NOT NULL THEN
+      IF (p_command->>'expiryMinutes') !~ '^[0-9]+$' OR (p_command->>'expiryMinutes')::integer NOT BETWEEN 1 AND 10080 THEN RAISE EXCEPTION 'Invalid order expiry'; END IF;
+      expires:=clock_timestamp()+make_interval(mins=>(p_command->>'expiryMinutes')::integer);
+    END IF;
     IF symbol IS NULL OR symbol !~ '^[A-Z0-9.^=-]{1,24}$' OR NOT poshkan_trade_test.positive(target)
       OR target<>round(target,CASE WHEN action='PLACE_LIMIT' THEN 8 ELSE 6 END)
       OR NOT poshkan_trade_test.positive(quantity) OR quantity<>round(quantity,8)
@@ -66,8 +70,9 @@ BEGIN
     IF action='PLACE_LIMIT' THEN
       IF a.type='forex' OR direction IS NULL OR direction NOT IN ('BUY','SELL') THEN RAISE EXCEPTION 'Invalid limit order'; END IF;
       IF round(quantity*target,8)<=0 THEN RAISE EXCEPTION 'Trade is too small'; END IF;
-      INSERT INTO poshkan_trade_test.orders(account_id,symbol,side,quantity,limit_price,expires_at)
-        VALUES(a.id,symbol,direction,quantity,target,expires) RETURNING id INTO new_id;
+      IF p_command->>'timeInForce' IS NOT NULL AND p_command->>'timeInForce' NOT IN ('DAY','GTC') THEN RAISE EXCEPTION 'Invalid time in force'; END IF;
+      INSERT INTO poshkan_trade_test.orders(account_id,symbol,side,quantity,limit_price,expires_at,time_in_force)
+        VALUES(a.id,symbol,direction,quantity,target,expires,coalesce(p_command->>'timeInForce','GTC')) RETURNING id INTO new_id;
     ELSE
       IF direction IS NULL OR direction NOT IN ('LONG','SHORT') OR p_command->>'trigger' IS NULL
         OR p_command->>'trigger' NOT IN ('AT_OR_BELOW','AT_OR_ABOVE')

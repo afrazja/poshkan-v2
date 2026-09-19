@@ -1,8 +1,11 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { fullAppEnabled } from '../neon-preview/config';
+import { createNeonClient } from '../neon-app/server';
 
 // Server-side Supabase client (Server Components, Route Handlers, Server Actions).
 export async function createClient() {
+  if (fullAppEnabled()) return createNeonClient();
   const cookieStore = await cookies();
 
   return createServerClient(

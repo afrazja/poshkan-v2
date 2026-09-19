@@ -1,4 +1,6 @@
 "use server";
+import { fullAppEnabled } from "@/lib/neon-preview/config";
+import { appTrading } from "@/lib/neon-app/trading";
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
@@ -23,11 +25,14 @@ async function checkAccountAsset(
 // Execute a BUY or SELL. Price is fetched LIVE on the server — never trusted
 // from the client — then passed to the atomic execute_trade RPC.
 export async function executeTradeAction(input: {
+  requestId?: string;
   accountId: string;
   symbol: string;
   side: "BUY" | "SELL";
   quantity: number;
 }): Promise<{ price?: number; error?: string }> {
+  if (fullAppEnabled()) { return appTrading('SPOT',input); }
+
   const supabase = await createClient();
   const {
     data: { user },
@@ -71,6 +76,7 @@ export async function executeTradeAction(input: {
 // Place a pending limit order. It fills later when the live price crosses the
 // limit (checked client-side while the account is open).
 export async function placeLimitOrderAction(input: {
+  requestId?: string;
   accountId: string;
   symbol: string;
   side: "BUY" | "SELL";
@@ -78,6 +84,8 @@ export async function placeLimitOrderAction(input: {
   limitPrice: number;
   timeInForce?: "DAY" | "GTC";
 }): Promise<{ error?: string }> {
+  if (fullAppEnabled()) { return appTrading('PLACE_LIMIT',input); }
+
   const supabase = await createClient();
   if (!input.quantity || input.quantity <= 0) return { error: "Quantity must be positive" };
   if (!input.limitPrice || input.limitPrice <= 0) return { error: "Enter a valid limit price" };
@@ -101,6 +109,8 @@ export async function placeLimitOrderAction(input: {
 }
 
 export async function cancelOrderAction(orderId: string, accountId: string) {
+  if (fullAppEnabled()) { return appTrading('CANCEL_LIMIT',{orderId,accountId}); }
+
   const supabase = await createClient();
   const { error } = await supabase
     .from("orders")
@@ -117,6 +127,8 @@ export async function cancelOrderAction(orderId: string, accountId: string) {
 export async function fillLimitOrderAction(
   orderId: string
 ): Promise<{ filled: boolean; price?: number; error?: string }> {
+  if (fullAppEnabled()) { return appTrading('CHECK_LIMIT',{orderId}); }
+
   const supabase = await createClient();
   const { data: order } = await supabase
     .from("orders")
@@ -170,6 +182,7 @@ export async function fillLimitOrderAction(
 
 // Forex: open a leveraged long/short pair position (margin reserved from cash).
 export async function openFxPositionAction(input: {
+  requestId?: string;
   accountId: string;
   symbol: string;
   direction: "LONG" | "SHORT";
@@ -179,6 +192,8 @@ export async function openFxPositionAction(input: {
   takeProfit?: number | null;
   autoCloseMinutes?: number | null;
 }): Promise<{ rate?: number; margin?: number; error?: string }> {
+  if (fullAppEnabled()) { return appTrading('OPEN_FX',input); }
+
   const supabase = await createClient();
   const {
     data: { user },
@@ -240,6 +255,8 @@ export async function closeFxPositionAction(
   positionId: string,
   accountId: string
 ): Promise<{ pnl?: number; error?: string }> {
+  if (fullAppEnabled()) { return appTrading('CLOSE_FX',{positionId,accountId}); }
+
   const supabase = await createClient();
   const { data: pos } = await supabase
     .from("fx_positions")
@@ -275,6 +292,7 @@ export async function closeFxPositionAction(
 // level. trigger_when is derived server-side from the live rate at placement
 // (limit entry vs stop/breakout entry).
 export async function placeFxOrderAction(input: {
+  requestId?: string;
   accountId: string;
   symbol: string;
   direction: "LONG" | "SHORT";
@@ -285,6 +303,8 @@ export async function placeFxOrderAction(input: {
   takeProfit?: number | null;
   expiresMinutes?: number | null; // null = GTC
 }): Promise<{ error?: string }> {
+  if (fullAppEnabled()) { return appTrading('PLACE_ENTRY',input); }
+
   const supabase = await createClient();
   if (!input.units || input.units <= 0) return { error: "Units must be positive" };
   if (!input.entryRate || input.entryRate <= 0) return { error: "Enter a valid entry rate" };
@@ -347,6 +367,8 @@ export async function placeFxOrderAction(input: {
 }
 
 export async function cancelFxOrderAction(orderId: string, accountId: string) {
+  if (fullAppEnabled()) { return appTrading('CANCEL_ENTRY',{orderId,accountId}); }
+
   const supabase = await createClient();
   const { error } = await supabase
     .from("fx_orders")
@@ -367,6 +389,7 @@ export async function editFxOrderAction(input: {
   stopLoss?: number | null;
   takeProfit?: number | null;
 }): Promise<{ error?: string }> {
+  if (fullAppEnabled()) return appTrading('EDIT_ENTRY',input);
   const supabase = await createClient();
   if (!input.entryRate || input.entryRate <= 0) return { error: "Enter a valid entry rate" };
 
@@ -415,6 +438,8 @@ export async function fillFxOrderAction(
   orderId: string,
   accountId: string
 ): Promise<{ filled: boolean; error?: string }> {
+  if (fullAppEnabled()) { return appTrading('CHECK_ENTRY',{orderId,accountId}); }
+
   const supabase = await createClient();
   const { data: o } = await supabase
     .from("fx_orders")
@@ -482,6 +507,8 @@ export async function setFxSlTpAction(input: {
   stopLoss: number | null;
   takeProfit: number | null;
 }): Promise<{ error?: string }> {
+  if (fullAppEnabled()) { return appTrading('PROTECT_FX',input); }
+
   const supabase = await createClient();
   const { data: pos } = await supabase
     .from("fx_positions")
@@ -519,6 +546,8 @@ export async function autoCloseFxPositionAction(
   positionId: string,
   accountId: string
 ): Promise<{ closed: boolean; reason?: string }> {
+  if (fullAppEnabled()) { return appTrading('CHECK_POSITION',{positionId,accountId}); }
+
   const supabase = await createClient();
   const { data: pos } = await supabase
     .from("fx_positions")
@@ -562,6 +591,8 @@ export async function setFxTakeProfitLevelsAction(input: {
   accountId: string;
   levels: { price: number; units: number }[];
 }): Promise<{ error?: string }> {
+  if (fullAppEnabled()) { return appTrading('SET_LEVELS',input); }
+
   const supabase = await createClient();
   const { error } = await supabase.rpc("fx_set_tp_levels", {
     p_position_id: input.positionId,
@@ -579,6 +610,8 @@ export async function fillFxTpLevelsAction(
   positionId: string,
   accountId: string
 ): Promise<{ filled: number }> {
+  if (fullAppEnabled()) { const result=await appTrading('CHECK_POSITION',{positionId,accountId}); return {filled:result.levels??0}; }
+
   const supabase = await createClient();
   const { data: pos } = await supabase
     .from("fx_positions")
@@ -924,6 +957,8 @@ export async function setAccountLeaderboardAction(
 // Permanently deletes the account; positions, transactions, watchlist, orders,
 // and snapshots cascade in the database.
 export async function deleteAccountAction(accountId: string): Promise<{ error?: string }> {
+  if (fullAppEnabled()) { return appTrading('DELETE',{accountId}); }
+
   const supabase = await createClient();
   const { error } = await supabase.from("accounts").delete().eq("id", accountId);
   if (error) return { error: error.message };

@@ -3,9 +3,12 @@
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import Modal from "./Modal";
+import { neonChangePassword } from '@/lib/neon-app/auth-actions';
 
 export default function ChangePasswordModal({ onClose }: { onClose: () => void }) {
   const [password, setPassword] = useState("");
+  const [currentPassword,setCurrentPassword]=useState('');
+  const neon=process.env.NEXT_PUBLIC_POSHKAN_NEON==='1';
   const [confirm, setConfirm] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -17,7 +20,7 @@ export default function ChangePasswordModal({ onClose }: { onClose: () => void }
     if (password !== confirm) return setError("Passwords do not match.");
     if (password.length < 6) return setError("Password must be at least 6 characters.");
     setLoading(true);
-    const { error } = await createClient().auth.updateUser({ password });
+    const { error } = neon?await neonChangePassword(currentPassword,password):await createClient().auth.updateUser({ password });
     setLoading(false);
     if (error) return setError(error.message);
     setDone(true);
@@ -40,6 +43,7 @@ export default function ChangePasswordModal({ onClose }: { onClose: () => void }
         </div>
       ) : (
         <form onSubmit={submit} className="space-y-4">
+          {neon && <label className="block text-sm">Current password<input type="password" autoComplete="current-password" required value={currentPassword} onChange={e=>setCurrentPassword(e.target.value)} className={inputClass}/></label>}
           {error && (
             <div className="rounded-lg border border-negative/30 bg-negative/10 px-3 py-2 text-sm text-negative">
               {error}

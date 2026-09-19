@@ -114,6 +114,12 @@ BEGIN
     INSERT INTO poshkan_trade_test.fx_positions(account_id,symbol,direction,units,open_rate,margin,stop_loss,take_profit)
       VALUES(a.id,symbol,direction,units,p_quote,margin,sl,tp) RETURNING id INTO new_id;
     result := jsonb_build_object('action',action,'positionId',new_id,'price',p_quote::text,'margin',margin::text);
+    IF p_command->>'autoCloseMinutes' IS NOT NULL THEN
+      IF (p_command->>'autoCloseMinutes') !~ '^[0-9]+$' OR (p_command->>'autoCloseMinutes')::integer NOT BETWEEN 0 AND 10080 THEN RAISE EXCEPTION 'Invalid auto-close timer'; END IF;
+      IF (p_command->>'autoCloseMinutes')::integer>0 THEN
+        UPDATE poshkan_trade_test.fx_positions SET auto_close_at=clock_timestamp()+make_interval(mins=>(p_command->>'autoCloseMinutes')::integer) WHERE id=new_id;
+      END IF;
+    END IF;
   ELSE
     SELECT * INTO fx FROM poshkan_trade_test.fx_positions x WHERE x.id = (p_command->>'positionId')::uuid AND x.account_id = a.id AND x.status = 'open' FOR UPDATE;
     IF NOT FOUND THEN RAISE EXCEPTION 'Open position not found'; END IF;

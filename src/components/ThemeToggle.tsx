@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { applyTheme, getTheme, type Theme } from "@/lib/theme";
-import { createClient } from "@/lib/supabase/client";
+import { persistTheme } from "@/lib/neon-app/auth-actions";
 
 export default function ThemeToggle() {
   const [theme, setTheme] = useState<Theme>("light");
@@ -16,11 +16,7 @@ export default function ThemeToggle() {
     setTheme(next);
     applyTheme(next);
     // Persist to the profile (best-effort; UI doesn't block on it).
-    createClient().auth.getUser().then(({ data }) => {
-      if (data.user) {
-        createClient().from("profiles").update({ theme: next }).eq("id", data.user.id).then(() => {});
-      }
-    });
+    void persistTheme(next).catch(() => {});
   }
 
   return (

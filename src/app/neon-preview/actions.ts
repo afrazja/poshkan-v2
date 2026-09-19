@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { previewAuth } from "@/lib/neon-preview/auth";
-import { previewOrigin } from "@/lib/neon-preview/config";
+import { previewOrigin, fullAppEnabled } from "@/lib/neon-preview/config";
 
 export type FormState = { error?: string; message?: string };
 
@@ -16,7 +16,7 @@ export async function signIn(_state: FormState, data: FormData): Promise<FormSta
   } catch {
     return { error: "Could not reach Neon sign-in. Please try again." };
   }
-  redirect("/neon-preview/portfolio");
+  redirect(fullAppEnabled()?'/dashboard':"/neon-preview/portfolio");
 }
 
 export async function requestReset(_state: FormState, data: FormData): Promise<FormState> {
@@ -45,7 +45,7 @@ export async function resetPassword(_state: FormState, data: FormData): Promise<
   } catch {
     return { error: "Could not reach Neon. Please try again." };
   }
-  redirect("/neon-preview?password=saved");
+  redirect(fullAppEnabled()?'/signup?tab=login':"/neon-preview?password=saved");
 }
 
 export async function signOut() {

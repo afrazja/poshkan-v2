@@ -8,3 +8,7 @@ export function requirePreview() {
 }
 
 export const previewOrigin = "http://localhost:3025";
+
+export function fullAppEnabled() {
+  return previewEnabled() && process.env.POSHKAN_NEON_FULL_APP === '1';
+}

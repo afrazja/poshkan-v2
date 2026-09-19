@@ -1,4 +1,5 @@
 "use client";
+import { useTradeRequest } from "@/lib/useTradeRequest";
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -835,6 +836,7 @@ function FxTradeModal({
   cash: number;
   onClose: () => void;
 }) {
+  const requestFor=useTradeRequest();
   const router = useRouter();
   const [direction, setDirection] = useState<"LONG" | "SHORT">("LONG");
   const [lev, setLev] = useState<number>(1);
@@ -907,7 +909,7 @@ function FxTradeModal({
       const pendErr = sltpError(direction, entry, slNum, tpNum);
       if (pendErr) return setError(pendErr.replace("current rate", "entry rate"));
       setLoading(true);
-      const res = await placeFxOrderAction({
+      const res = await placeFxOrderAction(requestFor({
         accountId,
         symbol,
         direction,
@@ -917,7 +919,7 @@ function FxTradeModal({
         stopLoss: slNum,
         takeProfit: tpNum,
         expiresMinutes: expiryMinutes,
-      });
+      }));
       setLoading(false);
       if (res.error) return setError(res.error);
       setDone({ rate: entry, margin: marginFor(effUnits, entry, lev, symbol), pending: true });
@@ -930,7 +932,7 @@ function FxTradeModal({
       if (sltpErr) return setError(sltpErr);
     }
     setLoading(true);
-    const res = await openFxPositionAction({
+    const res = await openFxPositionAction(requestFor({
       accountId,
       symbol,
       direction,
@@ -939,7 +941,7 @@ function FxTradeModal({
       stopLoss: slNum,
       takeProfit: tpNum,
       autoCloseMinutes,
-    });
+    }));
     setLoading(false);
     if (res.error) return setError(res.error);
     setDone({ rate: res.rate ?? rate, margin: res.margin ?? margin });

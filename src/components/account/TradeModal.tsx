@@ -1,4 +1,5 @@
 "use client";
+import { useTradeRequest } from "@/lib/useTradeRequest";
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -53,6 +54,7 @@ export default function TradeModal({
   showChart?: boolean;
   onClose: () => void;
 }) {
+  const requestFor=useTradeRequest();
   const router = useRouter();
   const [amount, setAmount] = useState("");
   const [mode, setMode] = useState<AmountMode>(side === "BUY" ? "DOLLARS" : "UNITS");
@@ -148,21 +150,21 @@ export default function TradeModal({
     setError(null);
     setLoading(true);
     if (isLimit) {
-      const res = await placeLimitOrderAction({
+      const res = await placeLimitOrderAction(requestFor({
         accountId,
         symbol,
         side,
         quantity,
         limitPrice: limit,
         timeInForce: tif,
-      });
+      }));
       setLoading(false);
       if (res.error) return setError(res.error);
       setDone({ price: limit, limit: true });
       router.refresh();
       return;
     }
-    const result = await executeTradeAction({ accountId, symbol, side, quantity });
+    const result = await executeTradeAction(requestFor({ accountId, symbol, side, quantity }));
     setLoading(false);
     if (result.error) return setError(result.error);
     setDone({ price: result.price ?? price });
