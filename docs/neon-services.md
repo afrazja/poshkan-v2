@@ -78,12 +78,12 @@ market/custom checks, with AI explicitly blocked and snapshots not yet due again
 
 ## Still required
 
-1. Migrate and verify the legacy AI scanner's automatic-entry path. It currently
-   calls the old `fx_open` interface and has no enabled Neon service bridge. Its
-   local route deliberately reports blocked, even if credentials are supplied.
-2. Preserve the original `ENCRYPTION_KEY` for imported encrypted Anthropic keys,
-   then verify real AI analysis. No production secrets were retrieved for this
-   rehearsal. Guarded crypto SQL tests do not prove the external model flow.
+1. The AI entry path is now implemented and database-tested; see
+   `neon-ai-scanner.md`. The user has no Anthropic API key, so the optional scanner
+   stays off. A single preview can verify external analysis if a key is added.
+2. The user-supplied original encryption key is stored locally with Windows
+   encryption. The copied owner has no API key to use for a decryption check.
+   No Vercel secret or other production setting was changed.
 3. Verify provider delivery and automatic order-fill notification integration;
    capture tests alone do not prove devices receive notifications.
 4. Verify external MCP clients and production scheduling/worker hosting. A cloud

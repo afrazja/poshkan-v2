@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { servicesEnabled } from "@/lib/neon-app/services";
+import { runNeonAiScan } from "@/lib/neon-app/ai-scanner";
 import { createAdminClient } from "@/lib/service-client";
 import { getQuote } from "@/lib/marketdata";
 import { marginFor, clampTradeLeverage } from "@/lib/forex";
@@ -70,7 +71,13 @@ export async function GET(request: Request) {
   const key = new URL(request.url).searchParams.get("key");
   const authed = !!secret && (request.headers.get("authorization") === `Bearer ${secret}` || key === secret);
   if (!authed) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (servicesEnabled()) return NextResponse.json({ blocked: "AI scanner execution needs its encrypted API credentials and automatic-entry verification before it can be enabled in this test." });
+  if (servicesEnabled()) {
+    const params = new URL(request.url).searchParams;
+    try {
+      const result = await runNeonAiScan(params.get('preview') === '1', params.get('account') ?? undefined);
+      return NextResponse.json(result, {status: 'error' in result ? 502 : 200});
+    } catch { return NextResponse.json({error: 'The local AI scanner could not complete.'}, {status: 500}); }
+  }
 
   try {
     // ?force=1 — testing: place a trade even if the AI finds nothing premium.

@@ -50,7 +50,7 @@ try {
   checks.push(job+' completes against Neon with delivery captured');
  }
  const ai=await fetch(base+'/api/cron/scan-opportunities',{headers});assert.ok((await ai.json()).blocked);
- checks.push('AI scanner honestly reports its pending credentials/verification');
+ checks.push('scheduled AI scans remain explicitly disabled during rehearsal');
  const out=(await db.query('SELECT channel,count(*)::int AS count FROM poshkan_trade_test.delivery_captures WHERE user_id=$1 GROUP BY channel',[owner])).rows;
  const cache=(await db.query('SELECT count(*)::int AS count FROM poshkan_trade_test.market_quotes')).rows[0].count;
  const jobs=(await db.query('SELECT name,status FROM poshkan_trade_test.service_jobs WHERE user_id=$1',[owner])).rows;
