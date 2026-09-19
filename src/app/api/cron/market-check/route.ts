@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { servicesEnabled } from "@/lib/neon-app/services";
 import { runNeonMarketCheck } from "@/lib/neon-app/jobs";
+import { productionEnabled, approvedUserId } from '@/lib/neon-preview/config';
+import { transaction } from '@/lib/neon-preview/trading';
 import { createAdminClient } from "@/lib/service-client";
 import { getQuotes, getOhlc } from "@/lib/marketdata";
 import { bracketHit, floatingPnl, marginFor, clampTradeLeverage } from "@/lib/forex";
@@ -28,7 +30,15 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  if (servicesEnabled()) return NextResponse.json(await runNeonMarketCheck());
+  if (servicesEnabled()) {
+    if (productionEnabled() && new URL(request.url).searchParams.get('status') === '1') {
+      const userId = approvedUserId();
+      if (!userId) return NextResponse.json({error:'Unavailable'},{status:503});
+      const state = await transaction(userId, async c => (await c.query("SELECT jsonb_array_length(poshkan_live.state()) AS accounts, poshkan_live.worker_state() AS background")).rows[0]);
+      return NextResponse.json({database:'neon',...state},{headers:{'Cache-Control':'private, no-store'}});
+    }
+    return NextResponse.json(await runNeonMarketCheck());
+  }
   const db = createAdminClient();
 
   // Resolve an account's owning user (for push), cached within this run.
