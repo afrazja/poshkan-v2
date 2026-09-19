@@ -1,6 +1,7 @@
 import "server-only";
 
-import { createAdminClient } from "./supabase/admin";
+import { createCacheClient as createAdminClient } from "./service-client";
+import { servicesEnabled } from "./neon-app/services";
 import type { Quote } from "./types";
 
 // The shared quote layer that sits between the per-instance memory cache and
@@ -12,7 +13,7 @@ let disabledUntil = 0;
 let warned = false;
 
 function configured(): boolean {
-  return Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY);
+  return servicesEnabled() || Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY);
 }
 
 function disableTemporarily(error: unknown) {

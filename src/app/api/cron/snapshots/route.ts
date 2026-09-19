@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { servicesEnabled } from "@/lib/neon-app/services";
+import { createAdminClient } from "@/lib/service-client";
 import { getQuotes } from "@/lib/marketdata";
 import { GET as dailyScans } from "../daily-scans/route";
 
@@ -26,7 +27,7 @@ export async function GET(request: Request) {
     .catch((e) => ({ error: String(e) }));
 
   // End-of-day sweep: DAY limit orders that didn't fill this session expire.
-  await db.from("orders").update({ status: "expired" }).eq("status", "pending").eq("time_in_force", "DAY");
+  if (!servicesEnabled()) await db.from("orders").update({ status: "expired" }).eq("status", "pending").eq("time_in_force", "DAY");
 
   const [{ data: accounts }, { data: positions }, { data: fxOpen }] = await Promise.all([
     db.from("accounts").select("id, cash_balance"),

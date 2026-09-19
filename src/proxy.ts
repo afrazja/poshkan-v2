@@ -10,7 +10,12 @@ export default async function proxy(request: NextRequest) {
     if (fullAppEnabled()) {
       if(pathname==='/auth/reset') return NextResponse.redirect(new URL('/neon-preview/reset'+request.nextUrl.search,request.url));
       if(pathname==='/auth/callback'||pathname==='/auth/confirm') return new NextResponse('Use the email login in this local test',{status:404});
-      if (pathname.startsWith('/api/cron/') || pathname.startsWith('/api/mcp/') || pathname.startsWith('/admin') || pathname.startsWith('/s/') || pathname.startsWith('/api/digest/') || pathname === '/api/contact') return new NextResponse('This service is reserved for the next migration stage',{status:404});
+      if (pathname.startsWith('/api/cron/') || pathname.startsWith('/api/mcp/')) {
+        if(process.env.POSHKAN_NEON_SERVICES!=='1') return new NextResponse('Local services are disabled',{status:404});
+        if(pathname.startsWith('/api/cron/') && (!process.env.CRON_SECRET || request.headers.get('authorization')!==`Bearer ${process.env.CRON_SECRET}`)) return new NextResponse('Unauthorized',{status:401});
+        return NextResponse.next();
+      }
+      if (pathname.startsWith('/admin') || pathname.startsWith('/s/') || pathname.startsWith('/api/digest/') || pathname === '/api/contact') return new NextResponse('This service is reserved for the next migration stage',{status:404});
       if (pathname === '/') return NextResponse.redirect(new URL('/dashboard',request.url));
       const response=NextResponse.next();
       response.headers.set('Cache-Control','private, no-store');

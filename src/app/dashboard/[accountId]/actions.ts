@@ -1,6 +1,7 @@
 "use server";
 import { fullAppEnabled } from "@/lib/neon-preview/config";
 import { appTrading } from "@/lib/neon-app/trading";
+import { servicesEnabled } from "@/lib/neon-app/services";
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
@@ -691,7 +692,7 @@ export async function removePushSubscriptionAction(endpoint: string): Promise<{ 
 }
 
 // Send a test push to the current user's devices — verifies push delivery.
-export async function sendTestNotificationAction(): Promise<{ sent?: number; error?: string }> {
+export async function sendTestNotificationAction(): Promise<{ sent?: number; error?: string; message?: string }> {
   const supabase = await createClient();
   const {
     data: { user },
@@ -703,6 +704,7 @@ export async function sendTestNotificationAction(): Promise<{ sent?: number; err
       body: "Push notifications are working on this device.",
       url: "/dashboard",
     });
+    if (servicesEnabled()) return { message: 'Test notification captured in the local Neon test. No message was sent to your devices.' };
     if (sent === 0) {
       return { error: "No device received it — tap 'Enable notifications' first, or push isn't configured (VAPID)." };
     }

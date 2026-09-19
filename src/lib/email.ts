@@ -1,4 +1,5 @@
 import "server-only";
+import { servicesEnabled, captureDelivery } from "./neon-app/services";
 
 // Transactional email via Resend's REST API (RESEND_API_KEY).
 // Note: with the shared onboarding@resend.dev sender, Resend only delivers to
@@ -9,6 +10,7 @@ export async function sendEmail(
   html: string,
   opts: { replyTo?: string } = {}
 ): Promise<boolean> {
+  if (servicesEnabled()) { await captureDelivery("email", to, { subject, html, ...opts }); return true; }
   const key = process.env.RESEND_API_KEY;
   if (!key) return false;
   try {

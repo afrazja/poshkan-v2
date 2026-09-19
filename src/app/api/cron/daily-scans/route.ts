@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createAdminClient } from "@/lib/service-client";
 import { computePublicScans } from "@/lib/public-scans";
 
 export const maxDuration = 60;

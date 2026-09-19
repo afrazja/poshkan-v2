@@ -1,4 +1,6 @@
 import { createHash } from "node:crypto";
+import { fullAppEnabled } from "@/lib/neon-preview/config";
+import { neonMcpHandler } from "@/lib/neon-app/mcp";
 import { createMcpHandler } from "mcp-handler";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -643,6 +645,7 @@ function buildHandler(userId: string) {
 }
 
 async function handler(req: Request) {
+  if (fullAppEnabled()) return neonMcpHandler(req);
   const userId = await authenticate(req);
   if (!userId) {
     return new Response(

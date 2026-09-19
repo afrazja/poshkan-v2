@@ -18,14 +18,14 @@ export async function actor() {
   return data.user.id;
 }
 
-export async function transaction<T>(userId: string, work: (client: PoolClient) => Promise<T>) {
+export async function transaction<T>(userId: string, work: (client: PoolClient) => Promise<T>, role: 'app' | 'services' | 'cache' = 'app') {
   if (!process.env.NEON_PREVIEW_DATABASE_URL) throw new Error("Database configuration missing");
   pool ??= new Pool({ connectionString: process.env.NEON_PREVIEW_DATABASE_URL, max: 3, connectionTimeoutMillis: 15000, idleTimeoutMillis: 10000 });
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
     await client.query("SET LOCAL statement_timeout = '15000ms'");
-    await client.query("SET LOCAL ROLE poshkan_trade_preview");
+    await client.query(role === 'services' ? 'SET LOCAL ROLE poshkan_preview_services' : role === 'cache' ? 'SET LOCAL ROLE poshkan_preview_cache' : 'SET LOCAL ROLE poshkan_trade_preview');
     await client.query("SELECT set_config('poshkan.neon_user_id',$1,true)", [userId]);
     const result = await work(client);
     await client.query("COMMIT");

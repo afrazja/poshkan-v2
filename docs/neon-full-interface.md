@@ -69,11 +69,11 @@ No owner password was read or changed, and no session was fabricated.
 
 ## Remaining migration scope
 
-Scheduled scanners, shared market-data caches, email/push delivery, MCP and cloud
-worker hosting remain step 2 and production preparation work. Their production
-service client fails closed locally. The dashboard can read imported settings,
-signals and notifications, but this does not mean their background services have
-been migrated. The local order worker can run while this computer stays awake.
+Local scheduled market checks, custom scans, public scans, snapshots, digest
+capture and authenticated MCP now use Neon. See `neon-services.md` for verified
+behavior, installation, and the remaining AI and delivery limitations. Browser
+review also confirmed account holdings and the imported history. The local order
+worker can run while this computer stays awake; cloud hosting remains pending.
 
 Keep the existing `ENCRYPTION_KEY` when moving saved encrypted user API keys.
 Configure authentication for `https://poshkan.com`, refresh the source data and

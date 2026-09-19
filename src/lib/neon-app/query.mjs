@@ -5,15 +5,18 @@ const identifier = value => {
   return `"${value}"`;
 };
 const tables = new Set(['accounts','positions','transactions','fx_positions','orders','fx_orders','fx_tp_levels','profiles','watchlist','alerts','account_snapshots','notifications','custom_strategies','custom_strategy_signals','smc_settings','smc_signals','ote_settings','ote_signals','trend_settings','trend_signals','meanrev_settings','meanrev_signals','candlerange_settings','candlerange_signals','api_tokens','push_subscriptions','email_prefs']);
+const cacheTables = new Set(['market_quotes','market_candles','market_data_syncs','market_scans']);
+const serviceTables = new Set([...tables, ...cacheTables, 'fx_scan_alerts', 'crypto_monitor_runs', 'delivery_captures']);
 
 /** @param {import('pg').PoolClient} client @param {URL} url @param {RequestInit} init */
-export async function executeQuery(client, url, init = {}) {
+export async function executeQuery(client, url, init = {}, scope = 'app') {
   const table = url.pathname.split('/').pop();
-  if (!tables.has(table)) throw new Error('Unsupported application table');
+  const allowed = scope === 'cache' ? cacheTables : scope === 'services' ? serviceTables : tables;
+  if (!allowed.has(table)) throw new Error('Unsupported application table');
   const target = `poshkan_trade_test.${identifier(table)}`;
   const params = [];
   const bind = value => { params.push(value); return `$${params.length}`; };
-  const bindColumn=(key,value)=>bind(['rules','last_backtest'].includes(key)&&value!==null?JSON.stringify(value):value);
+  const bindColumn=(key,value)=>bind(['rules','last_backtest','quote','results','report','payload'].includes(key)&&value!==null?JSON.stringify(value):value);
   const search = url.searchParams;
   const filters = [];
   let join = '';

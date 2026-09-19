@@ -1,6 +1,7 @@
 import "server-only";
 import webpush from "web-push";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { servicesEnabled, captureDelivery } from "./neon-app/services";
+import { createAdminClient } from "@/lib/service-client";
 
 // Send a web-push notification to every device a user has subscribed.
 // Best-effort: failures never throw; dead subscriptions are pruned.
@@ -30,6 +31,7 @@ export async function sendPushToUser(
     } catch {}
   }
 
+  if (servicesEnabled()) { await captureDelivery("push", userId, payload); return 0; }
   const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
   const privateKey = process.env.VAPID_PRIVATE_KEY;
   if (!publicKey || !privateKey) return 0;

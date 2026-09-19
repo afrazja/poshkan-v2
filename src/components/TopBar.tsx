@@ -69,7 +69,7 @@ export default function TopBar({
   async function testPush() {
     setPushMsg("Sending test…");
     const res = await sendTestNotificationAction();
-    setPushMsg(res.error ?? `✓ Test sent to ${res.sent} device(s) — check your phone`);
+    setPushMsg(res.error ?? res.message ?? `✓ Test sent to ${res.sent} device(s) — check your phone`);
   }
   const ref = useRef<HTMLDivElement>(null);
   const accRef = useRef<HTMLDivElement>(null);

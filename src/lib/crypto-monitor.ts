@@ -2,7 +2,7 @@ import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
-import { createAdminClient } from "./supabase/admin";
+import { createAdminClient } from "./service-client";
 import { getQuote, getOhlc } from "./marketdata";
 import { getUserAnthropicKey } from "./anthropic-key";
 import { sendPushToUser } from "./push";

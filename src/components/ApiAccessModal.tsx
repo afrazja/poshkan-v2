@@ -30,7 +30,13 @@ export default function ApiAccessModal({ onClose }: { onClose: () => void }) {
     else setTokens(res.tokens ?? []);
   }
   useEffect(() => {
-    refresh();
+    let active = true;
+    listApiTokensAction().then(res => {
+      if (!active) return;
+      if (res.error) setError("API access isn't available right now.");
+      else setTokens(res.tokens ?? []);
+    }).catch(() => { if (active) setError("API access isn't available right now."); });
+    return () => { active = false; };
   }, []);
 
   async function create() {
@@ -50,6 +56,7 @@ export default function ApiAccessModal({ onClose }: { onClose: () => void }) {
 
   const origin = typeof window !== "undefined" ? window.location.origin : "https://poshkan.com";
   const mcpUrl = `${origin}/api/mcp/mcp`;
+  const localNeon = process.env.NEXT_PUBLIC_POSHKAN_NEON === '1';
 
   return (
     <Modal title="Claude API access" onClose={onClose} wide>
@@ -82,12 +89,12 @@ export default function ApiAccessModal({ onClose }: { onClose: () => void }) {
             </div>
             <div className="space-y-2 border-t border-border pt-3 text-xs text-muted">
               <p className="font-semibold text-foreground">Connect Claude:</p>
-              <p>
+              {localNeon ? <p>This test connection is available on this computer. Use the Claude Code command below; cloud connectors cannot reach localhost.</p> : <><p>
                 <strong>claude.ai</strong> → Settings → Connectors → Add custom connector → URL:
               </p>
               <code className="block overflow-x-auto rounded-md bg-background px-2 py-1.5">
                 {mcpUrl}?key={newToken}
-              </code>
+              </code></>}
               <p>
                 <strong>Claude Code</strong>:
               </p>

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { servicesEnabled } from "@/lib/neon-app/services";
+import { createAdminClient } from "@/lib/service-client";
 import { symbolLabel } from "@/lib/assets";
 import { unsubSignature } from "@/lib/digest";
 import { sendEmail } from "@/lib/email";
@@ -78,7 +79,7 @@ export async function GET(request: Request) {
   const authed = !!secret && (request.headers.get("authorization") === `Bearer ${secret}` || key === secret);
   if (!authed) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  if (!process.env.RESEND_API_KEY) return NextResponse.json({ skipped: "RESEND_API_KEY not set" });
+  if (!servicesEnabled() && !process.env.RESEND_API_KEY) return NextResponse.json({ skipped: "RESEND_API_KEY not set" });
 
   const db = createAdminClient();
   const d7 = new Date(Date.now() - 7 * DAY).toISOString();

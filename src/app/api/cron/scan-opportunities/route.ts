@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { servicesEnabled } from "@/lib/neon-app/services";
+import { createAdminClient } from "@/lib/service-client";
 import { getQuote } from "@/lib/marketdata";
 import { marginFor, clampTradeLeverage } from "@/lib/forex";
 import { aiUniverse, buildSummary, analyzeMarket, fallbackSetup, type PairSummary } from "@/lib/forex-scan";
@@ -69,6 +70,7 @@ export async function GET(request: Request) {
   const key = new URL(request.url).searchParams.get("key");
   const authed = !!secret && (request.headers.get("authorization") === `Bearer ${secret}` || key === secret);
   if (!authed) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (servicesEnabled()) return NextResponse.json({ blocked: "AI scanner execution needs its encrypted API credentials and automatic-entry verification before it can be enabled in this test." });
 
   try {
     // ?force=1 — testing: place a trade even if the AI finds nothing premium.

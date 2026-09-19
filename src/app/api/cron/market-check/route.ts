@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { servicesEnabled } from "@/lib/neon-app/services";
+import { runNeonMarketCheck } from "@/lib/neon-app/jobs";
+import { createAdminClient } from "@/lib/service-client";
 import { getQuotes, getOhlc } from "@/lib/marketdata";
 import { bracketHit, floatingPnl, marginFor, clampTradeLeverage } from "@/lib/forex";
 import { sendEmail, alertEmailHtml } from "@/lib/email";
@@ -26,6 +28,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  if (servicesEnabled()) return NextResponse.json(await runNeonMarketCheck());
   const db = createAdminClient();
 
   // Resolve an account's owning user (for push), cached within this run.

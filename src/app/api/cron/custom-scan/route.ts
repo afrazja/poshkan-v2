@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createAdminClient } from "@/lib/service-client";
 import { getQuote } from "@/lib/marketdata";
 import { sendPushToUser } from "@/lib/push";
 import { symbolLabel } from "@/lib/assets";
