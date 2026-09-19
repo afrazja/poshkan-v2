@@ -6,6 +6,7 @@ import { sendEmail } from "@/lib/email";
 import { recordLogin } from "@/lib/login-stats";
 import { fullAppEnabled, previewOrigin } from '@/lib/neon-preview/config';
 import { previewAuth } from '@/lib/neon-preview/auth';
+import { neonLoginFailure } from '@/lib/neon-preview/login-error';
 
 const GENERIC_LOGIN_ERROR = "Invalid email/username or password.";
 
@@ -18,8 +19,16 @@ export async function signInAction(
   const id = identifier.trim();
   if (fullAppEnabled()) {
     if (!id.includes('@')) return {error:'Use your email address for the Neon login.'};
-    try { const {error}=await previewAuth().signIn.email({email:id,password}); return error?{error:GENERIC_LOGIN_ERROR}:{}; }
-    catch {return {error:'Sign-in is temporarily unavailable. Try again.'};}
+    try {
+      const { error } = await previewAuth().signIn.email({ email: id, password });
+      if (!error) return {};
+      const failure = neonLoginFailure(error);
+      console.warn('[neon-sign-in]', failure.diagnostic);
+      return { error: failure.message };
+    } catch {
+      console.warn('[neon-sign-in]', { code: 'UNEXPECTED_FAILURE' });
+      return { error: 'Sign-in is temporarily unavailable. Try again.' };
+    }
   }
   if (!id || !password) return { error: "Enter your email/username and password." };
 

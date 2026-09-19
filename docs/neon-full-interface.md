@@ -57,9 +57,15 @@ rolls back all test writes. Full Next.js build and TypeScript validation passed.
 New adapter/auth code passed targeted lint. The existing ThemeToggle hydration
 effect still triggers the pre-existing `set-state-in-effect` lint rule.
 The login page passed mobile layout/error checks and unsigned dashboard requests
-redirected to login. The owner's subsequent sign-in attempt was rejected;
-read-only checks confirmed the account/password/mapping exist. Successful
-authenticated browser review is still pending. No owner session was fabricated.
+redirected to login. After an initially rejected attempt, the owner signed in
+successfully. A fresh browser reload after restarting the app retained the real
+session and displayed all four portfolios, refreshed quotes, and the connected
+worker with execution stopped. Broader authenticated feature review remains.
+The initial error was not recorded; its exact cause is unknown. Login errors now
+distinguish rejected credentials, rate limits, origin configuration, and service
+failures, with only allowlisted codes and HTTP status logged. Error classification
+and privacy checks, targeted lint, TypeScript, and the full build passed.
+No owner password was read or changed, and no session was fabricated.
 
 ## Remaining migration scope
 
