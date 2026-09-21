@@ -16,7 +16,7 @@
       "headers": [
         {
           "name": "Authorization",
-          "description": "Bearer pk_… — create a free token at poshkan.com: settings menu → Claude API access",
+          "description": "Bearer pk_… — create a token at poshkan.com: settings menu → AI/MCP access",
           "isRequired": true,
           "isSecret": true
         }

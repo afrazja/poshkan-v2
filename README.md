@@ -224,7 +224,7 @@ server-side Supabase access.
 
 ## MCP integration
 
-Create a personal token in the app's **Claude API access** dialog. Connect an MCP client to
+Create a personal token in the app's **AI/MCP access** dialog. Connect an MCP client to
 `https://<your-app-host>/api/mcp/mcp` using `Authorization: Bearer <token>`.
 The dialog provides connection details; tokens are shown once, stored as hashes, and revocable.
 

@@ -13,7 +13,7 @@ export default async function proxy(request: NextRequest) {
       if(pathname==='/auth/reset' && previewEnabled()) return NextResponse.redirect(new URL('/neon-preview/reset'+request.nextUrl.search,request.url));
       if(pathname==='/auth/callback'||pathname==='/auth/confirm') return new NextResponse('Use the email login in this local test',{status:404});
       if (pathname.startsWith('/api/cron/') || pathname.startsWith('/api/mcp/')) {
-        if(productionEnabled() && !['/api/cron/market-check','/api/cron/snapshots'].includes(pathname)) return new NextResponse('Optional service is disabled',{status:404});
+        if(productionEnabled() && pathname.startsWith('/api/cron/') && !['/api/cron/market-check','/api/cron/snapshots'].includes(pathname)) return new NextResponse('Optional service is disabled',{status:404});
         if(process.env.POSHKAN_NEON_SERVICES!=='1') return new NextResponse('Local services are disabled',{status:404});
         if(pathname.startsWith('/api/cron/') && (!process.env.CRON_SECRET || request.headers.get('authorization')!==`Bearer ${process.env.CRON_SECRET}`)) return new NextResponse('Unauthorized',{status:401});
         return NextResponse.next();

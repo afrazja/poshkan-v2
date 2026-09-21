@@ -8,9 +8,9 @@ import SiteFooter from "@/components/SiteFooter";
 const MCP_URL = "https://www.poshkan.com/api/mcp/mcp";
 const PAGE_URL = "https://www.poshkan.com/mcp";
 
-const TITLE = "Poshkan MCP Server — Let Claude Paper-Trade Stocks, Crypto & Forex";
+const TITLE = "Poshkan MCP Server — AI Paper-Trading for Stocks, Crypto & Forex";
 const DESCRIPTION =
-  "Connect Claude to Poshkan over MCP and let it read quotes, run technical analysis, and place virtual trades on your paper-trading accounts — stocks, crypto, and leveraged forex. Free, token-authenticated, 100% virtual money.";
+  "Connect a compatible AI assistant to Poshkan over MCP so it can read quotes and place virtual trades on your paper-trading accounts — stocks, crypto, and leveraged forex. Free, token-authenticated, 100% virtual money.";
 
 const TOOLS: { group: string; items: { name: string; desc: string }[] }[] = [
   {
@@ -32,7 +32,7 @@ const TOOLS: { group: string; items: { name: string; desc: string }[] }[] = [
   {
     group: "Stocks & crypto trading",
     items: [
-      { name: "trade", desc: "Market buy or sell at the live price — filled server-side, never at a price Claude invents." },
+      { name: "trade", desc: "Market buy or sell at the live price — filled server-side, never at a price the AI invents." },
       { name: "place_limit_order", desc: "Limit order that fills automatically when price reaches your level (GTC or DAY)." },
       { name: "cancel_order", desc: "Cancel a pending limit order." },
     ],
@@ -62,19 +62,19 @@ const PROMPTS = [
 const FAQ = [
   {
     q: "Is any real money involved?",
-    a: "No. Poshkan is a paper-trading simulator — every account, balance, and trade is 100% virtual. Claude can practice strategies, but nothing real can be won or lost.",
+    a: "No. Poshkan is a paper-trading simulator — every account, balance, and trade is 100% virtual. AI assistants can practice strategies, but nothing real can be won or lost.",
   },
   {
     q: "How does authentication work?",
-    a: "You create a personal API token (pk_…) inside the app — settings menu → Claude API access. The server stores only a SHA-256 hash of it, and every tool call is scoped to the accounts of the token's owner. Revoke a token any time from the same menu.",
+    a: "You create a personal API token (pk_…) inside the app — settings menu → AI/MCP access. The server stores only a SHA-256 hash of it, and every tool call is scoped to the accounts of the token's owner. Revoke a token any time from the same menu.",
   },
   {
     q: "Which MCP clients are supported?",
-    a: "Any client that speaks streamable HTTP: claude.ai custom connectors, Claude Code, Claude Desktop, and other MCP-compatible clients. No local install — it's a remote server, so setup is pasting one URL.",
+    a: "Any Streamable HTTP client that can send a bearer token, including Codex/ChatGPT desktop, Claude Code, the OpenAI API, and other MCP-compatible clients. ChatGPT web plugins use a separate OAuth connection flow.",
   },
   {
-    q: "Can Claude make up fill prices?",
-    a: "No. Every trade is priced server-side from live market data at execution time, and order fills are claimed atomically. Claude decides what to trade; Poshkan decides the price.",
+    q: "Can an AI make up fill prices?",
+    a: "No. Every trade is priced server-side from live market data at execution time, and order fills are claimed atomically. The assistant decides what to trade; Poshkan decides the price.",
   },
   {
     q: "What does it cost?",
@@ -129,16 +129,16 @@ export default function McpPage() {
           {" / "}MCP Server
         </nav>
 
-        <h1 className="mb-2 mt-4 text-3xl font-bold tracking-tight">🤖 Give Claude a trading account</h1>
+        <h1 className="mb-2 mt-4 text-3xl font-bold tracking-tight">🤖 Give your AI assistant a paper-trading account</h1>
         <p className="mb-8 text-lg text-muted">
-          The Poshkan MCP server connects Claude to a real-time paper-trading platform: live
+          The Poshkan MCP server connects compatible AI assistants to a real-time paper-trading platform: live
           quotes, technical indicators, and broker-style order execution on US stocks, crypto,
           and leveraged forex — all with 100% virtual money.
         </p>
 
         <div className="space-y-4 text-sm leading-relaxed text-muted [&_strong]:text-foreground">
           <p>
-            Ask Claude to analyze a chart and it can pull the candles itself. Ask it to act on the
+            Ask your assistant to analyze a chart and it can pull the candles itself. Ask it to act on the
             analysis and it can place the trade — a market order, a limit order at a better price,
             or a leveraged forex position with a stop-loss and take-profit attached. Because every
             dollar is virtual, it&apos;s a consequence-free sandbox for AI-assisted trading:
@@ -160,31 +160,29 @@ export default function McpPage() {
               (no card) and add a paper-trading account or two — stocks, crypto, or forex.
             </li>
             <li>
-              In the app, open the settings menu (top right) → <strong>Claude API access</strong> →
+              In the app, open the settings menu (top right) → <strong>AI/MCP access</strong> →
               create a token. It starts with <code className="rounded bg-card px-1">pk_</code> and is
               shown once — copy it.
             </li>
             <li>Connect your client below.</li>
           </ol>
 
-          <h3 className="pt-2 font-semibold text-foreground">claude.ai (web & desktop)</h3>
-          <p>
-            Settings → Connectors → <strong>Add custom connector</strong>, and paste this URL with
-            your token:
-          </p>
-          <Code>{`${MCP_URL}?key=pk_YOUR_TOKEN`}</Code>
+          <h3 className="pt-2 font-semibold text-foreground">Codex / ChatGPT desktop</h3>
+          <p>Add a Streamable HTTP MCP server using this endpoint and your token as a bearer token:</p>
+          <Code>{`${MCP_URL}\nAuthorization: Bearer pk_YOUR_TOKEN`}</Code>
 
           <h3 className="pt-2 font-semibold text-foreground">Claude Code</h3>
           <Code>{`claude mcp add poshkan --transport http "${MCP_URL}" \\
   --header "Authorization: Bearer pk_YOUR_TOKEN"`}</Code>
 
-          <h3 className="pt-2 font-semibold text-foreground">Any other MCP client</h3>
+          <h3 className="pt-2 font-semibold text-foreground">OpenAI API and other MCP clients</h3>
           <p>
             It&apos;s a remote server over streamable HTTP — endpoint{" "}
             <code className="rounded bg-card px-1">{MCP_URL}</code>, authenticated with{" "}
-            <code className="rounded bg-card px-1">Authorization: Bearer pk_…</code> or{" "}
-            <code className="rounded bg-card px-1">?key=pk_…</code>. Nothing to install.
+            <code className="rounded bg-card px-1">Authorization: Bearer pk_…</code>. The OpenAI
+            Responses and Agents APIs can pass the same token in their MCP authorization field.
           </p>
+          <p>ChatGPT web plugins require OAuth; this personal-token connection is for clients and APIs that accept bearer tokens.</p>
 
           <h2 className="pt-4 text-lg font-bold text-foreground">The {TOOLS.reduce((count, group) => count + group.items.length, 0)} tools</h2>
           {TOOLS.map((g) => (

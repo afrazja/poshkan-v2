@@ -138,7 +138,7 @@ export default function HelpPage() {
 
         <H id="claude">Claude connector (advanced)</H>
         <p>
-          Settings → <strong>Claude API access</strong> creates a personal token that lets the
+          Settings → <strong>AI/MCP access</strong> creates a personal token that lets the
           Claude AI assistant read your portfolio and trade on your instruction via MCP. Treat
           tokens like passwords; revoke them anytime in the same menu.
         </p>

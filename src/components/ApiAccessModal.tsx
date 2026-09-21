@@ -15,10 +15,10 @@ interface TokenRow {
   last_used_at: string | null;
 }
 
-// Manage personal API tokens that let Claude (via MCP) act on your accounts.
+// Manage personal API tokens that let compatible AI clients act on your accounts through MCP.
 export default function ApiAccessModal({ onClose }: { onClose: () => void }) {
   const [tokens, setTokens] = useState<TokenRow[] | null>(null);
-  const [name, setName] = useState("Claude");
+  const [name, setName] = useState("AI client");
   const [newToken, setNewToken] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -56,14 +56,14 @@ export default function ApiAccessModal({ onClose }: { onClose: () => void }) {
 
   const origin = typeof window !== "undefined" ? window.location.origin : "https://poshkan.com";
   const mcpUrl = `${origin}/api/mcp/mcp`;
-  const localNeon = process.env.NEXT_PUBLIC_POSHKAN_NEON === '1';
+  const localServer = /^https?:\/\/(localhost|127\.0\.0\.1)(:|$)/.test(origin);
 
   return (
-    <Modal title="Claude API access" onClose={onClose} wide>
+    <Modal title="AI/MCP access" onClose={onClose} wide>
       <div className="space-y-4 text-sm">
         <p className="text-muted">
-          Create a token to let Claude trade and read your accounts through MCP. Treat tokens
-          like passwords — anyone holding one can act on your paper accounts.
+          Create a token to let a compatible AI assistant read and trade on your paper accounts
+          through MCP. Treat tokens like passwords — anyone holding one can act on those accounts.
         </p>
 
         {error && (
@@ -88,19 +88,21 @@ export default function ApiAccessModal({ onClose }: { onClose: () => void }) {
               </button>
             </div>
             <div className="space-y-2 border-t border-border pt-3 text-xs text-muted">
-              <p className="font-semibold text-foreground">Connect Claude:</p>
-              {localNeon ? <p>This test connection is available on this computer. Use the Claude Code command below; cloud connectors cannot reach localhost.</p> : <><p>
-                <strong>claude.ai</strong> → Settings → Connectors → Add custom connector → URL:
-              </p>
+              <p className="font-semibold text-foreground">Connect an MCP client:</p>
+              {localServer && <p>This local test can only be reached from clients running on this computer.</p>}
+              <p>Use Streamable HTTP with this endpoint:</p>
+              <code className="block overflow-x-auto rounded-md bg-background px-2 py-1.5">{mcpUrl}</code>
+              <p>Authentication header:</p>
               <code className="block overflow-x-auto rounded-md bg-background px-2 py-1.5">
-                {mcpUrl}?key={newToken}
-              </code></>}
+                Authorization: Bearer {newToken}
+              </code>
               <p>
                 <strong>Claude Code</strong>:
               </p>
               <code className="block overflow-x-auto rounded-md bg-background px-2 py-1.5">
                 claude mcp add poshkan --transport http &quot;{mcpUrl}&quot; --header &quot;Authorization: Bearer {newToken}&quot;
               </code>
+              <p>Codex/ChatGPT desktop, the OpenAI API, and other compatible clients can use the same endpoint and bearer token.</p>
             </div>
             <button onClick={() => setNewToken(null)} className="text-xs text-muted hover:text-foreground">
               Done — hide token
@@ -112,7 +114,7 @@ export default function ApiAccessModal({ onClose }: { onClose: () => void }) {
               value={name}
               onChange={(e) => setName(e.target.value)}
               maxLength={60}
-              placeholder="Token name (e.g. Claude)"
+              placeholder="Token name (e.g. Codex or Claude)"
               className="flex-1 rounded-lg border border-border bg-input px-3 py-2 outline-none focus:border-primary"
             />
             <button

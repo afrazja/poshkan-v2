@@ -8,7 +8,7 @@ Set `NEXT_PUBLIC_POSHKAN_NEON=1`, `NEXT_PUBLIC_POSHKAN_DATABASE_MODE=neon`, `POS
 
 `poshkan_live` contains production application data. `poshkan_live_stage` retains the checked source snapshot. Neither replaces `poshkan_stage` or `poshkan_trade_test`. The runtime has no access to those snapshots or rehearsal tables. Runtime SQL switches between fixed schema identifiers; user values stay parameterized. Each transaction selects the appropriate restricted role and verifies the mapped identity through database policies/functions.
 
-Only the existing owner is enabled in Neon Auth. All 51 legacy identities and their application data are retained; this release does not migrate their login passwords or enable new signups. Optional API/MCP and scanner endpoints are disabled in production, their account controls are hidden, automatic AI entries are disabled, and snapshots no longer invoke scanners. No Anthropic key is required.
+Only the existing owner is enabled in Neon Auth. All 51 legacy identities and their application data are retained; this release does not migrate their login passwords or enable new signups. The owner-scoped MCP endpoint is enabled in production with hashed personal bearer tokens and restricted Neon roles. Optional scanner endpoints remain disabled, automatic AI entries are disabled, and snapshots no longer invoke scanners. No Anthropic key is required.
 
 Password resets return to `https://www.poshkan.com/auth/reset`, matching Vercel's existing canonical-domain redirect. Neon must trust both `https://poshkan.com` and `https://www.poshkan.com` before promotion.
 

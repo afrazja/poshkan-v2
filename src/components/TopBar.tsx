@@ -195,16 +195,16 @@ export default function TopBar({
                 >
                   Change password
                 </button>
-                {process.env.NEXT_PUBLIC_POSHKAN_DATABASE_MODE!=='neon' && <><button
+                <button
                   onClick={() => {
                     setShowApiAccess(true);
                     setSettingsOpen(false);
                   }}
                   className="w-full rounded-md px-3 py-2 text-left text-sm hover:bg-background"
                 >
-                  Claude API access
+                  AI/MCP access
                 </button>
-                <button
+                {process.env.NEXT_PUBLIC_POSHKAN_DATABASE_MODE!=='neon' && <button
                   onClick={() => {
                     setShowAnthropicKey(true);
                     setSettingsOpen(false);
@@ -212,7 +212,7 @@ export default function TopBar({
                   className="w-full rounded-md px-3 py-2 text-left text-sm hover:bg-background"
                 >
                   Your Claude API key (for AI)
-                </button></>}
+                </button>}
                 <button
                   onClick={enablePush}
                   className="w-full rounded-md px-3 py-2 text-left text-sm hover:bg-background"
