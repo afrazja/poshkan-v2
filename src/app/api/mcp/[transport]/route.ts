@@ -8,6 +8,7 @@ import { getQuote, getQuotes, searchSymbols, getOhlc } from "@/lib/marketdata";
 import { assetTypeError } from "@/lib/assets";
 import { marginFor, sltpError, floatingPnl, pairName } from "@/lib/forex";
 import { sma, rsi, trendFromSma, support, resistance } from "@/lib/indicators";
+import { unauthorizedMcpResponse } from "@/lib/mcp-oauth";
 
 export const maxDuration = 60;
 
@@ -647,12 +648,7 @@ function buildHandler(userId: string) {
 async function handler(req: Request) {
   if (fullAppEnabled()) return neonMcpHandler(req);
   const userId = await authenticate(req);
-  if (!userId) {
-    return new Response(
-      JSON.stringify({ error: "Unauthorized — pass your Poshkan API token as 'Authorization: Bearer pk_…' or '?key=pk_…'" }),
-      { status: 401, headers: { "content-type": "application/json" } }
-    );
-  }
+  if (!userId) return unauthorizedMcpResponse();
   return buildHandler(userId)(req);
 }
 

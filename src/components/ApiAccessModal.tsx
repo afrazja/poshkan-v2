@@ -62,8 +62,22 @@ export default function ApiAccessModal({ onClose }: { onClose: () => void }) {
     <Modal title="AI/MCP access" onClose={onClose} wide>
       <div className="space-y-4 text-sm">
         <p className="text-muted">
-          Create a token to let a compatible AI assistant read and trade on your paper accounts
-          through MCP. Treat tokens like passwords — anyone holding one can act on those accounts.
+          Connect an AI assistant to read and trade on your paper accounts through MCP.
+        </p>
+
+        {!localServer && (
+          <div className="space-y-2 rounded-lg border border-primary/30 bg-primary/10 p-4">
+            <p className="font-semibold">Claude Desktop</p>
+            <p className="text-muted">
+              In Claude, open Settings → Connectors → Add custom connector. Enter this URL, then sign in to Poshkan and allow access. No token or extension is needed.
+            </p>
+            <code className="block overflow-x-auto rounded-md bg-background px-2 py-1.5">{mcpUrl}</code>
+          </div>
+        )}
+
+        <p className="text-muted">
+          For Codex, Claude Code, APIs, and clients that accept bearer headers, create a token below.
+          Treat tokens like passwords — anyone holding one can act on those accounts.
         </p>
 
         {error && (

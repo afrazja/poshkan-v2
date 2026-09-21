@@ -66,11 +66,11 @@ const FAQ = [
   },
   {
     q: "How does authentication work?",
-    a: "You create a personal API token (pk_…) inside the app — settings menu → AI/MCP access. The server stores only a SHA-256 hash of it, and every tool call is scoped to the accounts of the token's owner. Revoke a token any time from the same menu.",
+    a: "Claude Desktop uses a secure Poshkan OAuth sign-in and consent screen. Clients that accept bearer headers can instead use a personal API token (pk_…) from settings → AI/MCP access. Every connection is scoped to the signed-in user's paper accounts and can be revoked.",
   },
   {
     q: "Which MCP clients are supported?",
-    a: "Any Streamable HTTP client that can send a bearer token, including Codex/ChatGPT desktop, Claude Code, the OpenAI API, and other MCP-compatible clients. ChatGPT web plugins use a separate OAuth connection flow.",
+    a: "Claude Desktop and other OAuth-capable remote MCP clients can connect directly. Codex, Claude Code, the OpenAI API, and other Streamable HTTP clients can also connect with a Poshkan bearer token.",
   },
   {
     q: "Can an AI make up fill prices?",
@@ -159,16 +159,21 @@ export default function McpPage() {
               <Link href="/" className="underline hover:text-foreground">Create a free Poshkan account</Link>{" "}
               (no card) and add a paper-trading account or two — stocks, crypto, or forex.
             </li>
-            <li>
-              In the app, open the settings menu (top right) → <strong>AI/MCP access</strong> →
-              create a token. It starts with <code className="rounded bg-card px-1">pk_</code> and is
-              shown once — copy it.
-            </li>
             <li>Connect your client below.</li>
           </ol>
 
+          <h3 className="pt-2 font-semibold text-foreground">Claude Desktop</h3>
+          <p>
+            Open <strong>Settings → Connectors → Add custom connector</strong>, name it Poshkan, and enter this URL:
+          </p>
+          <Code>{MCP_URL}</Code>
+          <p>Claude opens Poshkan in your browser. Sign in and choose <strong>Allow access</strong>. No API key or desktop extension is needed.</p>
+
           <h3 className="pt-2 font-semibold text-foreground">Codex / ChatGPT desktop</h3>
-          <p>Add a Streamable HTTP MCP server using this endpoint and your token as a bearer token:</p>
+          <p>
+            In Poshkan, open the settings menu → <strong>AI/MCP access</strong> and create a token.
+            Add a Streamable HTTP MCP server using this endpoint and the token as a bearer token:
+          </p>
           <Code>{`${MCP_URL}\nAuthorization: Bearer pk_YOUR_TOKEN`}</Code>
 
           <h3 className="pt-2 font-semibold text-foreground">Claude Code</h3>
@@ -182,7 +187,7 @@ export default function McpPage() {
             <code className="rounded bg-card px-1">Authorization: Bearer pk_…</code>. The OpenAI
             Responses and Agents APIs can pass the same token in their MCP authorization field.
           </p>
-          <p>ChatGPT web plugins require OAuth; this personal-token connection is for clients and APIs that accept bearer tokens.</p>
+          <p>OAuth-capable clients can connect directly without creating a personal token.</p>
 
           <h2 className="pt-4 text-lg font-bold text-foreground">The {TOOLS.reduce((count, group) => count + group.items.length, 0)} tools</h2>
           {TOOLS.map((g) => (
@@ -210,9 +215,8 @@ export default function McpPage() {
               server at execution time; a confused model can&apos;t invent a fill price.
             </li>
             <li>
-              <strong>User-scoped tokens.</strong> Tokens are stored as SHA-256 hashes, every call
-              is checked against the token owner&apos;s accounts, and you can revoke a token in one
-              click.
+              <strong>User-scoped access.</strong> OAuth connections and personal tokens are tied to
+              your account, every call is checked against your paper accounts, and access can be revoked.
             </li>
             <li>
               <strong>Real trading rules.</strong> Asset-class limits, margin requirements,
@@ -235,8 +239,8 @@ export default function McpPage() {
         <div className="mt-10 rounded-2xl border border-primary/30 bg-primary/5 p-6">
           <h2 className="font-semibold">Ready in two minutes</h2>
           <p className="mt-1 text-sm text-muted">
-            Create a free account, mint a token from the settings menu, paste one URL into Claude —
-            and ask it to check the markets.
+            Create a free account, add the Poshkan URL to Claude, approve the secure sign-in — and
+            ask it to check the markets.
           </p>
           <Link
             href="/"

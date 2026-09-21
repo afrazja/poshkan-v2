@@ -10,6 +10,7 @@ import { checkedQuote } from '../neon-preview/quote.mjs';
 import YahooFinance from 'yahoo-finance2';
 import { getQuote, getOhlc, searchSymbols } from '../marketdata';
 import { servicesEnabled } from './services';
+import { unauthorizedMcpResponse } from '../mcp-oauth';
 const yahoo = new YahooFinance({ suppressNotices: ['yahooSurvey'] });
 const uuid=z.string().uuid();
 const ok=(value:unknown)=>({content:[{type:'text' as const,text:JSON.stringify(value)}]});
@@ -17,14 +18,14 @@ const ok=(value:unknown)=>({content:[{type:'text' as const,text:JSON.stringify(v
 export async function neonMcpHandler(req: Request) {
   if (!servicesEnabled()) return new Response('Unavailable',{status:404});
   const token=req.headers.get('authorization')?.match(/^Bearer (pk_\S+)$/i)?.[1];
-  if (!token || token.length>512) return new Response('Unauthorized',{status:401});
+  if (!token || token.length>512) return unauthorizedMcpResponse();
   const hash=createHash('sha256').update(token).digest('hex');
   const userId=approvedUserId()!;
   const work=<T>(fn:Parameters<typeof transaction<T>>[1])=>transaction(userId,async c=>{
     await c.query(`SELECT ${databaseSchema()}.verify_api_token($1)`,[hash]);
     return fn(c);
   });
-  try { await work(async()=>true); } catch { return new Response('Unauthorized',{status:401}); }
+  try { await work(async()=>true); } catch { return unauthorizedMcpResponse(); }
   const respond=async(fn:()=>Promise<unknown>)=>{
     try { await work(async()=>true); return ok(await fn()); }
     catch { return {content:[{type:'text' as const,text:'The request failed. Check account ownership, inputs, available cash and quote availability. Retry mutations with the same request_id.'}],isError:true}; }
