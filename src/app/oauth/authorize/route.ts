@@ -97,13 +97,13 @@ export async function GET(request: NextRequest) {
 <h1>Connect ${htmlEscape(client.clientName)}?</h1>
 <p>This gives Claude access to your Poshkan paper-trading accounts through MCP.</p>
 <div class="notice"><strong>Claude will be able to:</strong><p>Read your virtual portfolio and place, change, or close virtual trades when you ask it to. No real money or brokerage account is involved.</p></div>
-<form method="post"><input type="hidden" name="request" value="${htmlEscape(authorizationRequest)}"><input type="hidden" name="csrf" value="${csrf}"><div class="actions"><button class="allow" name="decision" value="allow">Allow access</button><button class="deny" name="decision" value="deny">Cancel</button></div></form>
+<form method="post" action="/oauth/authorize"><input type="hidden" name="request" value="${htmlEscape(authorizationRequest)}"><input type="hidden" name="csrf" value="${csrf}"><div class="actions"><button class="allow" name="decision" value="allow">Allow access</button><button class="deny" name="decision" value="deny">Cancel</button></div></form>
 </main></body></html>`;
   const response = new NextResponse(page, {
     headers: {
       "Content-Type": "text/html; charset=utf-8",
       "Cache-Control": "no-store",
-      "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'",
+      "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; form-action 'self' https://www.poshkan.com; base-uri 'none'; frame-ancestors 'none'",
       "Referrer-Policy": "no-referrer",
       "X-Content-Type-Options": "nosniff",
     },
