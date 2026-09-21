@@ -15,7 +15,7 @@ export function BackgroundControls({initial}: {initial: WorkerState}) {
   useEffect(()=>{
     let active=true, polling=false;
     const timer=setInterval(async()=>{
-      if(polling||changing.current) return;
+      if(document.hidden||polling||changing.current) return;
       polling=true;
       try {
         const response=await backgroundStatus();
@@ -26,7 +26,7 @@ export function BackgroundControls({initial}: {initial: WorkerState}) {
         } else setMessage(response.error??"Background status unavailable.");
       } catch {if(active) setMessage("Could not refresh background status. Check your connection.");}
       finally {polling=false;}
-    },10000);
+    },60000);
     return ()=>{active=false;clearInterval(timer);};
   },[router]);
   async function change() {

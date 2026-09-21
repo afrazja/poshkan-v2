@@ -6,7 +6,10 @@ export function neonBrowser():SupabaseClient {
   return {auth:{getUser:neonSession,signOut:neonSignOut,signUp:unavailable,signInWithOAuth:unavailable,
     onAuthStateChange(callback:(event:string)=>void) {
       let active=true;
-      const timer=setInterval(()=>{void neonSession().then(({data})=>{if(active && !data.user) callback('SIGNED_OUT');}).catch(()=>{});},60000);
+      const timer=setInterval(()=>{
+        if(document.hidden) return;
+        void neonSession().then(({data})=>{if(active && !data.user) callback('SIGNED_OUT');}).catch(()=>{});
+      },60000);
       return {data:{subscription:{unsubscribe(){active=false;clearInterval(timer);}}}};
     },
   }} as unknown as SupabaseClient;
