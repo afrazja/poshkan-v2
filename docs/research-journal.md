@@ -1,6 +1,6 @@
 # Research journal and spot execution costs
 
-This feature targets the current Neon app. It adds research and costs for spot stocks/ETFs and crypto accounts; leveraged positions and Supabase rollback mode retain their existing execution models. No production migration, trade, account reset, token creation, permission change, deployment or merge is part of this PR.
+This feature targets the current Neon app. It adds research and costs for spot stocks/ETFs and crypto accounts; leveraged positions and Supabase rollback mode retain their existing execution models. Production migration, merge and deployment were separately authorized by the owner on September 30, 2026. See [release recovery reference](research-release-rollback.md) for release order and application rollback without discarding later records. Production test trades, account resets and credential creation are excluded.
 
 The existing Vercel GitHub integration built a preview automatically for the initial feature push. No deployment command or production promotion was invoked. Automatic deployments are now disabled for the exact `feat/research-journal-costs` branch in `vercel.json`, preserving other branch behavior.
 

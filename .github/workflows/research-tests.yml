@@ -2,7 +2,7 @@ name: Research journal and spot costs
 on:
   pull_request:
   push:
-    branches: ['feat/research-journal-costs']
+    branches: ['feat/research-journal-costs', 'main']
 permissions:
   contents: read
 jobs:
