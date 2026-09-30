@@ -91,17 +91,20 @@ try {
   await assert.rejects(trade(spot(tight),100,randomUUID(),new Date(),foreign),/Account not found/);checks.push('insufficient total funds, fee-aware Max, stale quote and foreign owner blocked');
   const limitAccount=await account();await research(profile(limitAccount));
   const pending=await asActor(async c=>(await c.query('SELECT poshkan_trade_test.order_command($1,$2) AS r',[randomUUID(),{action:'PLACE_LIMIT',accountId:limitAccount,symbol:'SPY',direction:'BUY',quantity:'2',target:'100',expiryHours:null,timeInForce:'GTC'}])).rows[0].r);
-  const check=(price,at=new Date())=>asActor(async c=>(await c.query("SELECT poshkan_trade_test.check_order('LIMIT',$1,$2,'SPY',$3,$4) AS r",[pending.id,limitAccount,price,at])).rows[0].r);
+  // JS timestamps have millisecond precision; PostgreSQL placement has
+  // microseconds. A synthetic observation one second later makes the intended
+  // post-placement case deterministic on faster runners without weakening SQL.
+  const check=(price,at=new Date(Date.now()+1000))=>asActor(async c=>(await c.query("SELECT poshkan_trade_test.check_order('LIMIT',$1,$2,'SPY',$3,$4) AS r",[pending.id,limitAccount,price,at])).rows[0].r);
   assert.equal((await check(100)).status,'waiting');assert.equal((await check(99,new Date(Date.now()-60000))).status,'unavailable');
   const limits=await Promise.all([check(99),check(99)]);assert.equal(limits.filter(r=>r.status==='filled').length,1);
   const filled=limits.find(r=>r.status==='filled');assert.equal(Number(filled.trade.price),99.198);
   assert.equal(Number((await db.query('SELECT filled_price FROM poshkan_trade_test.orders WHERE id=$1',[pending.id])).rows[0].filled_price),99.198);checks.push('post-placement limit observations, after-cost limit bound and one atomic concurrent fill');
   const sellOrder=await asActor(async c=>(await c.query('SELECT poshkan_trade_test.order_command($1,$2) AS r',[randomUUID(),{action:'PLACE_LIMIT',accountId:limitAccount,symbol:'SPY',direction:'SELL',quantity:'2',target:'100',expiryHours:null,timeInForce:'GTC'}])).rows[0].r);
-  const sellCheck=price=>asActor(async c=>(await c.query("SELECT poshkan_trade_test.check_order('LIMIT',$1,$2,'SPY',$3,$4) AS r",[sellOrder.id,limitAccount,price,new Date()])).rows[0].r);
+  const sellCheck=price=>asActor(async c=>(await c.query("SELECT poshkan_trade_test.check_order('LIMIT',$1,$2,'SPY',$3,$4) AS r",[sellOrder.id,limitAccount,price,new Date(Date.now()+1000)])).rows[0].r);
   assert.equal((await sellCheck(100)).status,'waiting');const sellFilled=await sellCheck(101);assert.equal(Number(sellFilled.trade.price),100.798);
   const impossible=await account(100);await research({...profile(impossible),fixedFee:10,halfSpreadBps:0,slippageBps:0});
   const impossibleOrder=await asActor(async c=>(await c.query('SELECT poshkan_trade_test.order_command($1,$2) AS r',[randomUUID(),{action:'PLACE_LIMIT',accountId:impossible,symbol:'SPY',direction:'BUY',quantity:'1',target:'100',expiryHours:null,timeInForce:'GTC'}])).rows[0].r);
-  const canceled=await asActor(async c=>(await c.query("SELECT poshkan_trade_test.check_order('LIMIT',$1,$2,'SPY',100,$3) AS r",[impossibleOrder.id,impossible,new Date()])).rows[0].r);assert.equal(canceled.status,'canceled');assert.equal(await cash(impossible),100);
+  const canceled=await asActor(async c=>(await c.query("SELECT poshkan_trade_test.check_order('LIMIT',$1,$2,'SPY',100,$3) AS r",[impossibleOrder.id,impossible,new Date(Date.now()+1000)])).rows[0].r);assert.equal(canceled.status,'canceled');assert.equal(await cash(impossible),100);
   checks.push('sell limits respect adverse price floor; unaffordable fee-bearing limits cancel atomically');
   const journalAccount=await account();const original=plan(journalAccount),planId=randomUUID();const entry=await research(original,planId);assert.deepEqual(await research(original,planId),entry);
   const bought=await trade(spot(journalAccount),100);await research({action:'LINK',entryId:entry.id,transactionId:bought.transactionId});
