@@ -31,7 +31,7 @@ export async function executeTradeAction(input: {
   symbol: string;
   side: "BUY" | "SELL";
   quantity: number;
-}): Promise<{ price?: number; error?: string }> {
+}): Promise<{ price?: number; error?: string; fee?:number; spreadCost?:number; slippageCost?:number; transactionId?:string }> {
   if (fullAppEnabled()) { return appTrading('SPOT',input); }
 
   const supabase = await createClient();

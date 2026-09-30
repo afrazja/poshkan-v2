@@ -1,6 +1,25 @@
 -- Server-only RPC boundary. The server validates the Neon session and sets the
 -- transaction-local identity. No browser gets a database connection or raw RPC.
 BEGIN;
+-- Keep the original standalone rehearsal installer usable before the journal
+-- migration. New columns are additive; the zero-cost helper is installed only
+-- when absent and can never overwrite an already configured cost implementation.
+ALTER TABLE poshkan_trade_test.transactions ADD COLUMN IF NOT EXISTS explicit_fee numeric(20,8) NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS reference_price numeric(20,8),
+  ADD COLUMN IF NOT EXISTS spread_cost numeric(20,8) NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS slippage_cost numeric(20,8) NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS cost_profile jsonb,
+  ADD COLUMN IF NOT EXISTS quote_at timestamptz,
+  ADD COLUMN IF NOT EXISTS realized_pnl numeric(20,8);
+DO $bootstrap$ BEGIN
+  IF to_regprocedure('poshkan_trade_test.spot_cost(uuid,text,numeric,numeric)') IS NULL THEN
+    EXECUTE $definition$CREATE FUNCTION poshkan_trade_test.spot_cost(p_account uuid,p_side text,p_qty numeric,p_price numeric) RETURNS jsonb
+      LANGUAGE sql SET search_path=pg_catalog AS $body$
+      SELECT jsonb_build_object('price',p_price,'fee',0,'spread',0,'slippage',0,'profile',jsonb_build_object('label','Zero explicit fees; direct quote'))
+      $body$$definition$;
+  END IF;
+END $bootstrap$;
+REVOKE ALL ON FUNCTION poshkan_trade_test.spot_cost(uuid,text,numeric,numeric) FROM PUBLIC;
 CREATE OR REPLACE FUNCTION poshkan_trade_test.actor() RETURNS uuid
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog AS $$
 DECLARE actor_id uuid;
@@ -55,6 +74,7 @@ DECLARE
   fx poshkan_trade_test.fx_positions%rowtype;
   prior poshkan_trade_test.requests%rowtype;
   cost numeric; margin numeric; pnl numeric; new_id uuid; result jsonb;
+  execution jsonb; fill numeric; fee numeric; cash_change numeric;
 BEGIN
   IF p_request IS NULL OR action IS NULL OR action NOT IN ('SPOT','OPEN_FX','CLOSE_FX','PROTECT_FX') THEN RAISE EXCEPTION 'Invalid command'; END IF;
   -- Serialize retries before touching balances. A failed transaction releases
@@ -80,27 +100,35 @@ BEGIN
   IF action = 'SPOT' THEN
     IF a.type = 'forex' THEN RAISE EXCEPTION 'Use a forex position for currency pairs'; END IF;
     IF side IS NULL OR side NOT IN ('BUY','SELL') OR NOT poshkan_trade_test.positive(quantity) OR quantity <> round(quantity,8) THEN RAISE EXCEPTION 'Invalid side or quantity'; END IF;
-    cost := round(quantity * p_quote, 8);
+    execution:=poshkan_trade_test.spot_cost(a.id,side,quantity,p_quote);
+    fill:=(execution->>'price')::numeric;
+    fee:=(execution->>'fee')::numeric;
+    IF p_command->>'limitPrice' IS NOT NULL AND ((side='BUY' AND fill>(p_command->>'limitPrice')::numeric) OR (side='SELL' AND fill<(p_command->>'limitPrice')::numeric)) THEN RAISE EXCEPTION 'Limit price not reached after costs'; END IF;
+    cost := round(quantity * fill, 8);
     IF cost <= 0 THEN RAISE EXCEPTION 'Trade is too small'; END IF;
     SELECT * INTO pos FROM poshkan_trade_test.positions x WHERE x.account_id = a.id AND x.symbol = symbol FOR UPDATE;
     IF side = 'BUY' THEN
-      IF a.cash_balance < cost THEN RAISE EXCEPTION 'Insufficient cash'; END IF;
-      UPDATE poshkan_trade_test.accounts SET cash_balance = cash_balance - cost WHERE id = a.id;
+      IF a.cash_balance < cost+fee THEN RAISE EXCEPTION 'Insufficient cash'; END IF;
+      cash_change:=-cost-fee;
+      UPDATE poshkan_trade_test.accounts SET cash_balance = cash_balance + cash_change WHERE id = a.id;
       IF pos.id IS NULL THEN
-        INSERT INTO poshkan_trade_test.positions(account_id,symbol,quantity,avg_cost) VALUES(a.id,symbol,quantity,p_quote);
+        INSERT INTO poshkan_trade_test.positions(account_id,symbol,quantity,avg_cost) VALUES(a.id,symbol,quantity,(cost+fee)/quantity);
       ELSE
         UPDATE poshkan_trade_test.positions SET quantity = pos.quantity + quantity,
-          avg_cost = (pos.quantity * pos.avg_cost + cost)/(pos.quantity + quantity) WHERE id = pos.id;
+          avg_cost = (pos.quantity * pos.avg_cost + cost+fee)/(pos.quantity + quantity) WHERE id = pos.id;
       END IF;
     ELSE
       IF pos.id IS NULL OR pos.quantity < quantity THEN RAISE EXCEPTION 'Not enough holdings'; END IF;
-      UPDATE poshkan_trade_test.accounts SET cash_balance = cash_balance + cost WHERE id = a.id;
+      cash_change:=cost-fee;
+      IF a.cash_balance+cash_change<0 THEN RAISE EXCEPTION 'Insufficient cash'; END IF;
+      pnl:=cost-fee-quantity*pos.avg_cost;
+      UPDATE poshkan_trade_test.accounts SET cash_balance = cash_balance + cash_change WHERE id = a.id;
       IF pos.quantity = quantity THEN DELETE FROM poshkan_trade_test.positions WHERE id = pos.id;
       ELSE UPDATE poshkan_trade_test.positions SET quantity = pos.quantity - quantity WHERE id = pos.id; END IF;
     END IF;
-    INSERT INTO poshkan_trade_test.transactions(account_id,symbol,side,quantity,price,cash_delta)
-      VALUES(a.id,symbol,side,quantity,p_quote,CASE WHEN side = 'BUY' THEN -cost ELSE cost END);
-    result := jsonb_build_object('action',action,'price',p_quote::text,'quantity',quantity::text);
+    INSERT INTO poshkan_trade_test.transactions(account_id,symbol,side,quantity,price,cash_delta,explicit_fee,reference_price,spread_cost,slippage_cost,cost_profile,realized_pnl,quote_at)
+      VALUES(a.id,symbol,side,quantity,fill,cash_change,fee,p_quote,(execution->>'spread')::numeric,(execution->>'slippage')::numeric,execution->'profile',pnl,(p_command->>'quoteAt')::timestamptz) RETURNING id INTO new_id;
+    result := jsonb_build_object('action',action,'price',fill::text,'quantity',quantity::text,'transactionId',new_id,'fee',fee::text,'spreadCost',execution->>'spread','slippageCost',execution->>'slippage','referencePrice',p_quote::text,'costProfile',execution->'profile');
   ELSIF action = 'OPEN_FX' THEN
     IF NOT poshkan_trade_test.positive(units) OR units <> round(units,8) OR leverage IS NULL OR leverage NOT IN (1,2,5,10)
       OR direction IS NULL OR direction NOT IN ('LONG','SHORT') THEN RAISE EXCEPTION 'Invalid units, direction or leverage'; END IF;
@@ -160,6 +188,6 @@ BEGIN
   IF FOUND AND prior.command <> p_command THEN RAISE EXCEPTION 'Request ID reused with different trade'; END IF;
   RETURN prior.result;
 END $$;
-REVOKE ALL ON ALL FUNCTIONS IN SCHEMA poshkan_trade_test FROM PUBLIC, poshkan_trade_preview;
+REVOKE ALL ON FUNCTION poshkan_trade_test.actor(),poshkan_trade_test.positive(numeric),poshkan_trade_test.state(),poshkan_trade_test.command(uuid,jsonb,numeric),poshkan_trade_test.completed(uuid,jsonb) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION poshkan_trade_test.state(), poshkan_trade_test.command(uuid,jsonb,numeric), poshkan_trade_test.completed(uuid,jsonb) TO poshkan_trade_preview;
 COMMIT;

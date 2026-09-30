@@ -23,14 +23,14 @@ export function realizedPnl(transactions: Transaction[]): number {
     const cur = pos[t.symbol] ?? { qty: 0, avgCost: 0 };
 
     if (t.side === "SELL") {
-      realized += qty * (price - cur.avgCost);
+      realized += t.realized_pnl != null ? Number(t.realized_pnl) : qty * (price - cur.avgCost) - Number(t.explicit_fee ?? 0);
       cur.qty -= qty;
       if (cur.qty <= 1e-9) delete pos[t.symbol];
       else pos[t.symbol] = cur;
     } else {
       // BUY or OPENING_BALANCE holding — update weighted-average cost.
       const newQty = cur.qty + qty;
-      cur.avgCost = newQty > 0 ? (cur.qty * cur.avgCost + qty * price) / newQty : 0;
+      cur.avgCost = newQty > 0 ? (cur.qty * cur.avgCost + qty * price + Number(t.explicit_fee ?? 0)) / newQty : 0;
       cur.qty = newQty;
       pos[t.symbol] = cur;
     }

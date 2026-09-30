@@ -46,17 +46,20 @@ export default function HowItWorksPage() {
 
         <Section title="How orders fill">
           <p>
-            Market orders fill immediately at the current quoted price — no simulated queue, no partial
-            fills. Limit orders fill when the live price crosses your limit. Stop-loss and take-profit
-            levels on leveraged positions are checked continuously against live quotes; when both could
-            have been hit inside the same price bar, <strong className="text-foreground">the stop is
-            assumed to hit first</strong> — the conservative reading.
+            Spot market orders fill from a server-fetched quote with your configured adverse spread and
+            slippage assumptions. Quotes older than five minutes are rejected, and stocks fill only in
+            the provider’s regular session. Limit orders require a fresh observation after placement and
+            a fill price within the limit after modeled price costs. There is no queue or partial fill.
+            Leveraged stop-loss and take-profit levels are checked on observed quotes, not every exchange
+            tick. Background checks can be delayed; they are not a guaranteed execution schedule.
           </p>
           <p>
-            Real trading costs money that simulators usually ignore. Live paper fills use the quoted
-            price directly, so your live results are slightly <em>optimistic</em> versus a real broker
-            (no spread or commission is charged) — keep that in mind when judging tight-margin
-            strategies.
+            In Research &amp; review, configure a broker profile for each spot account’s asset class.
+            Explicit fees can be zero, as with many stock/ETF brokers. Fixed, per-unit and notional fees
+            are separate from modeled spread and slippage. Fees affect cash, cost basis and net results;
+            each transaction preserves its applied assumptions. Existing fills are not recosted.
+            Leveraged positions retain their separate existing model. These assumptions do not establish
+            real execution fidelity: liquidity, settlement, dividend credits and corporate actions are absent.
           </p>
         </Section>
 
@@ -73,8 +76,8 @@ export default function HowItWorksPage() {
             <li>
               <strong className="text-foreground">Costs are charged:</strong> every backtest trade pays an
               estimated round-trip spread + slippage (about 1 pip on forex majors, ~0.1% on crypto, ~0.05%
-              on liquid stocks). High-frequency strategies pay it on every trade, exactly as they would in
-              life.
+                on liquid stocks). These estimates are independent of your spot account’s broker profile
+                and do not reproduce changing real-market costs.
             </li>
             <li>
               <strong className="text-foreground">Stops first:</strong> when a bar touches both the stop

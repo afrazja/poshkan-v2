@@ -22,11 +22,16 @@ export async function GET(request: Request) {
   if (!accountId) return NextResponse.json({ error: "Missing accountId" }, { status: 400 });
 
   const cutoff = new Date(Date.now() - days * 86_400_000).toISOString().slice(0, 10);
+  // A reset begins a new experiment. Exclude its day (snapshot timing is
+  // unavailable) rather than chain an earlier experiment into the benchmark.
+  const {data:resets}=await supabase.from('transactions').select('created_at').eq('account_id',accountId).eq('side','RESET').order('created_at',{ascending:false}).limit(1);
+  const resetDate=(resets?.[0]?.created_at as string|undefined)?.slice(0,10)??'0001-01-01';
   const { data: snaps } = await supabase
     .from("account_snapshots")
     .select("snapshot_date, total_value")
     .eq("account_id", accountId)
     .gte("snapshot_date", cutoff)
+    .gt('snapshot_date',resetDate)
     .order("snapshot_date", { ascending: true });
 
   const rows = (snaps ?? []) as { snapshot_date: string; total_value: number }[];
@@ -37,6 +42,7 @@ export async function GET(request: Request) {
     .from("account_snapshots")
     .select("snapshot_date")
     .eq("account_id", accountId)
+    .gt('snapshot_date',resetDate)
     .order("snapshot_date", { ascending: true })
     .limit(1);
   const since = (firstRow?.[0] as { snapshot_date: string } | undefined)?.snapshot_date ?? null;

@@ -43,3 +43,8 @@ next-env.d.ts
 
 # Claude Code local settings
 .claude/settings.local.json
+
+# Local generated review artifacts (never credentials or production data)
+/neon/research-upgrade-live.sql
+/neon/research-upgrade-test.sql
+/.research-ui/

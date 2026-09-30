@@ -169,14 +169,19 @@ BEGIN
   IF p_kind IN ('LIMIT','ENTRY') THEN
     IF p_kind='LIMIT' THEN
       IF (o.side='BUY' AND p_quote>o.limit_price) OR (o.side='SELL' AND p_quote<o.limit_price) THEN RETURN jsonb_build_object('status','waiting'); END IF;
-      payload:=jsonb_build_object('action','SPOT','accountId',a.id,'symbol',o.symbol,'side',o.side,'quantity',o.quantity::text);
+      -- Require a post-placement observation and never fill beyond the limit
+      -- after adverse spread/slippage. Explicit fees are charged separately.
+      IF p_quote_at<o.created_at THEN RETURN jsonb_build_object('status','unavailable'); END IF;
+      fill:=(poshkan_trade_test.spot_cost(a.id,o.side,o.quantity,p_quote)->>'price')::numeric;
+      IF (o.side='BUY' AND fill>o.limit_price) OR (o.side='SELL' AND fill<o.limit_price) THEN RETURN jsonb_build_object('status','waiting'); END IF;
+      payload:=jsonb_build_object('action','SPOT','accountId',a.id,'symbol',o.symbol,'side',o.side,'quantity',o.quantity::text,'limitPrice',o.limit_price::text,'quoteAt',p_quote_at);
     ELSE
       IF (e.trigger_when='AT_OR_BELOW' AND p_quote>e.entry_rate) OR (e.trigger_when='AT_OR_ABOVE' AND p_quote<e.entry_rate) THEN RETURN jsonb_build_object('status','waiting'); END IF;
       payload:=jsonb_build_object('action','OPEN_FX','accountId',a.id,'symbol',e.symbol,'direction',e.direction,'units',e.units::text,'leverage',e.leverage,'stopLoss',e.stop_loss::text,'takeProfit',e.take_profit::text);
     END IF;
     BEGIN
       result:=poshkan_trade_test.command(gen_random_uuid(),payload,p_quote);
-      IF p_kind='LIMIT' THEN UPDATE poshkan_trade_test.orders SET status='filled',filled_at=clock_timestamp(),filled_price=p_quote WHERE id=o.id;
+      IF p_kind='LIMIT' THEN UPDATE poshkan_trade_test.orders SET status='filled',filled_at=clock_timestamp(),filled_price=(result->>'price')::numeric WHERE id=o.id;
       ELSE UPDATE poshkan_trade_test.fx_orders SET status='filled',filled_at=clock_timestamp(),filled_rate=p_quote WHERE id=e.id; END IF;
       RETURN jsonb_build_object('status','filled','trade',result);
     EXCEPTION WHEN raise_exception THEN
