@@ -55,6 +55,13 @@ export interface Transaction {
   quantity: number;
   price: number;
   cash_delta: number;
+  explicit_fee?: number;
+  reference_price?: number | null;
+  spread_cost?: number;
+  slippage_cost?: number;
+  realized_pnl?: number | null;
+  quote_at?: string | null;
+  cost_profile?: Record<string, unknown> | null;
   created_at: string;
 }
 

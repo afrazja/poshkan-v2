@@ -1,0 +1,28 @@
+name: Research journal and spot costs
+on:
+  pull_request:
+  push:
+    branches: ['feat/research-journal-costs', 'main']
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Disposable PostgreSQL engine tests
+        run: PG_BIN="$(pg_config --bindir)" node scripts/check-research-costs.mjs
+      - name: Generated production migration tests on synthetic data
+        run: PG_BIN="$(pg_config --bindir)" node scripts/check-research-costs.mjs --production
+      - run: npx tsc --noEmit
+      - run: node scripts/check-performance-review.mjs
+      - name: Build with placeholder configuration
+        run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: fixture-public-key

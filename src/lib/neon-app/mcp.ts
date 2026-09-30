@@ -11,6 +11,8 @@ import YahooFinance from 'yahoo-finance2';
 import { getQuote, getOhlc, searchSymbols } from '../marketdata';
 import { servicesEnabled } from './services';
 import { unauthorizedMcpResponse } from '../mcp-oauth';
+import { quotedTrade } from './quoted-trade';
+import { researchState,researchMutation } from './research';
 const yahoo = new YahooFinance({ suppressNotices: ['yahooSurvey'] });
 const uuid=z.string().uuid();
 const ok=(value:unknown)=>({content:[{type:'text' as const,text:JSON.stringify(value)}]});
@@ -42,7 +44,7 @@ export async function neonMcpHandler(req: Request) {
     if (!symbol) throw new Error('Position not found');
     const quote=await yahoo.quote(symbol);
     const price=checkedQuote(symbol,quote,command.action!=='SPOT');
-    return work(async c=>(await c.query(`SELECT ${databaseSchema()}.command($1,$2,$3) AS receipt`,[requestId,command,price])).rows[0].receipt);
+    return work(c=>quotedTrade(c,requestId,command,price,quote.regularMarketTime));
   };
   const order=async(requestId:string,raw:unknown)=>{
     const command=orderInput.parse(raw);
@@ -52,12 +54,17 @@ export async function neonMcpHandler(req: Request) {
   const number=z.number().finite().positive();
   const leverage=z.union([z.literal(1),z.literal(2),z.literal(5),z.literal(10)]);
   const handler=createMcpHandler(server=>{
+    server.tool('get_research_journal','Read immutable research plans, no-trade decisions, later reviews and linked paper transactions. Omit account_id to include archived research.',{account_id:uuid.optional()},a=>respond(()=>work(c=>researchState(c,a.account_id))));
+    server.tool('record_research','Record a timestamped plan before a paper trade or no-trade decision. Does not place orders. Preserve request_id on retries.',{request_id:uuid,account_id:uuid,symbol:z.string(),decision:z.enum(['TRADE','NO_TRADE']),hypothesis:z.string(),strategy_version:z.string(),entry_conditions:z.string(),exit_conditions:z.string(),holding_days:z.number().int().min(1).max(252),position_sizing:z.string()},a=>respond(()=>work(c=>researchMutation(c,a.request_id,{action:'PLAN',accountId:a.account_id,symbol:a.symbol,decision:a.decision,hypothesis:a.hypothesis,strategyVersion:a.strategy_version,entryConditions:a.entry_conditions,exitConditions:a.exit_conditions,holdingDays:a.holding_days,positionSizing:a.position_sizing}))));
+    server.tool('review_research','Append a later review without rewriting the original hypothesis. Preserve request_id on retries.',{request_id:uuid,entry_id:uuid,note:z.string()},a=>respond(()=>work(c=>researchMutation(c,a.request_id,{action:'REVIEW',entryId:a.entry_id,note:a.note}))));
+    server.tool('link_research_transaction','Link an owned later matching paper transaction to a prior trade plan. Each execution belongs to at most one plan. Preserve request_id on retries.',{request_id:uuid,entry_id:uuid,transaction_id:uuid},a=>respond(()=>work(c=>researchMutation(c,a.request_id,{action:'LINK',entryId:a.entry_id,transactionId:a.transaction_id}))));
+    server.tool('set_execution_profile','Configure future spot costs for this account/asset class. Explicit fees may be zero. Spread and adverse slippage change price separately; excludes leveraged trades. Preserve request_id on retries.',{request_id:uuid,account_id:uuid,label:z.string(),fixed_fee:z.number(),per_unit_fee:z.number(),fee_bps:z.number(),minimum_fee:z.number(),half_spread_bps:z.number(),slippage_bps:z.number()},a=>respond(()=>work(c=>researchMutation(c,a.request_id,{action:'PROFILE',accountId:a.account_id,label:a.label,fixedFee:a.fixed_fee,perUnitFee:a.per_unit_fee,feeBps:a.fee_bps,minimumFee:a.minimum_fee,halfSpreadBps:a.half_spread_bps,slippageBps:a.slippage_bps}))));
     server.tool('list_accounts','List the token owner’s Neon test paper accounts and holdings.',{},()=>respond(read));
     server.tool('get_account','Read one owned paper account.',{account_id:uuid},({account_id})=>respond(async()=>{
       const account=(await read()).find(a=>a.id===account_id); if(!account)throw new Error('Account not found');
       return account;
     }));
-    server.tool('get_transactions','Read recent ledger entries for an owned account.',{account_id:uuid,limit:z.number().int().min(1).max(200).default(50)},({account_id,limit})=>respond(()=>work(async c=>(await c.query(`SELECT symbol,side,quantity,price,cash_delta,created_at FROM ${databaseSchema()}.transactions WHERE account_id=$1 ORDER BY created_at DESC LIMIT $2`,[account_id,limit])).rows)));
+    server.tool('get_transactions','Read recent owned ledger entries including execution IDs and recorded costs where available.',{account_id:uuid,limit:z.number().int().min(1).max(200).default(50)},({account_id,limit})=>respond(()=>work(async c=>(await c.query(`SELECT * FROM ${databaseSchema()}.transactions WHERE account_id=$1 ORDER BY created_at DESC,id DESC LIMIT $2`,[account_id,limit])).rows)));
     server.tool('get_quote','Read a market quote; never supply it as an execution price.',{symbol:z.string().min(1).max(24)},({symbol})=>respond(()=>getQuote(symbol)));
     server.tool('search_symbols','Find ticker symbols.',{query:z.string().min(1).max(100)},({query})=>respond(()=>searchSymbols(query)));
     server.tool('get_price_history','Read OHLC price history.',{symbol:z.string().min(1).max(24),interval:z.enum(['5min','15min','1h','1day','1week']).default('1day'),limit:z.number().int().min(2).max(300).default(60)},({symbol,interval,limit})=>respond(()=>getOhlc(symbol,interval,limit)));

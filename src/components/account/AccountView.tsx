@@ -32,6 +32,7 @@ import SymbolPanel from "./SymbolPanel";
 import MetricChartModal from "./MetricChartModal";
 import HoldingsTable from "./HoldingsTable";
 import TransactionHistory from "./TransactionHistory";
+import ResearchPanel from './ResearchPanel';
 import InsightsTab from "./InsightsTab";
 import WatchlistTable from "./WatchlistTable";
 import TradeModal from "./TradeModal";
@@ -45,7 +46,7 @@ import {
 } from "@/app/dashboard/[accountId]/actions";
 import { formatNumber } from "@/lib/format";
 
-type Tab = "ideas" | "holdings" | "watchlist" | "history";
+type Tab = "ideas" | "holdings" | "watchlist" | "history" | "research";
 
 export default function AccountView({
   account,
@@ -71,6 +72,12 @@ export default function AccountView({
   aiInstruction?: string | null;
 }) {
   const router = useRouter();
+  const [researchAvailable,setResearchAvailable]=useState(false);
+  useEffect(()=>{
+    let active=true;
+    if(account.type!=='forex')void fetch(`/api/execution-profile?accountId=${encodeURIComponent(account.id)}`).then(r=>r.ok?r.json():null).then(j=>{if(active)setResearchAvailable(!!j?.available);}).catch(()=>{});
+    return()=>{active=false;};
+  },[account.id,account.type]);
   const [selected, setSelected] = useState<{ symbol: string; name: string } | null>(null);
   const [trade, setTrade] = useState<{ side: "BUY" | "SELL"; symbol: string; fromPanel?: boolean } | null>(
     null
@@ -287,9 +294,9 @@ export default function AccountView({
       });
       suffix = "watchlist";
     } else {
-      header = "date,action,symbol,quantity,price,cash_change";
+      header = "date,action,symbol,quantity,price,cash_change,explicit_fee,spread_cost,slippage_cost,quote_at";
       lines = transactions.map((t) =>
-        [t.created_at, t.side, t.symbol ?? "", t.quantity, t.price, t.cash_delta].map(esc).join(",")
+        [t.created_at, t.side, t.symbol ?? "", t.quantity, t.price, t.cash_delta,t.explicit_fee??0,t.spread_cost??0,t.slippage_cost??0,t.quote_at??''].map(esc).join(",")
       );
       suffix = "history";
     }
@@ -619,7 +626,8 @@ export default function AccountView({
                 ...(!isForex ? [{ key: "ideas" as Tab, label: "Ideas", phoneOnly: true }] : []),
                 { key: "holdings", label: "Holdings", count: positions.length },
                 { key: "watchlist", label: "Watchlist", count: watchlist.length },
-                { key: "history", label: "History", count: transactions.length },
+                  { key: "history", label: "History", count: transactions.length },
+                  ...(researchAvailable?[{key:'research',label:'Research & review'}]:[]),
               ] as { key: Tab; label: string; count?: number; phoneOnly?: boolean }[]
             ).map((t) => (
               <button
@@ -642,7 +650,7 @@ export default function AccountView({
           </div>
 
           {/* Small filter for the current table (not on Insights) */}
-          {tab !== "ideas" && (
+          {tab !== "ideas" && tab !== 'research' && (
             <div className="flex items-center gap-2">
               {exportableRows > 0 && (
                 <button
@@ -706,6 +714,7 @@ export default function AccountView({
           />
         )}
 
+        {tab === 'research' && researchAvailable && <ResearchPanel accountId={account.id}/>}
         {tab === "history" && (
           <TransactionHistory
             transactions={transactions.filter((t) =>

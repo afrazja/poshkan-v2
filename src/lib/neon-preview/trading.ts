@@ -7,6 +7,7 @@ import { previewAuth } from "./auth";
 import { requirePreview, productionEnabled, approvedUserId, databaseUrl } from "./config";
 import { checkedQuote, tradeInput, type TradingAccount } from "./trade-input";
 import { assetTypeError } from "../assets";
+import { quotedTrade } from '../neon-app/quoted-trade';
 
 let pool: Pool | undefined;
 const yahoo = new YahooFinance({ suppressNotices: ["yahooSurvey"] });
@@ -71,5 +72,5 @@ export async function placePreviewTrade(requestId: unknown, rawInput: unknown) {
   // Re-verify the session after the external price request; the RPC also
   // rechecks mapping, bans and ownership under the balance lock.
   if (await actor() !== userId) throw new Error("Your session changed. Sign in again.");
-  return transaction(userId, async c => (await c.query(`SELECT ${databaseSchema()}.command($1,$2::jsonb,$3::numeric) AS result`, [request, command, price])).rows[0].result as Record<string,string>);
+  return transaction(userId, c => quotedTrade(c,request,command,price,quote.regularMarketTime));
 }

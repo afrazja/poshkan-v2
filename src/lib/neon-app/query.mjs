@@ -6,6 +6,7 @@ const identifier = value => {
   return `"${value}"`;
 };
 const tables = new Set(['accounts','positions','transactions','fx_positions','orders','fx_orders','fx_tp_levels','profiles','watchlist','alerts','account_snapshots','notifications','custom_strategies','custom_strategy_signals','smc_settings','smc_signals','ote_settings','ote_signals','trend_settings','trend_signals','meanrev_settings','meanrev_signals','candlerange_settings','candlerange_signals','api_tokens','push_subscriptions','email_prefs']);
+for (const table of ['execution_profiles','research_entries','research_reviews','research_links']) tables.add(table);
 const cacheTables = new Set(['market_quotes','market_candles','market_data_syncs','market_scans']);
 const serviceTables = new Set([...tables, ...cacheTables, 'fx_scan_alerts', 'crypto_monitor_runs', 'delivery_captures']);
 
