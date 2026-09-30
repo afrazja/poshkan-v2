@@ -2,6 +2,8 @@
 
 This feature targets the current Neon app. It adds research and costs for spot stocks/ETFs and crypto accounts; leveraged positions and Supabase rollback mode retain their existing execution models. No production migration, trade, account reset, token creation, permission change, deployment or merge is part of this PR.
 
+The existing Vercel GitHub integration built a preview automatically for the initial feature push. No deployment command or production promotion was invoked. Automatic deployments are now disabled for the exact `feat/research-journal-costs` branch in `vercel.json`, preserving other branch behavior.
+
 ## Research workflow
 
 Open an account’s **Research & review** tab. Preserve a plan before execution: hypothesis, strategy version, entry and exit conditions, expected holding days and position sizing. For the SPY/XLF/XLE workflow, use the actual 2–5 trading-day expectation and a named strategy version. `NO_TRADE` preserves the reason for abstaining and cannot link to a fill. Recording research never places an order.

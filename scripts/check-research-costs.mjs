@@ -17,7 +17,13 @@ const dir=mkdtempSync(join(tmpdir(),'poshkan-research-')),cluster=join(dir,'clus
 const port=await new Promise(resolvePort=>{const server=createServer();server.listen(0,'127.0.0.1',()=>{const p=server.address().port;server.close(()=>resolvePort(p));});});
 const password=randomBytes(32).toString('hex'),passwordFile=join(dir,'password.txt');writeFileSync(passwordFile,password);
 const env={...process.env,PGPASSWORD:password,PGHOST:'127.0.0.1',PGPORT:String(port),PGUSER:'postgres',PGDATABASE:'postgres'};
-const run=(name,args)=>execFileSync(join(bin,name+(process.platform==='win32'?'.exe':'')),args,{windowsHide:true,env,stdio:name==='pg_ctl'?'ignore':'pipe'});
+const run=(name,args)=>{
+  try {return execFileSync(join(bin,name+(process.platform==='win32'?'.exe':'')),args,{windowsHide:true,env,stdio:'pipe'});}
+  catch(error) {
+    if(name==='pg_ctl')try{console.error(readFileSync(join(dir,'postgres.log'),'utf8'));}catch{}
+    throw error;
+  }
+};
 const production=process.argv.includes('--production');
 // The same suite exercises the generated release SQL in a synthetic live-named
 // schema on this disposable server. It cannot reach a remote database.
@@ -39,7 +45,9 @@ const profile=id=>({action:'PROFILE',accountId:id,label:'Synthetic per-fill brok
 const plan=id=>({action:'PLAN',accountId:id,symbol:'SPY',decision:'TRADE',hypothesis:'Synthetic test hypothesis',strategyVersion:'v1',entryConditions:'Synthetic entry',exitConditions:'Synthetic exit',holdingDays:3,positionSizing:'2 shares'});
 try {
   run('initdb',['-D',cluster,'-U','postgres','--auth=scram-sha-256','--pwfile',passwordFile,'--encoding=UTF8','--locale=C']);unlinkSync(passwordFile);
-  run('pg_ctl',['-D',cluster,'-l',join(dir,'postgres.log'),'-o',`-h 127.0.0.1 -p ${port}`,'-w','start']);started=true;
+  // Linux runners cannot create sockets in the distro-owned /var/run directory.
+  const socket=process.platform==='win32'?'':` -k ${dir}`;
+  run('pg_ctl',['-D',cluster,'-l',join(dir,'postgres.log'),'-o',`-h 127.0.0.1 -p ${port}${socket}`,'-w','start']);started=true;
   await db.query(readFileSync(resolve('scripts/research-fixture.sql'),'utf8'));
   for(const user of [owner,foreign]){await db.query('INSERT INTO neon_auth."user" VALUES($1,false)',[user]);await db.query('INSERT INTO poshkan_trade_test.legacy_users VALUES($1,null)',[user]);await db.query('INSERT INTO poshkan_trade_test.auth_links VALUES($1,$1,true)',[user]);}
   await db.query(readFileSync('neon/trading-engine.sql','utf8'));

@@ -6,6 +6,8 @@ import ts from 'typescript';
 const snapshots=[{snapshot_date:'2026-09-20',total_value:9000},{snapshot_date:'2026-09-21',total_value:1000},{snapshot_date:'2026-09-22',total_value:1000},{snapshot_date:'2026-09-23',total_value:1110},{snapshot_date:'2026-09-24',total_value:1121.1}];
 const transactions=[{account_id:'fixture',side:'RESET',symbol:null,quantity:0,price:0,cash_delta:1000,created_at:'2026-09-21T14:00:00Z'},{account_id:'fixture',side:'DEPOSIT',symbol:null,quantity:0,price:0,cash_delta:100,created_at:'2026-09-23T14:00:00Z'}];
 let benchmarkAvailable=true;
+// Make the fixture independent of the machine/CI date.
+Date.now=()=>Date.parse('2026-09-30T18:00:00Z');
 class Query {
   constructor(table){this.rows=table==='account_snapshots'?snapshots:transactions;this.rows=[...this.rows];}
   select(){return this;}
