@@ -18,7 +18,9 @@ const port=await new Promise(resolvePort=>{const server=createServer();server.li
 const password=randomBytes(32).toString('hex'),passwordFile=join(dir,'password.txt');writeFileSync(passwordFile,password);
 const env={...process.env,PGPASSWORD:password,PGHOST:'127.0.0.1',PGPORT:String(port),PGUSER:'postgres',PGDATABASE:'postgres'};
 const run=(name,args)=>{
-  try {return execFileSync(join(bin,name+(process.platform==='win32'?'.exe':'')),args,{windowsHide:true,env,stdio:'pipe'});}
+  // pg_ctl launches a long-lived child. On Windows it must not inherit a pipe
+  // that execFileSync waits to close. Startup errors are read from its log.
+  try {return execFileSync(join(bin,name+(process.platform==='win32'?'.exe':'')),args,{windowsHide:true,env,stdio:name==='pg_ctl'?'ignore':'pipe'});}
   catch(error) {
     if(name==='pg_ctl')try{console.error(readFileSync(join(dir,'postgres.log'),'utf8'));}catch{}
     throw error;
