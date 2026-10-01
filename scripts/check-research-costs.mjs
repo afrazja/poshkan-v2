@@ -133,6 +133,11 @@ try {
       assert.equal(results.filter(x=>x.status==='closed').length,1);
       const exited=await fxRow(entry.positionId);assert.equal(exited.exit_reason,reason);assert.ok(exited.closed_at);assert.equal(Number(exited.open_rate),100);assert.equal(Number(exited.close_rate),price);
     }
+    const entryRequest=randomUUID(),pendingEntry={action:'PLACE_ENTRY',accountId:leveraged,symbol:'SPY',direction,quantity:'2',target:'100',trigger:direction==='LONG'?'AT_OR_ABOVE':'AT_OR_BELOW',leverage:2,stopLoss:command.stopLoss,takeProfit:command.takeProfit,expiryHours:null,expiryMinutes:60};
+    const placeEntry=()=>asActor(async c=>(await c.query('SELECT poshkan_trade_test.order_command($1,$2) AS r',[entryRequest,pendingEntry])).rows[0].r);
+    const scheduled=await placeEntry();assert.deepEqual(await placeEntry(),scheduled);
+    const activated=await asActor(async c=>(await c.query("SELECT poshkan_trade_test.check_order('ENTRY',$1,$2,'SPY',$3,$4) AS r",[scheduled.id,leveraged,direction==='LONG'?101:99,new Date()])).rows[0].r);
+    assert.equal(activated.status,'filled');const scheduledPosition=await fxRow(activated.trade.positionId);assert.equal(scheduledPosition.direction,direction);assert.equal(Number(scheduledPosition.stop_loss),Number(command.stopLoss));
     const entry=await fxTrade(command,100);
     await db.query('INSERT INTO poshkan_trade_test.fx_tp_levels(position_id,price,close_units) VALUES($1,$2,1)',[entry.positionId,direction==='LONG'?110:90]);
     assert.equal((await fxCheck(entry.positionId,leveraged,direction==='LONG'?110:90)).status,'scaled');

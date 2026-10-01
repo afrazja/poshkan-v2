@@ -3,7 +3,7 @@ import {readFileSync} from 'node:fs';
 import ts from 'typescript';
 import {z} from 'zod';
 import {positionExitLabel,positionHoldingMinutes} from '../src/lib/position-records.mjs';
-const load=(file,mocks)=>{const module={exports:{}};new Function('require','module','exports',ts.transpileModule(readFileSync(file,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText)(name=>{assert.ok(name in mocks,name);return mocks[name];},module,module.exports);return module.exports;};
+const load=(file,mocks)=>{const module={exports:{}};new Function('require','module','exports',ts.transpileModule(readFileSync(file,'utf8'),{fileName:file,compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX}}).outputText)(name=>{assert.ok(name in mocks,name);return mocks[name];},module,module.exports);return module.exports;};
 const assets=load('src/lib/assets.ts',{});
 const validation=load('src/lib/neon-app/mcp-position-validation.ts',{'../assets':assets});
 const inputs=load('src/lib/neon-preview/trade-input.ts',{'zod':{z},'./quote.mjs':{checkedQuote:()=>100}});
@@ -43,3 +43,8 @@ await call('list_forex_positions',{account_id:stocks});assert.equal(queries.at(-
 assert.ok((await call('list_forex_positions',{account_id:'55555555-5555-4555-8555-555555555555'})).isError);
 assert.equal(positionExitLabel({status:'closed'}),'Closed (reason not recorded)');assert.equal(positionExitLabel({status:'closed',exit_reason:'manual'}),'Manual close');assert.equal(positionExitLabel({status:'sl'}),'Stop-loss');
 console.log('PASS: actual MCP registration and handlers allow stock LONG/SHORT and pending entry, preserve guarded crypto and asset/owner restrictions, retries avoid refetch, and position history exposes protection/deadlines/reasons with legacy unknowns.');
+
+const {renderToStaticMarkup}=await import('react-dom/server');const React=await import('react');
+const {default:Details}=load('src/components/account/PositionPlanDetails.tsx',{'@/lib/position-records.mjs':{positionHoldingMinutes},'react/jsx-runtime':await import('react/jsx-runtime')});
+const html=renderToStaticMarkup(React.createElement(Details,{position:records[0],fmtPrice:n=>'$'+n}));assert.ok(html.includes('SL $110'));assert.ok(html.includes('TP $80'));assert.ok(html.includes('4320 minutes'));assert.ok(html.includes('Deadline:'));
+console.log('PASS: actual shared position detail component renders saved SL/TP, timeframe and deadline.');
