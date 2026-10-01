@@ -2,11 +2,18 @@
   "git": {
     "deploymentEnabled": {
       "feat/research-journal-costs": false,
-      "fix/stock-position-mcp-history": false
+      "fix/stock-position-mcp-history": false,
+      "feat/separate-trades-tab": false
     }
   },
   "crons": [
-    { "path": "/api/cron/market-check", "schedule": "30 15 * * 1-5" },
-    { "path": "/api/cron/snapshots", "schedule": "15 22 * * *" }
+    {
+      "path": "/api/cron/market-check",
+      "schedule": "30 15 * * 1-5"
+    },
+    {
+      "path": "/api/cron/snapshots",
+      "schedule": "15 22 * * *"
+    }
   ]
 }
