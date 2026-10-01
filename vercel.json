@@ -1,7 +1,8 @@
 {
   "git": {
     "deploymentEnabled": {
-      "feat/research-journal-costs": false
+      "feat/research-journal-costs": false,
+      "fix/stock-position-mcp-history": false
     }
   },
   "crons": [

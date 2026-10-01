@@ -1,6 +1,9 @@
 -- Server-only RPC boundary. The server validates the Neon session and sets the
 -- transaction-local identity. No browser gets a database connection or raw RPC.
 BEGIN;
+ALTER TABLE poshkan_trade_test.fx_positions
+  ADD COLUMN IF NOT EXISTS exit_reason text CHECK(exit_reason IN ('manual','timer','sl','tp','stopped')),
+  ADD COLUMN IF NOT EXISTS holding_minutes integer CHECK(holding_minutes BETWEEN 0 AND 10080);
 -- Keep the original standalone rehearsal installer usable before the journal
 -- migration. New columns are additive; the zero-cost helper is installed only
 -- when absent and can never overwrite an already configured cost implementation.
@@ -48,7 +51,7 @@ LANGUAGE sql SECURITY DEFINER SET search_path = pg_catalog AS $$
     'holdings', coalesce((SELECT jsonb_agg(jsonb_build_object('id', p.id, 'symbol', p.symbol, 'quantity', p.quantity::text) ORDER BY p.symbol)
       FROM poshkan_trade_test.positions p WHERE p.account_id = a.id), '[]'::jsonb),
     'forex', coalesce((SELECT jsonb_agg(jsonb_build_object('id', f.id, 'symbol', f.symbol, 'direction', f.direction,
-      'units', f.units::text, 'rate', f.open_rate::text, 'margin', f.margin::text, 'stopLoss', f.stop_loss::text, 'takeProfit', f.take_profit::text) ORDER BY f.opened_at DESC, f.id)
+      'units', f.units::text, 'rate', f.open_rate::text, 'margin', f.margin::text, 'stopLoss', f.stop_loss::text, 'takeProfit', f.take_profit::text,'openedAt',f.opened_at,'autoCloseAt',f.auto_close_at,'holdingMinutes',f.holding_minutes,'status',f.status) ORDER BY f.opened_at DESC, f.id)
       FROM poshkan_trade_test.fx_positions f WHERE f.account_id = a.id AND f.status = 'open'), '[]'::jsonb)
   ) ORDER BY a.name, a.id), '[]'::jsonb)
   FROM poshkan_trade_test.accounts a JOIN owner o ON a.user_id = o.id
@@ -142,10 +145,11 @@ BEGIN
     INSERT INTO poshkan_trade_test.fx_positions(account_id,symbol,direction,units,open_rate,margin,stop_loss,take_profit)
       VALUES(a.id,symbol,direction,units,p_quote,margin,sl,tp) RETURNING id INTO new_id;
     result := jsonb_build_object('action',action,'positionId',new_id,'price',p_quote::text,'margin',margin::text);
+    UPDATE poshkan_trade_test.fx_positions SET holding_minutes=0 WHERE id=new_id;
     IF p_command->>'autoCloseMinutes' IS NOT NULL THEN
       IF (p_command->>'autoCloseMinutes') !~ '^[0-9]+$' OR (p_command->>'autoCloseMinutes')::integer NOT BETWEEN 0 AND 10080 THEN RAISE EXCEPTION 'Invalid auto-close timer'; END IF;
       IF (p_command->>'autoCloseMinutes')::integer>0 THEN
-        UPDATE poshkan_trade_test.fx_positions SET auto_close_at=clock_timestamp()+make_interval(mins=>(p_command->>'autoCloseMinutes')::integer) WHERE id=new_id;
+        UPDATE poshkan_trade_test.fx_positions SET auto_close_at=clock_timestamp()+make_interval(mins=>(p_command->>'autoCloseMinutes')::integer),holding_minutes=(p_command->>'autoCloseMinutes')::integer WHERE id=new_id;
       END IF;
     END IF;
   ELSE
@@ -168,13 +172,14 @@ BEGIN
       pnl := greatest(round(pnl,2),-margin);
       UPDATE poshkan_trade_test.accounts SET cash_balance = cash_balance + margin + pnl WHERE id = a.id;
       IF units = fx.units THEN
-        UPDATE poshkan_trade_test.fx_positions SET status='closed',closed_at=now(),close_rate=p_quote,pnl=pnl WHERE id=fx.id;
+        UPDATE poshkan_trade_test.fx_positions SET status='closed',closed_at=now(),close_rate=p_quote,pnl=pnl,exit_reason='manual' WHERE id=fx.id;
+        new_id:=fx.id;
       ELSE
-        INSERT INTO poshkan_trade_test.fx_positions(account_id,symbol,direction,units,open_rate,margin,status,opened_at,closed_at,close_rate,pnl)
-          VALUES(a.id,fx.symbol,fx.direction,units,fx.open_rate,margin,'closed',fx.opened_at,now(),p_quote,pnl);
+        INSERT INTO poshkan_trade_test.fx_positions(account_id,symbol,direction,units,open_rate,margin,status,opened_at,closed_at,close_rate,pnl,stop_loss,take_profit,auto_close_at,holding_minutes,exit_reason)
+          VALUES(a.id,fx.symbol,fx.direction,units,fx.open_rate,margin,'closed',fx.opened_at,now(),p_quote,pnl,fx.stop_loss,fx.take_profit,fx.auto_close_at,fx.holding_minutes,'manual') RETURNING id INTO new_id;
         UPDATE poshkan_trade_test.fx_positions SET units=fx.units-units,margin=fx.margin-margin WHERE id=fx.id;
       END IF;
-      result := jsonb_build_object('action',action,'positionId',fx.id,'units',units::text,'pnl',pnl::text,'releasedMargin',margin::text,'price',p_quote::text);
+      result := jsonb_build_object('action',action,'positionId',fx.id,'closedPositionId',new_id,'units',units::text,'pnl',pnl::text,'releasedMargin',margin::text,'price',p_quote::text);
     END IF;
   END IF;
   UPDATE poshkan_trade_test.requests r SET result=result WHERE r.actor_id=actor_id AND r.request_id=p_request;

@@ -21,6 +21,7 @@ jobs:
         run: PG_BIN="$(pg_config --bindir)" node scripts/check-research-costs.mjs --production
       - run: npx tsc --noEmit
       - run: node scripts/check-performance-review.mjs
+      - run: node scripts/check-stock-mcp.mjs
       - name: Build with placeholder configuration
         run: npm run build
         env:

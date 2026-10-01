@@ -13,6 +13,8 @@ import { servicesEnabled } from './services';
 import { unauthorizedMcpResponse } from '../mcp-oauth';
 import { quotedTrade } from './quoted-trade';
 import { researchState,researchMutation } from './research';
+import { validateMcpPosition } from './mcp-position-validation';
+import { positionExitLabel,positionHoldingMinutes } from '../position-records.mjs';
 const yahoo = new YahooFinance({ suppressNotices: ['yahooSurvey'] });
 const uuid=z.string().uuid();
 const ok=(value:unknown)=>({content:[{type:'text' as const,text:JSON.stringify(value)}]});
@@ -39,7 +41,7 @@ export async function neonMcpHandler(req: Request) {
     if (completed) return completed;
     const account=(await read()).find(a=>a.id===command.accountId);
     if (!account) throw new Error('Account not found');
-    if(command.action==='OPEN_FX' && account.type!=='forex') throw new Error('Use guarded crypto entry for crypto accounts');
+    if(command.action==='OPEN_FX') validateMcpPosition(account.type,command.symbol);
     const symbol='symbol' in command?command.symbol:account.forex.find(p=>p.id===command.positionId)?.symbol;
     if (!symbol) throw new Error('Position not found');
     const quote=await yahoo.quote(symbol);
@@ -48,7 +50,11 @@ export async function neonMcpHandler(req: Request) {
   };
   const order=async(requestId:string,raw:unknown)=>{
     const command=orderInput.parse(raw);
-    if(command.action==='PLACE_ENTRY' && !(await read()).some(a=>a.id===command.accountId&&a.type==='forex')) throw new Error('Use guarded crypto entry for crypto accounts');
+    if(command.action==='PLACE_ENTRY') {
+      const account=(await read()).find(a=>a.id===command.accountId);
+      if(!account)throw new Error('Account not found');
+      validateMcpPosition(account.type,command.symbol);
+    }
     return work(async c=>(await c.query(`SELECT ${databaseSchema()}.order_command($1,$2) AS receipt`,[requestId,command])).rows[0].receipt);
   };
   const number=z.number().finite().positive();
@@ -64,7 +70,7 @@ export async function neonMcpHandler(req: Request) {
       const account=(await read()).find(a=>a.id===account_id); if(!account)throw new Error('Account not found');
       return account;
     }));
-    server.tool('get_transactions','Read recent owned ledger entries including execution IDs and recorded costs where available.',{account_id:uuid,limit:z.number().int().min(1).max(200).default(50)},({account_id,limit})=>respond(()=>work(async c=>(await c.query(`SELECT * FROM ${databaseSchema()}.transactions WHERE account_id=$1 ORDER BY created_at DESC,id DESC LIMIT $2`,[account_id,limit])).rows)));
+    server.tool('get_transactions','Read recent spot/cash ledger entries including execution IDs and costs. Long/Short engine positions are separate: use list_forex_positions with status closed or all for their history.',{account_id:uuid,limit:z.number().int().min(1).max(200).default(50)},({account_id,limit})=>respond(()=>work(async c=>(await c.query(`SELECT * FROM ${databaseSchema()}.transactions WHERE account_id=$1 ORDER BY created_at DESC,id DESC LIMIT $2`,[account_id,limit])).rows)));
     server.tool('get_quote','Read a market quote; never supply it as an execution price.',{symbol:z.string().min(1).max(24)},({symbol})=>respond(()=>getQuote(symbol)));
     server.tool('search_symbols','Find ticker symbols.',{query:z.string().min(1).max(100)},({query})=>respond(()=>searchSymbols(query)));
     server.tool('get_price_history','Read OHLC price history.',{symbol:z.string().min(1).max(24),interval:z.enum(['5min','15min','1h','1day','1week']).default('1day'),limit:z.number().int().min(2).max(300).default(60)},({symbol,interval,limit})=>respond(()=>getOhlc(symbol,interval,limit)));
@@ -76,11 +82,14 @@ export async function neonMcpHandler(req: Request) {
       const q=await yahoo.quote(command.symbol),price=checkedQuote(command.symbol,q,true);
       return work(async c=>(await c.query(`SELECT ${databaseSchema()}.mcp_crypto_command($1,$2,$3) AS receipt`,[a.request_id,command,price])).rows[0].receipt);
     }));
-    server.tool('open_forex_position','Open a paper leveraged position with explicit leverage and an atomic optional timed exit. Reuse request_id on retries.',{request_id:uuid,account_id:uuid,symbol:z.string(),direction:z.enum(['LONG','SHORT']),units:number,leverage,stop_loss:number.nullable().default(null),take_profit:number.nullable().default(null),auto_close_minutes:z.number().int().min(0).max(10080).default(0)},a=>respond(()=>trade(a.request_id,{action:'OPEN_FX',accountId:a.account_id,symbol:a.symbol,direction:a.direction,units:String(a.units),leverage:a.leverage,stopLoss:a.stop_loss===null?null:String(a.stop_loss),takeProfit:a.take_profit===null?null:String(a.take_profit),autoCloseMinutes:a.auto_close_minutes})));
+    server.tool('open_forex_position','Open an existing paper LONG/SHORT position in a stocks/ETF or forex account, with explicit leverage, SL/TP and an atomic optional timed exit (minutes, not trading days). Crypto requires open_crypto_position. Background checks may be paused or delayed. Reuse request_id on retries.',{request_id:uuid,account_id:uuid,symbol:z.string(),direction:z.enum(['LONG','SHORT']),units:number,leverage,stop_loss:number.nullable().default(null),take_profit:number.nullable().default(null),auto_close_minutes:z.number().int().min(0).max(10080).default(0)},a=>respond(()=>trade(a.request_id,{action:'OPEN_FX',accountId:a.account_id,symbol:a.symbol,direction:a.direction,units:String(a.units),leverage:a.leverage,stopLoss:a.stop_loss===null?null:String(a.stop_loss),takeProfit:a.take_profit===null?null:String(a.take_profit),autoCloseMinutes:a.auto_close_minutes})));
     server.tool('close_forex_position','Close a paper leveraged position, optionally partially. Reuse request_id on retries.',{request_id:uuid,account_id:uuid,position_id:uuid,units:number.optional()},a=>respond(()=>trade(a.request_id,{action:'CLOSE_FX',accountId:a.account_id,positionId:a.position_id,...(a.units?{units:String(a.units)}:{})})));
-    server.tool('list_forex_positions','Read the owner’s open leveraged positions.',{account_id:uuid},a=>respond(async()=>{const account=(await read()).find(x=>x.id===a.account_id);if(!account)throw new Error('Account not found');return account.forex;}));
+    server.tool('list_forex_positions','Read owned LONG/SHORT positions for stock/ETF, forex or guarded crypto accounts. Default open; status closed or all includes history. Includes entry/close price, SL/TP, opened/closed timestamps, holding minutes/deadline, and recorded exit reason. Legacy generic closures have unknown reasons; spot ledger is separate.',{account_id:uuid,status:z.enum(['open','closed','all']).default('open'),limit:z.number().int().min(1).max(200).default(50)},a=>respond(async()=>{
+      if(!(await read()).some(x=>x.id===a.account_id))throw new Error('Account not found');
+      return work(async c=>(await c.query(`SELECT * FROM ${databaseSchema()}.fx_positions WHERE account_id=$1 AND ($2='all' OR ($2='open' AND status='open') OR ($2='closed' AND status<>'open')) ORDER BY opened_at DESC,id DESC LIMIT $3`,[a.account_id,a.status,a.limit])).rows.map(p=>({...p,rate:p.open_rate,stopLoss:p.stop_loss,takeProfit:p.take_profit,openedAt:p.opened_at,closedAt:p.closed_at,autoCloseAt:p.auto_close_at,holdingMinutes:positionHoldingMinutes(p),exitReason:p.exit_reason??(['sl','tp','stopped'].includes(p.status)?p.status:null),exitReasonLabel:positionExitLabel(p)})));
+    }));
     server.tool('place_limit_order','Place a paper limit order. Reuse request_id on retries.',{request_id:uuid,account_id:uuid,symbol:z.string(),side:z.enum(['BUY','SELL']),quantity:number,limit_price:number,time_in_force:z.enum(['DAY','GTC']).default('GTC')},a=>respond(()=>order(a.request_id,{action:'PLACE_LIMIT',accountId:a.account_id,symbol:a.symbol,direction:a.side,quantity:String(a.quantity),target:String(a.limit_price),timeInForce:a.time_in_force,expiryHours:null})));
-    server.tool('place_forex_entry_order','Place a pending paper entry with explicit trigger, leverage, and optional expiry. Reuse request_id on retries.',{request_id:uuid,account_id:uuid,symbol:z.string(),direction:z.enum(['LONG','SHORT']),units:number,entry_rate:number,trigger:z.enum(['AT_OR_ABOVE','AT_OR_BELOW']),leverage,stop_loss:number.nullable().default(null),take_profit:number.nullable().default(null),expires_minutes:z.number().int().min(1).max(10080).nullable().default(null)},a=>respond(()=>order(a.request_id,{action:'PLACE_ENTRY',accountId:a.account_id,symbol:a.symbol,direction:a.direction,quantity:String(a.units),target:String(a.entry_rate),trigger:a.trigger,leverage:a.leverage,stopLoss:a.stop_loss===null?null:String(a.stop_loss),takeProfit:a.take_profit===null?null:String(a.take_profit),expiryHours:null,expiryMinutes:a.expires_minutes})));
+    server.tool('place_forex_entry_order','Place a pending paper LONG/SHORT entry in a stocks/ETF or forex account with explicit trigger, leverage, SL/TP and optional expiry. Crypto remains restricted to guarded entry. Reuse request_id on retries.',{request_id:uuid,account_id:uuid,symbol:z.string(),direction:z.enum(['LONG','SHORT']),units:number,entry_rate:number,trigger:z.enum(['AT_OR_ABOVE','AT_OR_BELOW']),leverage,stop_loss:number.nullable().default(null),take_profit:number.nullable().default(null),expires_minutes:z.number().int().min(1).max(10080).nullable().default(null)},a=>respond(()=>order(a.request_id,{action:'PLACE_ENTRY',accountId:a.account_id,symbol:a.symbol,direction:a.direction,quantity:String(a.units),target:String(a.entry_rate),trigger:a.trigger,leverage:a.leverage,stopLoss:a.stop_loss===null?null:String(a.stop_loss),takeProfit:a.take_profit===null?null:String(a.take_profit),expiryHours:null,expiryMinutes:a.expires_minutes})));
     for(const [name,action] of [['cancel_order','CANCEL_LIMIT'],['cancel_forex_order','CANCEL_ENTRY']] as const)server.tool(name,'Cancel an owned pending paper order. Reuse request_id on retries.',{request_id:uuid,account_id:uuid,order_id:uuid},a=>respond(()=>order(a.request_id,{action,accountId:a.account_id,orderId:a.order_id})));
     server.tool('list_forex_orders','Read pending orders and exit plans for owned accounts.',{},()=>respond(()=>work(async c=>(await c.query(`SELECT ${databaseSchema()}.order_state() AS state`)).rows[0].state)));
   },{},{basePath:'/api/mcp',verboseLogs:false});

@@ -552,7 +552,7 @@ export async function autoCloseFxPositionAction(
   const supabase = await createClient();
   const { data: pos } = await supabase
     .from("fx_positions")
-    .select("symbol, direction, units, open_rate, margin, stop_loss, take_profit")
+    .select("symbol, direction, units, open_rate, margin, stop_loss, take_profit, auto_close_at")
     .eq("id", positionId)
     .eq("status", "open")
     .single();
@@ -565,7 +565,11 @@ export async function autoCloseFxPositionAction(
   } catch {
     return { closed: false };
   }
-  const reason = autoCloseReason(pos as Parameters<typeof autoCloseReason>[0], rate);
+  const timerDue=!!pos.auto_close_at && new Date(pos.auto_close_at).getTime()<=Date.now();
+  if(timerDue && await marketClosedError(pos.symbol))return {closed:false};
+  // Supabase compatibility keeps its existing generic closed status; Neon
+  // records the explicit timer reason in CHECK_POSITION above.
+  const reason = autoCloseReason(pos as Parameters<typeof autoCloseReason>[0], rate) ?? (timerDue?'closed':null);
   if (!reason) return { closed: false };
 
   // Fill AT the level for a bracket, matching the cron's bracketHit(): a resting

@@ -159,6 +159,8 @@ export interface FxPosition {
   stop_loss: number | null;
   take_profit: number | null;
   auto_close_at: string | null;
+  holding_minutes?: number | null;
+  exit_reason?: 'manual' | 'timer' | 'sl' | 'tp' | 'stopped' | null;
   status: "open" | "closed" | "stopped" | "sl" | "tp";
   opened_at: string;
   closed_at: string | null;
