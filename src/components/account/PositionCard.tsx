@@ -5,6 +5,7 @@ import type { FxPosition } from "@/lib/types";
 import { floatingPnl, marginFor, pips } from "@/lib/forex";
 import { formatCurrency, formatSignedCurrency, formatPercent, changeColor } from "@/lib/format";
 import SourceBadge from "./SourceBadge";
+import PositionPlanDetails from "./PositionPlanDetails";
 
 // Effective leverage = USD notional ÷ reserved margin (currency-aware via marginFor,
 // so it's correct for forex crosses as well as USD-denominated stocks/crypto).
@@ -137,6 +138,7 @@ export default function PositionCard({
               </button>
             </span>
           </div>
+          <PositionPlanDetails position={p} fmtPrice={fmtPrice} />
           {sltpExtra}
         </div>
       )}

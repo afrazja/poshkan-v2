@@ -106,6 +106,45 @@ try {
   const impossibleOrder=await asActor(async c=>(await c.query('SELECT poshkan_trade_test.order_command($1,$2) AS r',[randomUUID(),{action:'PLACE_LIMIT',accountId:impossible,symbol:'SPY',direction:'BUY',quantity:'1',target:'100',expiryHours:null,timeInForce:'GTC'}])).rows[0].r);
   const canceled=await asActor(async c=>(await c.query("SELECT poshkan_trade_test.check_order('LIMIT',$1,$2,'SPY',100,$3) AS r",[impossibleOrder.id,impossible,new Date(Date.now()+1000)])).rows[0].r);assert.equal(canceled.status,'canceled');assert.equal(await cash(impossible),100);
   checks.push('sell limits respect adverse price floor; unaffordable fee-bearing limits cancel atomically');
+
+  // Existing stock LONG/SHORT engine: synthetic records only, no remote URL.
+  const fxTrade=(command,price,id=randomUUID(),user=owner)=>asActor(async c=>(await c.query('SELECT poshkan_trade_test.command($1,$2,$3) AS r',[id,command,price])).rows[0].r,user);
+  const fxCheck=(id,accountId,price)=>asActor(async c=>(await c.query("SELECT poshkan_trade_test.check_order('POSITION',$1,$2,'SPY',$3,$4) AS r",[id,accountId,price,new Date()])).rows[0].r);
+  const fxRow=async id=>(await db.query('SELECT * FROM poshkan_trade_test.fx_positions WHERE id=$1',[id])).rows[0];
+  for(const direction of ['LONG','SHORT']) {
+    const leveraged=await account(10000);
+    const command={action:'OPEN_FX',accountId:leveraged,symbol:'SPY',direction,units:'2',leverage:2,stopLoss:direction==='LONG'?'90':'110',takeProfit:direction==='LONG'?'120':'80',autoCloseMinutes:4320};
+    const rid=randomUUID(),opened=await fxTrade(command,100,rid);
+    assert.deepEqual(await fxTrade(command,101,rid),opened);
+    const beforeClose=await fxRow(opened.positionId);assert.equal(beforeClose.direction,direction);assert.equal(Number(beforeClose.holding_minutes),4320);assert.equal(Number(beforeClose.stop_loss),Number(command.stopLoss));assert.ok(beforeClose.auto_close_at);
+    await assert.rejects(fxTrade({...command,stopLoss:direction==='LONG'?'105':'95'},100),/Invalid stop/);
+    await assert.rejects(fxTrade({...command,symbol:'BTC-USD'},100),/market/);
+    await assert.rejects(fxTrade(command,100,randomUUID(),foreign),/Account not found/);
+    const partialId=randomUUID(),partialCommand={action:'CLOSE_FX',accountId:leveraged,positionId:opened.positionId,units:'1'};
+    const closed=await fxTrade(partialCommand,105,partialId);assert.deepEqual(await fxTrade(partialCommand,99,partialId),closed);
+    const slice=await fxRow(closed.closedPositionId);assert.equal(slice.exit_reason,'manual');assert.equal(Number(slice.stop_loss),Number(command.stopLoss));assert.equal(Number(slice.take_profit),Number(command.takeProfit));assert.equal(Number(slice.holding_minutes),4320);assert.deepEqual(slice.auto_close_at,beforeClose.auto_close_at);
+    await fxTrade({action:'CLOSE_FX',accountId:leveraged,positionId:opened.positionId},105);assert.equal((await fxRow(opened.positionId)).exit_reason,'manual');
+    assert.equal(await cash(leveraged),direction==='LONG'?10010:9990);
+    for(const reason of ['timer','sl','tp']) {
+      const entry=await fxTrade(command,100);
+      if(reason==='timer')await db.query("UPDATE poshkan_trade_test.fx_positions SET auto_close_at=clock_timestamp()-interval '1 second' WHERE id=$1",[entry.positionId]);
+      const price=reason==='timer'?100:Number(reason==='sl'?command.stopLoss:command.takeProfit);
+      const results=await Promise.all([fxCheck(entry.positionId,leveraged,price),fxCheck(entry.positionId,leveraged,price)]);
+      assert.equal(results.filter(x=>x.status==='closed').length,1);
+      const exited=await fxRow(entry.positionId);assert.equal(exited.exit_reason,reason);assert.ok(exited.closed_at);assert.equal(Number(exited.open_rate),100);assert.equal(Number(exited.close_rate),price);
+    }
+    const entryRequest=randomUUID(),pendingEntry={action:'PLACE_ENTRY',accountId:leveraged,symbol:'SPY',direction,quantity:'2',target:'100',trigger:direction==='LONG'?'AT_OR_ABOVE':'AT_OR_BELOW',leverage:2,stopLoss:command.stopLoss,takeProfit:command.takeProfit,expiryHours:null,expiryMinutes:60};
+    const placeEntry=()=>asActor(async c=>(await c.query('SELECT poshkan_trade_test.order_command($1,$2) AS r',[entryRequest,pendingEntry])).rows[0].r);
+    const scheduled=await placeEntry();assert.deepEqual(await placeEntry(),scheduled);
+    const activated=await asActor(async c=>(await c.query("SELECT poshkan_trade_test.check_order('ENTRY',$1,$2,'SPY',$3,$4) AS r",[scheduled.id,leveraged,direction==='LONG'?101:99,new Date()])).rows[0].r);
+    assert.equal(activated.status,'filled');const scheduledPosition=await fxRow(activated.trade.positionId);assert.equal(scheduledPosition.direction,direction);assert.equal(Number(scheduledPosition.stop_loss),Number(command.stopLoss));
+    const entry=await fxTrade(command,100);
+    await db.query('INSERT INTO poshkan_trade_test.fx_tp_levels(position_id,price,close_units) VALUES($1,$2,1)',[entry.positionId,direction==='LONG'?110:90]);
+    assert.equal((await fxCheck(entry.positionId,leveraged,direction==='LONG'?110:90)).status,'scaled');
+    const slices=(await db.query("SELECT * FROM poshkan_trade_test.fx_positions WHERE account_id=$1 AND status='tp' AND units=1",[leveraged])).rows;assert.equal(slices.length,1);assert.equal(slices[0].exit_reason,'tp');assert.equal(Number(slices[0].holding_minutes),4320);
+  }
+  checks.push('stock LONG/SHORT, SL/TP/timer/manual/scaled exit reasons, partial record protection and deadline, cash conservation, concurrent exits, owner/asset validation and idempotency');
+
   const journalAccount=await account();const original=plan(journalAccount),planId=randomUUID();const entry=await research(original,planId);assert.deepEqual(await research(original,planId),entry);
   const bought=await trade(spot(journalAccount),100);await research({action:'LINK',entryId:entry.id,transactionId:bought.transactionId});
   const note={action:'REVIEW',entryId:entry.id,note:'Separate later review'},noteId=randomUUID();await research(note,noteId);await research(note,noteId);
