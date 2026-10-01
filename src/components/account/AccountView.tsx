@@ -46,7 +46,8 @@ import {
 } from "@/app/dashboard/[accountId]/actions";
 import { formatNumber } from "@/lib/format";
 
-type Tab = "ideas" | "holdings" | "watchlist" | "history" | "research";
+type Tab = "ideas" | "holdings" | "trades" | "watchlist" | "history" | "research";
+const EMPTY_TRADES:FxPosition[]=[];
 
 export default function AccountView({
   account,
@@ -54,7 +55,7 @@ export default function AccountView({
   initialWatchlist,
   initialTransactions,
   initialOrders,
-  initialFxPositions = [],
+  initialFxPositions = EMPTY_TRADES,
   initialFxOrders = [],
   initialFxTpLevels = [],
   autoSettings,
@@ -98,29 +99,35 @@ export default function AccountView({
   // account opens on Ideas. Computed from props, so the server and the first
   // client render agree.
   const [tab, setTab] = useState<Tab>(
-    account.type !== "forex" && initialPositions.length === 0 ? "ideas" : "holdings"
+    account.type !== "forex" && initialPositions.length === 0
+      ? initialFxPositions.some(p=>p.status==="open") ? "trades" : "ideas"
+      : "holdings"
   );
+
+  const [previousTrades,setPreviousTrades]=useState(initialFxPositions);
+  const [highlightedTradeId,setHighlightedTradeId]=useState<string|null>(null);
+  if(previousTrades!==initialFxPositions){
+    const known=new Set(previousTrades.map(p=>p.id));
+    const added=initialFxPositions.find(p=>p.status==='open' && !known.has(p.id));
+    setPreviousTrades(initialFxPositions);
+    if(added && account.type!=='forex'){setTab('trades');setHighlightedTradeId(added.id);}
+  }
+  useEffect(()=>{
+    if(!highlightedTradeId)return;
+    try{localStorage.setItem(`poshkan-tab-${account.id}`,'trades');}catch{}
+    document.getElementById('account-tabs')?.scrollIntoView({block:'start',behavior:'smooth'});
+    const timer=setTimeout(()=>setHighlightedTradeId(null),10000);
+    return()=>clearTimeout(timer);
+  },[highlightedTradeId,account.id]);
+  function positionOpened(){setSelected(null);setTab('trades');try{localStorage.setItem(`poshkan-tab-${account.id}`,'trades');}catch{}}
 
   // Restore the last tab the user had open on this account.
   useEffect(() => {
     const saved = localStorage.getItem(`poshkan-tab-${account.id}`);
-    if (saved === "ideas" || saved === "holdings" || saved === "watchlist" || saved === "history") {
+    if (saved === "ideas" || saved === "holdings" || saved === "trades" || saved === "watchlist" || saved === "history") {
       setTab(saved);
     }
   }, [account.id]);
-  // Ideas is a phone-only tab, so a wide screen must never sit on it — the
-  // panel is hidden there and the tab would look empty. Runs after mount, so
-  // the first render still matches what the server sent.
-  useEffect(() => {
-    if (tab !== "ideas") return;
-    const wide = window.matchMedia("(min-width: 1024px)");
-    const snapBack = () => {
-      if (wide.matches) setTab("holdings");
-    };
-    snapBack();
-    wide.addEventListener("change", snapBack);
-    return () => wide.removeEventListener("change", snapBack);
-  }, [tab]);
   const [filter, setFilter] = useState("");
 
   const positions = initialPositions;
@@ -129,10 +136,6 @@ export default function AccountView({
   const orders = initialOrders;
   const fxPositions = initialFxPositions;
   const isForex = account.type === "forex";
-  // An empty stock account gives the wide column to the showcase: there is no
-  // portfolio to read yet. It hands the width back the moment one is bought,
-  // because an eight-column holdings table is unreadable at a third of the page.
-  const leadWithIdeas = !isForex && positions.length === 0;
   // Both non-forex markets get a showcase; each has its own universe.
   const showcaseType = account.type === "crypto" ? "crypto" : "stocks";
   const isCrypto = account.type === "crypto";
@@ -393,8 +396,8 @@ export default function AccountView({
               {fxQuotesLoading ? <TextSkeleton className="w-16" /> : formatSignedCurrency(fxFloating)} floating P&L
             </div>
           ) : (
-            <div className={`text-sm font-medium ${quotesLoading ? "text-muted" : changeColor(todayPnl)}`}>
-              {quotesLoading ? <TextSkeleton className="w-28" /> : `${formatSignedCurrency(todayPnl)} (${formatPercent(todayPnlPct)})`} today
+            <div className={`text-sm font-medium ${quotesLoading || fxQuotesLoading ? "text-muted" : changeColor(totalPnl + fxFloating + realized + fxRealized)}`}>
+              {quotesLoading || fxQuotesLoading ? <TextSkeleton className="w-28" /> : formatSignedCurrency(totalPnl + fxFloating + realized + fxRealized)} total P&L
             </div>
           )}
         </div>
@@ -541,38 +544,101 @@ export default function AccountView({
         </Modal>
       )}
 
-      {/* Desktop: two columns — tables/insights in the main column, the trading
-          rail (long/short + pending orders) on the right. Mobile: stacks in the
-          familiar order (leverage → orders → tabs). */}
       {!isForex && (
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3 lg:items-start">
-        <div
-          className={`min-w-0 space-y-6 ${
-            leadWithIdeas ? "lg:order-1 lg:col-span-2" : "lg:order-2 lg:col-span-1"
-          }`}
-        >
-      {/* Stock and crypto accounts give this column to the showcase instead of
-          leverage: a beginner opening an empty account needs somewhere to
-          start, not a margin ticket. */}
-      {/* Desktop only — on a phone this same showcase is the Ideas tab. */}
-      <div className="hidden lg:block">
-        <Showcase type={showcaseType} onSelect={selectSymbol} />
-      </div>
+        <div className="min-w-0 w-full">
+      {/* Spot holdings and Long/Short trades have separate views. */}
+      <section id="account-tabs" className="scroll-mt-20">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <div role="tablist" aria-label="Account sections" className="flex flex-wrap gap-1 rounded-lg border border-border bg-card p-1">
+            {(
+              [
+                { key: "holdings", label: "Holdings", count: positions.length },
+                { key: "trades", label: "Trades", count: fxPositions.filter(p=>p.status==="open").length },
+                  { key: "history", label: "History", count: transactions.length },
+                  ...(researchAvailable?[{key:'research',label:'Research & review'}]:[]),
+                { key: "watchlist", label: "Watchlist", count: watchlist.length },
+                { key: "ideas", label: "Ideas" },
+              ] as { key: Tab; label: string; count?: number; phoneOnly?: boolean }[]
+            ).map((t) => (
+              <button
+                key={t.key}
+                id={`account-tab-${account.id}-${t.key}`} role="tab" aria-selected={tab === t.key}
+                aria-controls={`account-panel-${account.id}-${t.key}`} tabIndex={tab===t.key?0:-1}
+                onKeyDown={event=>{
+                  const buttons=Array.from(event.currentTarget.closest('[role="tablist"]')!.querySelectorAll<HTMLButtonElement>('[role="tab"]'));
+                  const index=buttons.indexOf(event.currentTarget);
+                  const next=event.key==='ArrowRight'?(index+1)%buttons.length:event.key==='ArrowLeft'?(index+buttons.length-1)%buttons.length:event.key==='Home'?0:event.key==='End'?buttons.length-1:null;
+                  if(next!==null){event.preventDefault();buttons[next].click();buttons[next].focus();}
+                }}
+                onClick={() => {
+                  setTab(t.key);
+                  setFilter("");
+                  try {
+                    localStorage.setItem(`poshkan-tab-${account.id}`, t.key);
+                  } catch {}
+                }}
+                className={`rounded-md px-4 py-1.5 text-sm font-medium transition ${
+                  t.phoneOnly ? "lg:hidden" : ""
+                } ${tab === t.key ? "bg-background text-foreground shadow-sm" : "text-muted hover:text-foreground"}`}
+              >
+                {t.label}
+                {t.count ? ` (${t.count})` : ""}
+              </button>
+            ))}
+          </div>
 
-      {/* Never strand a position: an account still holding leveraged trades
-          keeps the panel so they can be closed. Leverage now lives on forex
-          accounts only; this is the way out for anyone mid-trade. */}
-      {fxPositions.some((p) => p.status === "open") && (
-        <LeveragePanel
-          accountId={account.id}
-          accountType={account.type}
-          cash={cash}
-          positions={fxPositions}
-          quotes={quotes}
-        />
-      )}
+          {/* Small filter for the current table (not on Insights) */}
+          {tab !== "ideas" && tab !== "trades" && tab !== 'research' && (
+            <div className="flex items-center gap-2">
+              {exportableRows > 0 && (
+                <button
+                  onClick={exportCsv}
+                  className="rounded-lg border border-border px-2.5 py-1.5 text-xs font-medium text-muted hover:bg-card hover:text-foreground"
+                >
+                  ⬇ Export CSV
+                </button>
+              )}
+              <div className="relative">
+              <svg
+                className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-primary"
+                viewBox="0 0 20 20"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+              >
+                <circle cx="9" cy="9" r="6" />
+                <path d="M14 14l4 4" />
+              </svg>
+              <input
+                value={filter}
+                onChange={(e) => setFilter(e.target.value)}
+                placeholder="Filter symbol…"
+                className="w-40 rounded-lg border border-border bg-input py-1.5 pl-8 pr-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+              />
+              </div>
+            </div>
+          )}
+        </div>
 
-      {/* Pending limit orders */}
+        <div role="tabpanel" id={`account-panel-${account.id}-${tab}`} aria-labelledby={`account-tab-${account.id}-${tab}`}>
+        {/* Ideas remains available on every screen size. */}
+        {tab === "ideas" && (
+          <div>
+            <Showcase type={showcaseType} onSelect={selectSymbol} />
+          </div>
+        )}
+
+        {tab === "holdings" && (
+          <div className="space-y-4">
+          <HoldingsTable
+            positions={positions.filter((p) => p.symbol.toLowerCase().includes(filter.toLowerCase()))}
+            quotes={quotes}
+            sparks={rowSparks}
+            accountType={account.type}
+            onSelect={selectSymbol}
+          />
+      {/* Pending spot limit orders */}
       {orders.length > 0 && (
         <div className="rounded-2xl border border-border bg-card p-4">
           <h2 className="mb-2 text-sm font-semibold">Pending limit orders</h2>
@@ -610,97 +676,13 @@ export default function AccountView({
           </p>
         </div>
       )}
-        </div>
-
-        <div
-          className={`min-w-0 ${
-            leadWithIdeas ? "lg:order-2 lg:col-span-1" : "lg:order-1 lg:col-span-2"
-          }`}
-        >
-      {/* Holdings / Watchlist / History tabs */}
-      <section id="account-tabs" className="scroll-mt-20">
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <div className="flex flex-wrap gap-1 rounded-lg border border-border bg-card p-1">
-            {(
-              [
-                ...(!isForex ? [{ key: "ideas" as Tab, label: "Ideas", phoneOnly: true }] : []),
-                { key: "holdings", label: "Holdings", count: positions.length },
-                { key: "watchlist", label: "Watchlist", count: watchlist.length },
-                  { key: "history", label: "History", count: transactions.length },
-                  ...(researchAvailable?[{key:'research',label:'Research & review'}]:[]),
-              ] as { key: Tab; label: string; count?: number; phoneOnly?: boolean }[]
-            ).map((t) => (
-              <button
-                key={t.key}
-                onClick={() => {
-                  setTab(t.key);
-                  setFilter("");
-                  try {
-                    localStorage.setItem(`poshkan-tab-${account.id}`, t.key);
-                  } catch {}
-                }}
-                className={`rounded-md px-4 py-1.5 text-sm font-medium transition ${
-                  t.phoneOnly ? "lg:hidden" : ""
-                } ${tab === t.key ? "bg-background text-foreground shadow-sm" : "text-muted hover:text-foreground"}`}
-              >
-                {t.label}
-                {t.count ? ` (${t.count})` : ""}
-              </button>
-            ))}
-          </div>
-
-          {/* Small filter for the current table (not on Insights) */}
-          {tab !== "ideas" && tab !== 'research' && (
-            <div className="flex items-center gap-2">
-              {exportableRows > 0 && (
-                <button
-                  onClick={exportCsv}
-                  className="rounded-lg border border-border px-2.5 py-1.5 text-xs font-medium text-muted hover:bg-card hover:text-foreground"
-                >
-                  ⬇ Export CSV
-                </button>
-              )}
-              <div className="relative">
-              <svg
-                className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-primary"
-                viewBox="0 0 20 20"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-              >
-                <circle cx="9" cy="9" r="6" />
-                <path d="M14 14l4 4" />
-              </svg>
-              <input
-                value={filter}
-                onChange={(e) => setFilter(e.target.value)}
-                placeholder="Filter symbol…"
-                className="w-40 rounded-lg border border-border bg-input py-1.5 pl-8 pr-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
-              />
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Phone only: on a narrow screen the right-hand column stacks on top,
-            so the showcase pushed holdings below a full screen of scrolling.
-            Here it is a tab instead. The desktop copy lives in that column. */}
-        {tab === "ideas" && (
-          <div className="lg:hidden">
-            <Showcase type={showcaseType} onSelect={selectSymbol} />
           </div>
         )}
 
-        {tab === "holdings" && (
-          <HoldingsTable
-            positions={positions.filter((p) => p.symbol.toLowerCase().includes(filter.toLowerCase()))}
-            quotes={quotes}
-            sparks={rowSparks}
-            accountType={account.type}
-            onSelect={selectSymbol}
-          />
-        )}
+        {/* Keep mounted so existing automatic checks also run on other tabs. */}
+        <div hidden={tab !== "trades"}>
+          <LeveragePanel accountId={account.id} accountType={account.type} cash={cash} positions={fxPositions} quotes={quotes} showDetails highlightedId={highlightedTradeId} onOpened={positionOpened} />
+        </div>
 
         {tab === "watchlist" && (
           <WatchlistTable
@@ -723,9 +705,9 @@ export default function AccountView({
           />
         )}
 
+        </div>
       </section>
         </div>
-      </div>
       )}
 
       {trade && (
@@ -747,6 +729,7 @@ export default function AccountView({
           cash={cash}
           unit={account.type === "crypto" ? "coins" : "shares"}
           initialSymbol={leverageFor}
+          onOpened={positionOpened}
           onClose={() => setLeverageFor(null)}
         />
       )}

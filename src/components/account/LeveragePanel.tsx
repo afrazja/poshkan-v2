@@ -28,12 +28,14 @@ export default function LeveragePanel({
   cash,
   positions,
   quotes,
+  showDetails=false,highlightedId=null,onOpened,
 }: {
   accountId: string;
   accountType: string;
   cash: number;
   positions: FxPosition[];
   quotes: Record<string, Quote>;
+  showDetails?:boolean;highlightedId?:string|null;onOpened?:()=>void;
 }) {
   const router = useRouter();
   const [open, setOpenModal] = useState(false);
@@ -124,7 +126,9 @@ export default function LeveragePanel({
                 fmtPrice={formatCurrency}
                 metric="percent"
                 surfaceClass="bg-background"
-                expanded={expandedId === p.id}
+                highlighted={highlightedId===p.id}
+                alwaysExpanded={showDetails}
+                expanded={showDetails || expandedId === p.id}
                 onToggle={() => setExpandedId(expandedId === p.id ? null : p.id)}
                 onEditSltp={() => setEditSltp(p)}
                 onClose={() => close(p.id)}
@@ -192,6 +196,7 @@ export default function LeveragePanel({
           accountType={accountType}
           cash={cash}
           unit={unit}
+          onOpened={onOpened}
           onClose={() => setOpenModal(false)}
         />
       )}
@@ -218,6 +223,7 @@ export function OpenModal({
   cash,
   unit,
   initialSymbol = null,
+  onOpened,
   onClose,
 }: {
   accountId: string;
@@ -226,6 +232,7 @@ export function OpenModal({
   unit: string;
   /** Skip the search step when the caller already knows the symbol. */
   initialSymbol?: { symbol: string; name: string } | null;
+  onOpened?:()=>void;
   onClose: () => void;
 }) {
   const router = useRouter();
@@ -307,7 +314,7 @@ export function OpenModal({
     });
     setLoading(false);
     if (res.error) return setError(res.error);
-    setDone(true);
+    if(onOpened){onOpened();onClose();}else setDone(true);
     router.refresh();
   }
 

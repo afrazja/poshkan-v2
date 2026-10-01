@@ -44,6 +44,7 @@ export default function PositionCard({
   closing,
   autoCloseLabel,
   sltpExtra,
+  highlighted=false,alwaysExpanded=false,
 }: {
   position: FxPosition;
   title: string;
@@ -60,6 +61,7 @@ export default function PositionCard({
   closing: boolean;
   autoCloseLabel?: string | null;
   sltpExtra?: ReactNode;
+  highlighted?:boolean;alwaysExpanded?:boolean;
 }) {
   const p = position;
   const fl = rate != null ? floatingPnl(p.direction, Number(p.units), Number(p.open_rate), rate, p.symbol) : null;
@@ -72,9 +74,10 @@ export default function PositionCard({
   const metricText = pip != null ? `${pip >= 0 ? "+" : ""}${pip.toFixed(1)} pips` : pct != null ? formatPercent(pct) : null;
 
   return (
-    <div className={`rounded-xl border border-border ${surfaceClass}`}>
+    <div role="group" aria-label={`${p.direction === 'LONG'?'Long':'Short'} ${p.symbol} position`} data-new-position={highlighted || undefined} className={`rounded-xl border border-border ${surfaceClass} ${highlighted ? "ring-2 ring-primary" : ""}`}>
+      {highlighted && <p role="status" className="px-3 pt-2 text-xs font-semibold text-primary">Position opened</p>}
       {/* Collapsed header — tap the row to expand (title may open a chart) */}
-      <div onClick={onToggle} className="flex cursor-pointer items-center justify-between gap-2 p-3">
+      <div onClick={alwaysExpanded?undefined:onToggle} className="flex items-center justify-between gap-2 p-3">
         <span className="flex flex-wrap items-center gap-1.5 font-semibold">
           {onTitleClick ? (
             <button
@@ -105,15 +108,15 @@ export default function PositionCard({
             {fl != null ? formatSignedCurrency(fl) : "…"}
             {metricText && <span className="ml-1 text-xs">({metricText})</span>}
           </span>
-          <span className={`text-lg leading-none text-muted transition-transform ${expanded ? "rotate-90" : ""}`}>›</span>
+          {!alwaysExpanded && <span className={`text-lg leading-none text-muted transition-transform ${expanded ? "rotate-90" : ""}`}>›</span>}
         </span>
       </div>
 
       {expanded && (
         <div className="space-y-1.5 border-t border-border p-3 pt-2">
           <div className="text-xs text-muted">
-            {Number(p.units).toLocaleString("en-US")} {unitLabel} · {fmtPrice(Number(p.open_rate))} →{" "}
-            {rate != null ? fmtPrice(rate) : "…"} · margin {formatCurrency(Number(p.margin))} · {lev}× lev
+            {Number(p.units).toLocaleString("en-US")} {unitLabel} · Entry {fmtPrice(Number(p.open_rate))} →{" "}
+            Current {rate != null ? fmtPrice(rate) : "…"} · margin {formatCurrency(Number(p.margin))} · {lev}× lev
             {autoCloseLabel && <span className="ml-1">· ⏱ {autoCloseLabel}</span>}
           </div>
           <div className="text-[11px] text-muted">Opened {fmtOpened(p.opened_at)}</div>
@@ -124,12 +127,14 @@ export default function PositionCard({
             </span>
             <span className="flex shrink-0 gap-1.5">
               <button
+                aria-label={`Edit SL/TP for ${p.symbol}`}
                 onClick={onEditSltp}
                 className="rounded-md border border-border px-2 py-1 font-medium hover:bg-background"
               >
                 SL/TP
               </button>
               <button
+                aria-label={`Close ${p.direction.toLowerCase()} ${p.symbol} position`}
                 onClick={onClose}
                 disabled={closing}
                 className="rounded-md border border-border px-2 py-1 font-medium hover:bg-background disabled:opacity-50"
@@ -138,7 +143,7 @@ export default function PositionCard({
               </button>
             </span>
           </div>
-          <PositionPlanDetails position={p} fmtPrice={fmtPrice} />
+          <PositionPlanDetails position={p} fmtPrice={fmtPrice} showProtection={false} />
           {sltpExtra}
         </div>
       )}
