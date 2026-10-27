@@ -83,7 +83,7 @@ DECLARE owner_id uuid:=poshkan_trade_test.actor(); token_id uuid;
 BEGIN
  SELECT id INTO token_id FROM poshkan_trade_test.api_tokens WHERE token_hash=p_hash AND user_id=owner_id;
  IF token_id IS NULL THEN RAISE EXCEPTION 'Invalid API token' USING ERRCODE='42501'; END IF;
- UPDATE poshkan_trade_test.api_tokens SET last_used_at=now() WHERE id=token_id;
+ UPDATE poshkan_trade_test.api_tokens SET last_used_at=now() WHERE id=token_id AND (last_used_at IS NULL OR last_used_at<now()-interval '10 minutes');
  RETURN owner_id;
 END $$;
 REVOKE ALL ON FUNCTION poshkan_trade_test.service_check(text,uuid,uuid,text,numeric,timestamptz),poshkan_trade_test.verify_api_token(text) FROM PUBLIC;

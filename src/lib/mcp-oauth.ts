@@ -5,10 +5,11 @@ import { approvedUserId, appOrigin } from "@/lib/neon-preview/config";
 import { transaction } from "@/lib/neon-preview/trading";
 import { databaseSchema } from "@/lib/neon-app/schema.mjs";
 
-export const MCP_SCOPE = "mcp:tools";
+import { MCP_SCOPE, PROTECTED_RESOURCE_METADATA_URL, oauthChallenge, unauthorizedMcpResponse } from "@/lib/mcp-challenge";
+
+export { MCP_SCOPE, PROTECTED_RESOURCE_METADATA_URL, oauthChallenge, unauthorizedMcpResponse };
 export const MCP_RESOURCE = `${appOrigin()}/api/mcp/mcp`;
 export const OAUTH_ISSUER = appOrigin();
-export const PROTECTED_RESOURCE_METADATA_URL = `${appOrigin()}/.well-known/oauth-protected-resource/api/mcp/mcp`;
 
 type ClientRegistration = {
   clientName: string;
@@ -196,20 +197,6 @@ export async function exchangeAuthorizationCode(code: string, label: string) {
   );
   if (inserted.rowCount !== 1) return null;
   return accessToken;
-}
-
-export function oauthChallenge() {
-  return `Bearer resource_metadata="${PROTECTED_RESOURCE_METADATA_URL}", scope="${MCP_SCOPE}"`;
-}
-
-export function unauthorizedMcpResponse() {
-  return Response.json(
-    { error: "unauthorized", error_description: "Connect with Poshkan OAuth or provide a Poshkan API token." },
-    {
-      status: 401,
-      headers: { "Cache-Control": "no-store", "WWW-Authenticate": oauthChallenge() },
-    },
-  );
 }
 
 export function protectedResourceMetadata() {
