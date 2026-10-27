@@ -3,9 +3,16 @@
 import { useEffect, useState } from "react";
 
 // Market open/closed indicator for an account header. Probes one liquid
-// symbol for the account's market (SPY for stocks, EUR/USD for forex) and
-// refreshes every minute. Crypto never closes, so it gets a static badge.
+// symbol for the account's market (SPY for stocks, EUR/USD for forex).
+// Crypto never closes, so it gets a static badge.
+//
+// Every probe is an authenticated request that reads the shared quote cache,
+// so each one wakes the database. The status only changes at the open and
+// close, so it refreshes every ten minutes while the tab is visible, and
+// never from a hidden tab. Returning to a tab that has gone stale re-checks.
 const PROBE: Record<string, string> = { stocks: "SPY", forex: "EURUSD=X" };
+const REFRESH_MS = 10 * 60_000;
+const MIN_GAP_MS = 2 * 60_000;
 
 export default function MarketStatusBadge({ market }: { market: string }) {
   const probe = PROBE[market];
@@ -14,18 +21,27 @@ export default function MarketStatusBadge({ market }: { market: string }) {
   useEffect(() => {
     if (!probe) return;
     let active = true;
-    const check = () =>
+    let last = 0;
+    const check = () => {
+      if (document.hidden) return;
+      last = Date.now();
       fetch(`/api/quote?symbol=${encodeURIComponent(probe)}`)
         .then((r) => r.json())
         .then((j) => {
           if (active && typeof j.quote?.isMarketOpen === "boolean") setOpen(j.quote.isMarketOpen);
         })
         .catch(() => {});
+    };
+    const onVisible = () => {
+      if (!document.hidden && Date.now() - last >= MIN_GAP_MS) check();
+    };
     check();
-    const t = setInterval(check, 60_000);
+    const t = setInterval(check, REFRESH_MS);
+    document.addEventListener("visibilitychange", onVisible);
     return () => {
       active = false;
       clearInterval(t);
+      document.removeEventListener("visibilitychange", onVisible);
     };
   }, [probe]);
 

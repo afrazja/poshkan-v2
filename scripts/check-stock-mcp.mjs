@@ -13,15 +13,18 @@ const accounts=[{id:stocks,type:'stocks',forex:[]},{id:forex,type:'forex',forex:
 const records=[{id:'position',account_id:stocks,direction:'SHORT',open_rate:100,stop_loss:110,take_profit:80,auto_close_at:'2026-10-04T12:00:00Z',opened_at:'2026-10-01T12:00:00Z',holding_minutes:4320,status:'closed',exit_reason:'timer'}];
 const c={query:async(sql,args)=>{queries.push({sql,args});if(sql.includes('verify_api_token'))return {rows:[{}]};if(sql.includes('.completed('))return {rows:[{receipt}]};if(sql.includes('.state()'))return {rows:[{state:accounts}]};if(sql.includes('.order_command('))return {rows:[{receipt:{status:'pending'}}]};if(sql.includes('.fx_positions'))return {rows:records};throw Error(sql);}};
 class Yahoo {async quote(){quoteCalls++;return {regularMarketTime:new Date()};}}
+const challenge=load('src/lib/mcp-challenge.ts',{'@/lib/neon-preview/config':{appOrigin:()=> 'https://fixture.invalid'}});
 const mocks={
  'server-only':{},'../neon-preview/config':{approvedUserId:()=> 'synthetic'},'./schema.mjs':{databaseSchema:()=> 'poshkan_live'},'node:crypto':await import('node:crypto'),
  'mcp-handler':{createMcpHandler:setup=>{setup({tool:(name,description,schema,fn)=>tools.set(name,{description,schema,fn})});return ()=>new Response('synthetic');}},'zod':{z},
  '../neon-preview/trading':{transaction:async(user,fn)=>{assert.equal(user,'synthetic');return fn(c);}},'../neon-preview/trade-input':inputs,'../neon-preview/quote.mjs':{checkedQuote:()=>100},
- 'yahoo-finance2':{default:Yahoo},'../marketdata':{},'./services':{servicesEnabled:()=>true},'../mcp-oauth':{unauthorizedMcpResponse:()=>new Response('Unauthorized',{status:401})},
+ 'yahoo-finance2':{default:Yahoo},'../marketdata':{},'./services':{servicesEnabled:()=>true},'../mcp-challenge':challenge,
  './quoted-trade':{quotedTrade:async(client,id,command)=>{quoted.push(command);return {positionId:'synthetic',action:command.action};}},'./research':{},'./mcp-position-validation':validation,'../position-records.mjs':{positionExitLabel,positionHoldingMinutes}
 };
 const {neonMcpHandler}=load('src/lib/neon-app/mcp.ts',mocks);
 assert.equal((await neonMcpHandler(new Request('http://fixture'))).status,401);
+for(const authorization of [undefined,'Bearer not_a_poshkan_token','Basic pk_synthetic_fixture']){const denied=await neonMcpHandler(new Request('http://fixture',{headers:authorization?{authorization}:{}}));assert.equal(denied.status,401);assert.match(denied.headers.get('www-authenticate'),/resource_metadata=/);}
+assert.equal(queries.length,0,'token-less requests must not open a database transaction');
 await neonMcpHandler(new Request('http://fixture',{headers:{authorization:'Bearer pk_synthetic_fixture'}}));
 const call=async(name,args)=>tools.get(name).fn(z.object(tools.get(name).schema).parse(args));
 const base={request_id:'44444444-4444-4444-8444-444444444444',account_id:stocks,symbol:'SPY',units:2,leverage:2,stop_loss:90,take_profit:120,auto_close_minutes:4320};

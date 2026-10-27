@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { updateSession } from "@/lib/supabase/middleware";
 import { previewEnabled, fullAppEnabled, productionEnabled } from "@/lib/neon-preview/config";
+import { mcpBearerToken, unauthorizedMcpResponse } from "@/lib/mcp-challenge";
 
 // Next.js 16 "proxy" convention (formerly "middleware"). Runs on every matched
 // request to refresh the Supabase session and guard protected routes.
@@ -15,6 +16,11 @@ export default async function proxy(request: NextRequest) {
       if (pathname.startsWith('/api/cron/') || pathname.startsWith('/api/mcp/')) {
         if(productionEnabled() && pathname.startsWith('/api/cron/') && !['/api/cron/market-check','/api/cron/snapshots'].includes(pathname)) return new NextResponse('Optional service is disabled',{status:404});
         if(process.env.POSHKAN_NEON_SERVICES!=='1') return new NextResponse('Local services are disabled',{status:404});
+        // Directory crawlers and unauthenticated probes hit the MCP endpoint constantly; answer the OAuth challenge here instead of invoking the function.
+        if(pathname.startsWith('/api/mcp/') && !mcpBearerToken(request.headers)) {
+          const denied=unauthorizedMcpResponse();
+          return new NextResponse(denied.body,{status:denied.status,headers:denied.headers});
+        }
         if(pathname.startsWith('/api/cron/') && (!process.env.CRON_SECRET || request.headers.get('authorization')!==`Bearer ${process.env.CRON_SECRET}`)) return new NextResponse('Unauthorized',{status:401});
         return NextResponse.next();
       }
