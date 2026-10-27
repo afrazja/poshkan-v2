@@ -55,6 +55,13 @@ export interface Transaction {
   quantity: number;
   price: number;
   cash_delta: number;
+  explicit_fee?: number;
+  reference_price?: number | null;
+  spread_cost?: number;
+  slippage_cost?: number;
+  realized_pnl?: number | null;
+  quote_at?: string | null;
+  cost_profile?: Record<string, unknown> | null;
   created_at: string;
 }
 
@@ -152,6 +159,8 @@ export interface FxPosition {
   stop_loss: number | null;
   take_profit: number | null;
   auto_close_at: string | null;
+  holding_minutes?: number | null;
+  exit_reason?: 'manual' | 'timer' | 'sl' | 'tp' | 'stopped' | null;
   status: "open" | "closed" | "stopped" | "sl" | "tp";
   opened_at: string;
   closed_at: string | null;

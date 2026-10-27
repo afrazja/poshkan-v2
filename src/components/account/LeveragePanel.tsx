@@ -15,6 +15,8 @@ import {
 import SymbolSearch from "@/components/SymbolSearch";
 import Modal from "@/components/Modal";
 import SourceBadge from "./SourceBadge";
+import PositionPlanDetails from "./PositionPlanDetails";
+import { positionExitLabel } from "@/lib/position-records.mjs";
 import PositionCard from "./PositionCard";
 
 // Leveraged long/short positions for stock & crypto accounts — the same engine
@@ -26,12 +28,14 @@ export default function LeveragePanel({
   cash,
   positions,
   quotes,
+  showDetails=false,highlightedId=null,onOpened,
 }: {
   accountId: string;
   accountType: string;
   cash: number;
   positions: FxPosition[];
   quotes: Record<string, Quote>;
+  showDetails?:boolean;highlightedId?:string|null;onOpened?:()=>void;
 }) {
   const router = useRouter();
   const [open, setOpenModal] = useState(false);
@@ -59,9 +63,9 @@ export default function LeveragePanel({
       // fetches its own rate, so no quote is needed here).
       if (p.auto_close_at && new Date(p.auto_close_at).getTime() <= Date.now()) {
         autoRef.current.add(p.id);
-        closeFxPositionAction(p.id, accountId)
+        autoCloseFxPositionAction(p.id, accountId)
           .then((r) => {
-            if (!r.error) router.refresh();
+            if (r.closed) router.refresh();
             else autoRef.current.delete(p.id);
           })
           .catch(() => autoRef.current.delete(p.id));
@@ -122,7 +126,9 @@ export default function LeveragePanel({
                 fmtPrice={formatCurrency}
                 metric="percent"
                 surfaceClass="bg-background"
-                expanded={expandedId === p.id}
+                highlighted={highlightedId===p.id}
+                alwaysExpanded={showDetails}
+                expanded={showDetails || expandedId === p.id}
                 onToggle={() => setExpandedId(expandedId === p.id ? null : p.id)}
                 onEditSltp={() => setEditSltp(p)}
                 onClose={() => close(p.id)}
@@ -168,12 +174,13 @@ export default function LeveragePanel({
                     <div className="space-y-0.5 border-t border-border px-3 py-2 text-xs text-muted">
                       <div>
                         {Number(p.units).toLocaleString("en-US")} {unit} · {formatCurrency(Number(p.open_rate))} →{" "}
-                        {p.close_rate != null ? formatCurrency(Number(p.close_rate)) : "—"} · {outcomeLabel(p.status)}
+                        {p.close_rate != null ? formatCurrency(Number(p.close_rate)) : "—"} · {positionExitLabel(p)}
                       </div>
                       <div>
                         {levOf(p)}× lev · opened {fmtClosed(p.opened_at)}
                         {p.closed_at ? ` · closed ${fmtClosed(p.closed_at)}` : ""}
                       </div>
+                      <PositionPlanDetails position={p} fmtPrice={formatCurrency} />
                     </div>
                   )}
                 </div>
@@ -189,6 +196,7 @@ export default function LeveragePanel({
           accountType={accountType}
           cash={cash}
           unit={unit}
+          onOpened={onOpened}
           onClose={() => setOpenModal(false)}
         />
       )}
@@ -215,6 +223,7 @@ export function OpenModal({
   cash,
   unit,
   initialSymbol = null,
+  onOpened,
   onClose,
 }: {
   accountId: string;
@@ -223,6 +232,7 @@ export function OpenModal({
   unit: string;
   /** Skip the search step when the caller already knows the symbol. */
   initialSymbol?: { symbol: string; name: string } | null;
+  onOpened?:()=>void;
   onClose: () => void;
 }) {
   const router = useRouter();
@@ -304,7 +314,7 @@ export function OpenModal({
     });
     setLoading(false);
     if (res.error) return setError(res.error);
-    setDone(true);
+    if(onOpened){onOpened();onClose();}else setDone(true);
     router.refresh();
   }
 
@@ -787,17 +797,6 @@ function closesIn(iso: string): string {
 function levOf(p: FxPosition): number {
   const m = Number(p.margin);
   return m > 0 ? Math.max(1, Math.round((Number(p.units) * Number(p.open_rate)) / m)) : 0;
-}
-
-// Human label for a closed position's exit reason.
-function outcomeLabel(status: string): string {
-  return status === "sl"
-    ? "Stop-loss"
-    : status === "tp"
-      ? "Take-profit"
-      : status === "stopped"
-        ? "Stop-out"
-        : "Manual close";
 }
 
 function fmtClosed(iso: string): string {

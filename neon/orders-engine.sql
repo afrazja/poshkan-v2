@@ -98,7 +98,7 @@ BEGIN
     IF action='SET_TIMER' THEN
       minutes:=(p_command->>'minutes')::integer;
       IF minutes IS NULL OR minutes<0 OR minutes>10080 THEN RAISE EXCEPTION 'Invalid close timer'; END IF;
-      UPDATE poshkan_trade_test.fx_positions SET auto_close_at=CASE WHEN minutes=0 THEN NULL ELSE clock_timestamp()+make_interval(mins=>minutes) END WHERE id=fx.id;
+      UPDATE poshkan_trade_test.fx_positions SET auto_close_at=CASE WHEN minutes=0 THEN NULL ELSE clock_timestamp()+make_interval(mins=>minutes) END,holding_minutes=minutes WHERE id=fx.id;
     ELSE
       IF jsonb_typeof(p_command->'levels') IS DISTINCT FROM 'array' OR jsonb_array_length(p_command->'levels')>10 THEN RAISE EXCEPTION 'Invalid take-profit levels'; END IF;
       DELETE FROM poshkan_trade_test.fx_tp_levels WHERE position_id=fx.id AND status='pending';
@@ -169,14 +169,19 @@ BEGIN
   IF p_kind IN ('LIMIT','ENTRY') THEN
     IF p_kind='LIMIT' THEN
       IF (o.side='BUY' AND p_quote>o.limit_price) OR (o.side='SELL' AND p_quote<o.limit_price) THEN RETURN jsonb_build_object('status','waiting'); END IF;
-      payload:=jsonb_build_object('action','SPOT','accountId',a.id,'symbol',o.symbol,'side',o.side,'quantity',o.quantity::text);
+      -- Require a post-placement observation and never fill beyond the limit
+      -- after adverse spread/slippage. Explicit fees are charged separately.
+      IF p_quote_at<o.created_at THEN RETURN jsonb_build_object('status','unavailable'); END IF;
+      fill:=(poshkan_trade_test.spot_cost(a.id,o.side,o.quantity,p_quote)->>'price')::numeric;
+      IF (o.side='BUY' AND fill>o.limit_price) OR (o.side='SELL' AND fill<o.limit_price) THEN RETURN jsonb_build_object('status','waiting'); END IF;
+      payload:=jsonb_build_object('action','SPOT','accountId',a.id,'symbol',o.symbol,'side',o.side,'quantity',o.quantity::text,'limitPrice',o.limit_price::text,'quoteAt',p_quote_at);
     ELSE
       IF (e.trigger_when='AT_OR_BELOW' AND p_quote>e.entry_rate) OR (e.trigger_when='AT_OR_ABOVE' AND p_quote<e.entry_rate) THEN RETURN jsonb_build_object('status','waiting'); END IF;
       payload:=jsonb_build_object('action','OPEN_FX','accountId',a.id,'symbol',e.symbol,'direction',e.direction,'units',e.units::text,'leverage',e.leverage,'stopLoss',e.stop_loss::text,'takeProfit',e.take_profit::text);
     END IF;
     BEGIN
       result:=poshkan_trade_test.command(gen_random_uuid(),payload,p_quote);
-      IF p_kind='LIMIT' THEN UPDATE poshkan_trade_test.orders SET status='filled',filled_at=clock_timestamp(),filled_price=p_quote WHERE id=o.id;
+      IF p_kind='LIMIT' THEN UPDATE poshkan_trade_test.orders SET status='filled',filled_at=clock_timestamp(),filled_price=(result->>'price')::numeric WHERE id=o.id;
       ELSE UPDATE poshkan_trade_test.fx_orders SET status='filled',filled_at=clock_timestamp(),filled_rate=p_quote WHERE id=e.id; END IF;
       RETURN jsonb_build_object('status','filled','trade',result);
     EXCEPTION WHEN raise_exception THEN
@@ -201,7 +206,7 @@ BEGIN
     -- Take-profit fills conservatively at its resting target.
     fill:=CASE WHEN reason='tp' THEN f.take_profit ELSE p_quote END;
     result:=poshkan_trade_test.command(gen_random_uuid(),jsonb_build_object('action','CLOSE_FX','accountId',a.id,'positionId',f.id),fill);
-    UPDATE poshkan_trade_test.fx_positions SET status=CASE WHEN reason='timer' THEN 'closed' ELSE reason END WHERE id=f.id;
+    UPDATE poshkan_trade_test.fx_positions SET status=CASE WHEN reason='timer' THEN 'closed' ELSE reason END,exit_reason=reason WHERE id=f.id;
     DELETE FROM poshkan_trade_test.fx_tp_levels WHERE position_id=f.id AND status='pending';
     RETURN jsonb_build_object('status','closed','reason',reason,'trade',result);
   END IF;
@@ -211,6 +216,7 @@ BEGIN
     SELECT * INTO f FROM poshkan_trade_test.fx_positions WHERE id=p_id;
     EXIT WHEN f.status<>'open';
     result:=poshkan_trade_test.command(gen_random_uuid(),jsonb_build_object('action','CLOSE_FX','accountId',a.id,'positionId',f.id,'units',least(l.close_units,f.units)::text),l.price);
+    UPDATE poshkan_trade_test.fx_positions SET status='tp',exit_reason='tp' WHERE id=(result->>'closedPositionId')::uuid;
     UPDATE poshkan_trade_test.fx_tp_levels SET status='filled',filled_at=clock_timestamp() WHERE id=l.id;
     count_filled:=count_filled+1;
   END LOOP;

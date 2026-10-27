@@ -14,6 +14,16 @@ const DESCRIPTION =
 
 const TOOLS: { group: string; items: { name: string; desc: string }[] }[] = [
   {
+    group: 'Research & review (after the Neon research migration)',
+    items: [
+      {name:'get_research_journal',desc:'Original research, no-trade decisions, separate reviews, linked executions and spot account net results. Omit account_id to read archived plans.'},
+      {name:'record_research',desc:'Preserve a server-timestamped hypothesis, strategy version, entry/exit conditions, holding days and sizing before execution. Does not trade.'},
+      {name:'review_research',desc:'Append a later review without rewriting the original plan.'},
+      {name:'link_research_transaction',desc:'Link a matching later execution to its prior plan; one plan per transaction.'},
+      {name:'set_execution_profile',desc:'Set future spot commission/fee, spread and adverse slippage assumptions for an account’s asset class. Fees can be zero.'},
+    ],
+  },
+  {
     group: "Market data",
     items: [
       { name: "get_quote", desc: "Live quote for a stock, ETF, crypto, or forex pair — price, day range, 52-week range." },
@@ -32,7 +42,7 @@ const TOOLS: { group: string; items: { name: string; desc: string }[] }[] = [
   {
     group: "Stocks & crypto trading",
     items: [
-      { name: "trade", desc: "Market buy or sell at the live price — filled server-side, never at a price the AI invents." },
+      { name: "trade", desc: "Paper spot buy/sell from a fresh server quote with account cost assumptions; returns fill, explicit fee, modeled price costs and execution ID. Reuse request_id on retries." },
       { name: "place_limit_order", desc: "Limit order that fills automatically when price reaches your level (GTC or DAY)." },
       { name: "cancel_order", desc: "Cancel a pending limit order." },
     ],
@@ -52,6 +62,7 @@ const TOOLS: { group: string; items: { name: string; desc: string }[] }[] = [
 ];
 
 const PROMPTS = [
+  "Record my SPY / XLF / XLE hypothesis, strategy version, entry and exit rules, 3 trading-day hold and sizing before trading. Record no-trade decisions and append later reviews separately.",
   "Check BTC-USD on the 1-hour chart. If RSI is oversold near support, buy $2,000 worth on my crypto account.",
   "Review my stock account: what's my total P&L, and which holding looks weakest technically?",
   "Open a EUR/USD short, 1 mini lot, stop-loss above the last swing high, take-profit at 2R.",

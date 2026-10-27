@@ -35,6 +35,8 @@ import SegmentedControl from "@/components/SegmentedControl";
 import PriceChart from "./PriceChart";
 import PositionChartModal from "./PositionChartModal";
 import SourceBadge from "./SourceBadge";
+import PositionPlanDetails from "./PositionPlanDetails";
+import { positionExitLabel } from "@/lib/position-records.mjs";
 import PositionCard from "./PositionCard";
 
 // Pending "At rate…" entry orders: lets users set a better entry at a pullback
@@ -99,9 +101,9 @@ export default function ForexPanel({
       // its own rate, so no quote is needed here).
       if (p.auto_close_at && new Date(p.auto_close_at).getTime() <= Date.now()) {
         autoRef.current.add(p.id);
-        closeFxPositionAction(p.id, accountId)
+        autoCloseFxPositionAction(p.id, accountId)
           .then((r) => {
-            if (!r.error) router.refresh();
+            if (r.closed) router.refresh();
             else autoRef.current.delete(p.id);
           })
           .catch(() => autoRef.current.delete(p.id));
@@ -373,7 +375,8 @@ export default function ForexPanel({
                         </span>
                       )}
                     </span>
-                    <FxOutcome status={p.status} />
+                    <PositionPlanDetails position={p} fmtPrice={formatRate} />
+                    <FxOutcome position={p} />
                   </div>
                   <div className="mt-1 text-xs text-muted">
                     {fmtDateTime(p.opened_at)} → {fmtDateTime(p.closed_at)}
@@ -396,6 +399,7 @@ export default function ForexPanel({
                   <th className="px-4 py-3 text-right font-medium">P&L</th>
                   <th className="px-4 py-3 font-medium">Opened</th>
                   <th className="px-4 py-3 font-medium">Closed</th>
+                  <th className="px-4 py-3 font-medium">Protection / deadline</th>
                   <th className="px-4 py-3 font-medium">Outcome</th>
                 </tr>
               </thead>
@@ -432,7 +436,8 @@ export default function ForexPanel({
                       </td>
                       <td className="whitespace-nowrap px-4 py-3 text-xs text-muted">{fmtDateTime(p.opened_at)}</td>
                       <td className="whitespace-nowrap px-4 py-3 text-xs text-muted">{fmtDateTime(p.closed_at)}</td>
-                      <td className="px-4 py-3"><FxOutcome status={p.status} /></td>
+                      <td className="px-4 py-3"><PositionPlanDetails position={p} fmtPrice={formatRate} /></td>
+                      <td className="px-4 py-3"><FxOutcome position={p} /></td>
                     </tr>
                   );
                 })}
@@ -1334,7 +1339,8 @@ function fmtDateTime(iso: string | null): string {
 }
 
 // Outcome label for a closed position.
-function FxOutcome({ status }: { status: string }) {
+function FxOutcome({ position }: { position: FxPosition }) {
+  const status=position.status;
   const map: Record<string, { label: string; cls: string }> = {
     closed: { label: "Closed", cls: "bg-muted/15 text-muted" },
     stopped: { label: "Stopped out", cls: "bg-negative/15 text-negative" },
@@ -1342,7 +1348,7 @@ function FxOutcome({ status }: { status: string }) {
     tp: { label: "TP hit", cls: "bg-positive/15 text-positive" },
   };
   const o = map[status] ?? { label: status, cls: "bg-muted/15 text-muted" };
-  return <span className={`rounded-md px-2 py-0.5 text-xs font-medium ${o.cls}`}>{o.label}</span>;
+  return <span className={`rounded-md px-2 py-0.5 text-xs font-medium ${o.cls}`}>{positionExitLabel(position)}</span>;
 }
 
 // The $ profit/loss a position would realize if its SL or TP is hit.

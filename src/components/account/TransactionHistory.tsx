@@ -68,6 +68,7 @@ export default function TransactionHistory({ transactions }: { transactions: Tra
               {hasShares && (
                 <div className="mt-0.5 text-xs text-muted">
                   {formatNumber(Number(t.quantity))} sh @ {formatCurrency(Number(t.price))}
+                  {' · Fee '}{formatCurrency(Number(t.explicit_fee??0))}{' · Spread '}{formatCurrency(Number(t.spread_cost??0))}{' · Slippage '}{formatCurrency(Number(t.slippage_cost??0))}
                 </div>
               )}
             </div>
@@ -86,6 +87,7 @@ export default function TransactionHistory({ transactions }: { transactions: Tra
             <th className="px-4 py-3 text-right font-medium">Shares</th>
             <th className="px-4 py-3 text-right font-medium">Price</th>
             <th className="px-4 py-3 text-right font-medium">Amount</th>
+            <th className="px-4 py-3 text-right font-medium">Fee / spread / slippage</th>
             <th className="px-4 py-3 text-right font-medium">Cash change</th>
           </tr>
         </thead>
@@ -105,7 +107,8 @@ export default function TransactionHistory({ transactions }: { transactions: Tra
                 <td className="px-4 py-3 font-semibold">{t.symbol ?? "—"}</td>
                 <td className="px-4 py-3 text-right">{hasShares ? formatNumber(Number(t.quantity)) : "—"}</td>
                 <td className="px-4 py-3 text-right">{hasShares ? formatCurrency(Number(t.price)) : "—"}</td>
-                <td className="px-4 py-3 text-right">{hasShares ? formatCurrency(Math.abs(amount)) : "—"}</td>
+                <td className="px-4 py-3 text-right">{hasShares ? formatCurrency(Math.abs(amount)) : "-"}</td>
+                <td className="px-4 py-3 text-right text-xs">{hasShares ? `${formatCurrency(Number(t.explicit_fee??0))} / ${formatCurrency(Number(t.spread_cost??0))} / ${formatCurrency(Number(t.slippage_cost??0))}` : '-'}</td>
                 <td className={`px-4 py-3 text-right font-medium ${changeColor(Number(t.cash_delta))}`}>
                   {Number(t.cash_delta) !== 0 ? formatSignedCurrency(Number(t.cash_delta)) : "—"}
                 </td>

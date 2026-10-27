@@ -1,6 +1,28 @@
 -- Server-only RPC boundary. The server validates the Neon session and sets the
 -- transaction-local identity. No browser gets a database connection or raw RPC.
 BEGIN;
+ALTER TABLE poshkan_trade_test.fx_positions
+  ADD COLUMN IF NOT EXISTS exit_reason text CHECK(exit_reason IN ('manual','timer','sl','tp','stopped')),
+  ADD COLUMN IF NOT EXISTS holding_minutes integer CHECK(holding_minutes BETWEEN 0 AND 10080);
+-- Keep the original standalone rehearsal installer usable before the journal
+-- migration. New columns are additive; the zero-cost helper is installed only
+-- when absent and can never overwrite an already configured cost implementation.
+ALTER TABLE poshkan_trade_test.transactions ADD COLUMN IF NOT EXISTS explicit_fee numeric(20,8) NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS reference_price numeric(20,8),
+  ADD COLUMN IF NOT EXISTS spread_cost numeric(20,8) NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS slippage_cost numeric(20,8) NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS cost_profile jsonb,
+  ADD COLUMN IF NOT EXISTS quote_at timestamptz,
+  ADD COLUMN IF NOT EXISTS realized_pnl numeric(20,8);
+DO $bootstrap$ BEGIN
+  IF to_regprocedure('poshkan_trade_test.spot_cost(uuid,text,numeric,numeric)') IS NULL THEN
+    EXECUTE $definition$CREATE FUNCTION poshkan_trade_test.spot_cost(p_account uuid,p_side text,p_qty numeric,p_price numeric) RETURNS jsonb
+      LANGUAGE sql SET search_path=pg_catalog AS $body$
+      SELECT jsonb_build_object('price',p_price,'fee',0,'spread',0,'slippage',0,'profile',jsonb_build_object('label','Zero explicit fees; direct quote'))
+      $body$$definition$;
+  END IF;
+END $bootstrap$;
+REVOKE ALL ON FUNCTION poshkan_trade_test.spot_cost(uuid,text,numeric,numeric) FROM PUBLIC;
 CREATE OR REPLACE FUNCTION poshkan_trade_test.actor() RETURNS uuid
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog AS $$
 DECLARE actor_id uuid;
@@ -29,7 +51,7 @@ LANGUAGE sql SECURITY DEFINER SET search_path = pg_catalog AS $$
     'holdings', coalesce((SELECT jsonb_agg(jsonb_build_object('id', p.id, 'symbol', p.symbol, 'quantity', p.quantity::text) ORDER BY p.symbol)
       FROM poshkan_trade_test.positions p WHERE p.account_id = a.id), '[]'::jsonb),
     'forex', coalesce((SELECT jsonb_agg(jsonb_build_object('id', f.id, 'symbol', f.symbol, 'direction', f.direction,
-      'units', f.units::text, 'rate', f.open_rate::text, 'margin', f.margin::text, 'stopLoss', f.stop_loss::text, 'takeProfit', f.take_profit::text) ORDER BY f.opened_at DESC, f.id)
+      'units', f.units::text, 'rate', f.open_rate::text, 'margin', f.margin::text, 'stopLoss', f.stop_loss::text, 'takeProfit', f.take_profit::text,'openedAt',f.opened_at,'autoCloseAt',f.auto_close_at,'holdingMinutes',f.holding_minutes,'status',f.status) ORDER BY f.opened_at DESC, f.id)
       FROM poshkan_trade_test.fx_positions f WHERE f.account_id = a.id AND f.status = 'open'), '[]'::jsonb)
   ) ORDER BY a.name, a.id), '[]'::jsonb)
   FROM poshkan_trade_test.accounts a JOIN owner o ON a.user_id = o.id
@@ -55,6 +77,7 @@ DECLARE
   fx poshkan_trade_test.fx_positions%rowtype;
   prior poshkan_trade_test.requests%rowtype;
   cost numeric; margin numeric; pnl numeric; new_id uuid; result jsonb;
+  execution jsonb; fill numeric; fee numeric; cash_change numeric;
 BEGIN
   IF p_request IS NULL OR action IS NULL OR action NOT IN ('SPOT','OPEN_FX','CLOSE_FX','PROTECT_FX') THEN RAISE EXCEPTION 'Invalid command'; END IF;
   -- Serialize retries before touching balances. A failed transaction releases
@@ -80,27 +103,35 @@ BEGIN
   IF action = 'SPOT' THEN
     IF a.type = 'forex' THEN RAISE EXCEPTION 'Use a forex position for currency pairs'; END IF;
     IF side IS NULL OR side NOT IN ('BUY','SELL') OR NOT poshkan_trade_test.positive(quantity) OR quantity <> round(quantity,8) THEN RAISE EXCEPTION 'Invalid side or quantity'; END IF;
-    cost := round(quantity * p_quote, 8);
+    execution:=poshkan_trade_test.spot_cost(a.id,side,quantity,p_quote);
+    fill:=(execution->>'price')::numeric;
+    fee:=(execution->>'fee')::numeric;
+    IF p_command->>'limitPrice' IS NOT NULL AND ((side='BUY' AND fill>(p_command->>'limitPrice')::numeric) OR (side='SELL' AND fill<(p_command->>'limitPrice')::numeric)) THEN RAISE EXCEPTION 'Limit price not reached after costs'; END IF;
+    cost := round(quantity * fill, 8);
     IF cost <= 0 THEN RAISE EXCEPTION 'Trade is too small'; END IF;
     SELECT * INTO pos FROM poshkan_trade_test.positions x WHERE x.account_id = a.id AND x.symbol = symbol FOR UPDATE;
     IF side = 'BUY' THEN
-      IF a.cash_balance < cost THEN RAISE EXCEPTION 'Insufficient cash'; END IF;
-      UPDATE poshkan_trade_test.accounts SET cash_balance = cash_balance - cost WHERE id = a.id;
+      IF a.cash_balance < cost+fee THEN RAISE EXCEPTION 'Insufficient cash'; END IF;
+      cash_change:=-cost-fee;
+      UPDATE poshkan_trade_test.accounts SET cash_balance = cash_balance + cash_change WHERE id = a.id;
       IF pos.id IS NULL THEN
-        INSERT INTO poshkan_trade_test.positions(account_id,symbol,quantity,avg_cost) VALUES(a.id,symbol,quantity,p_quote);
+        INSERT INTO poshkan_trade_test.positions(account_id,symbol,quantity,avg_cost) VALUES(a.id,symbol,quantity,(cost+fee)/quantity);
       ELSE
         UPDATE poshkan_trade_test.positions SET quantity = pos.quantity + quantity,
-          avg_cost = (pos.quantity * pos.avg_cost + cost)/(pos.quantity + quantity) WHERE id = pos.id;
+          avg_cost = (pos.quantity * pos.avg_cost + cost+fee)/(pos.quantity + quantity) WHERE id = pos.id;
       END IF;
     ELSE
       IF pos.id IS NULL OR pos.quantity < quantity THEN RAISE EXCEPTION 'Not enough holdings'; END IF;
-      UPDATE poshkan_trade_test.accounts SET cash_balance = cash_balance + cost WHERE id = a.id;
+      cash_change:=cost-fee;
+      IF a.cash_balance+cash_change<0 THEN RAISE EXCEPTION 'Insufficient cash'; END IF;
+      pnl:=cost-fee-quantity*pos.avg_cost;
+      UPDATE poshkan_trade_test.accounts SET cash_balance = cash_balance + cash_change WHERE id = a.id;
       IF pos.quantity = quantity THEN DELETE FROM poshkan_trade_test.positions WHERE id = pos.id;
       ELSE UPDATE poshkan_trade_test.positions SET quantity = pos.quantity - quantity WHERE id = pos.id; END IF;
     END IF;
-    INSERT INTO poshkan_trade_test.transactions(account_id,symbol,side,quantity,price,cash_delta)
-      VALUES(a.id,symbol,side,quantity,p_quote,CASE WHEN side = 'BUY' THEN -cost ELSE cost END);
-    result := jsonb_build_object('action',action,'price',p_quote::text,'quantity',quantity::text);
+    INSERT INTO poshkan_trade_test.transactions(account_id,symbol,side,quantity,price,cash_delta,explicit_fee,reference_price,spread_cost,slippage_cost,cost_profile,realized_pnl,quote_at)
+      VALUES(a.id,symbol,side,quantity,fill,cash_change,fee,p_quote,(execution->>'spread')::numeric,(execution->>'slippage')::numeric,execution->'profile',pnl,(p_command->>'quoteAt')::timestamptz) RETURNING id INTO new_id;
+    result := jsonb_build_object('action',action,'price',fill::text,'quantity',quantity::text,'transactionId',new_id,'fee',fee::text,'spreadCost',execution->>'spread','slippageCost',execution->>'slippage','referencePrice',p_quote::text,'costProfile',execution->'profile');
   ELSIF action = 'OPEN_FX' THEN
     IF NOT poshkan_trade_test.positive(units) OR units <> round(units,8) OR leverage IS NULL OR leverage NOT IN (1,2,5,10)
       OR direction IS NULL OR direction NOT IN ('LONG','SHORT') THEN RAISE EXCEPTION 'Invalid units, direction or leverage'; END IF;
@@ -114,10 +145,11 @@ BEGIN
     INSERT INTO poshkan_trade_test.fx_positions(account_id,symbol,direction,units,open_rate,margin,stop_loss,take_profit)
       VALUES(a.id,symbol,direction,units,p_quote,margin,sl,tp) RETURNING id INTO new_id;
     result := jsonb_build_object('action',action,'positionId',new_id,'price',p_quote::text,'margin',margin::text);
+    UPDATE poshkan_trade_test.fx_positions SET holding_minutes=0 WHERE id=new_id;
     IF p_command->>'autoCloseMinutes' IS NOT NULL THEN
       IF (p_command->>'autoCloseMinutes') !~ '^[0-9]+$' OR (p_command->>'autoCloseMinutes')::integer NOT BETWEEN 0 AND 10080 THEN RAISE EXCEPTION 'Invalid auto-close timer'; END IF;
       IF (p_command->>'autoCloseMinutes')::integer>0 THEN
-        UPDATE poshkan_trade_test.fx_positions SET auto_close_at=clock_timestamp()+make_interval(mins=>(p_command->>'autoCloseMinutes')::integer) WHERE id=new_id;
+        UPDATE poshkan_trade_test.fx_positions SET auto_close_at=clock_timestamp()+make_interval(mins=>(p_command->>'autoCloseMinutes')::integer),holding_minutes=(p_command->>'autoCloseMinutes')::integer WHERE id=new_id;
       END IF;
     END IF;
   ELSE
@@ -140,13 +172,14 @@ BEGIN
       pnl := greatest(round(pnl,2),-margin);
       UPDATE poshkan_trade_test.accounts SET cash_balance = cash_balance + margin + pnl WHERE id = a.id;
       IF units = fx.units THEN
-        UPDATE poshkan_trade_test.fx_positions SET status='closed',closed_at=now(),close_rate=p_quote,pnl=pnl WHERE id=fx.id;
+        UPDATE poshkan_trade_test.fx_positions SET status='closed',closed_at=now(),close_rate=p_quote,pnl=pnl,exit_reason='manual' WHERE id=fx.id;
+        new_id:=fx.id;
       ELSE
-        INSERT INTO poshkan_trade_test.fx_positions(account_id,symbol,direction,units,open_rate,margin,status,opened_at,closed_at,close_rate,pnl)
-          VALUES(a.id,fx.symbol,fx.direction,units,fx.open_rate,margin,'closed',fx.opened_at,now(),p_quote,pnl);
+        INSERT INTO poshkan_trade_test.fx_positions(account_id,symbol,direction,units,open_rate,margin,status,opened_at,closed_at,close_rate,pnl,stop_loss,take_profit,auto_close_at,holding_minutes,exit_reason)
+          VALUES(a.id,fx.symbol,fx.direction,units,fx.open_rate,margin,'closed',fx.opened_at,now(),p_quote,pnl,fx.stop_loss,fx.take_profit,fx.auto_close_at,fx.holding_minutes,'manual') RETURNING id INTO new_id;
         UPDATE poshkan_trade_test.fx_positions SET units=fx.units-units,margin=fx.margin-margin WHERE id=fx.id;
       END IF;
-      result := jsonb_build_object('action',action,'positionId',fx.id,'units',units::text,'pnl',pnl::text,'releasedMargin',margin::text,'price',p_quote::text);
+      result := jsonb_build_object('action',action,'positionId',fx.id,'closedPositionId',new_id,'units',units::text,'pnl',pnl::text,'releasedMargin',margin::text,'price',p_quote::text);
     END IF;
   END IF;
   UPDATE poshkan_trade_test.requests r SET result=result WHERE r.actor_id=actor_id AND r.request_id=p_request;
@@ -160,6 +193,6 @@ BEGIN
   IF FOUND AND prior.command <> p_command THEN RAISE EXCEPTION 'Request ID reused with different trade'; END IF;
   RETURN prior.result;
 END $$;
-REVOKE ALL ON ALL FUNCTIONS IN SCHEMA poshkan_trade_test FROM PUBLIC, poshkan_trade_preview;
+REVOKE ALL ON FUNCTION poshkan_trade_test.actor(),poshkan_trade_test.positive(numeric),poshkan_trade_test.state(),poshkan_trade_test.command(uuid,jsonb,numeric),poshkan_trade_test.completed(uuid,jsonb) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION poshkan_trade_test.state(), poshkan_trade_test.command(uuid,jsonb,numeric), poshkan_trade_test.completed(uuid,jsonb) TO poshkan_trade_preview;
 COMMIT;

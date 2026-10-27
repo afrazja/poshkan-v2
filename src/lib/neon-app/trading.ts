@@ -11,7 +11,7 @@ import { checkedQuote } from '../neon-preview/quote.mjs';
 const yahoo=new YahooFinance({suppressNotices:['yahooSurvey']});
 const decimal=(value:unknown)=>{if(typeof value!=='number'||!Number.isFinite(value)||value<=0) throw new Error('Enter a positive amount.'); return value.toFixed(8).replace(/0+$/,'').replace(/\.$/,'');};
 const nullable=(value:unknown)=>value==null?null:decimal(value);
-type Result={filled:boolean;closed:boolean;price?:number;rate?:number;margin?:number;pnl?:number;reason?:string;error?:string;levels?:number};
+type Result={filled:boolean;closed:boolean;price?:number;rate?:number;margin?:number;pnl?:number;reason?:string;error?:string;levels?:number;fee?:number;spreadCost?:number;slippageCost?:number;transactionId?:string};
 export async function appTrading(action:string,input:Record<string,unknown>):Promise<Result> {
   const base:Result={filled:false,closed:false};
   try {
@@ -54,10 +54,10 @@ export async function appTrading(action:string,input:Record<string,unknown>):Pro
       if(await actor()!==user) throw new Error('Sign in again.');
       const checked=await transaction(user,async c=>(await c.query(`SELECT ${databaseSchema()}.check_order($1,$2,$3,$4,$5,$6) AS result`,[kind,id,item.accountId,item.symbol,price,at])).rows[0].result);
       revalidatePath('/dashboard','layout');
-      return {...base,filled:checked.status==='filled',closed:checked.status==='closed',reason:checked.reason,levels:checked.levels??0,price:price?Number(price):undefined};
+      return {...base,filled:checked.status==='filled',closed:checked.status==='closed',reason:checked.reason,levels:checked.levels??0,price:checked.trade?.price?Number(checked.trade.price):price?Number(price):undefined};
     } else throw new Error('Unsupported operation');
     revalidatePath('/dashboard','layout');
-    return {...base,price:result.price?Number(result.price):undefined,rate:result.price?Number(result.price):undefined,margin:result.margin?Number(result.margin):undefined,pnl:result.pnl?Number(result.pnl):undefined};
+    return {...base,price:result.price?Number(result.price):undefined,rate:result.price?Number(result.price):undefined,margin:result.margin?Number(result.margin):undefined,pnl:result.pnl?Number(result.pnl):undefined,transactionId:result.transactionId,fee:result.fee?Number(result.fee):undefined,spreadCost:result.spreadCost?Number(result.spreadCost):undefined,slippageCost:result.slippageCost?Number(result.slippageCost):undefined};
   } catch(error) {
     const message=error instanceof Error?error.message:'';
     // Only known domain errors are safe to display; never expose SQL/provider diagnostics.

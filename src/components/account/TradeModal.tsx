@@ -12,6 +12,7 @@ import {
 import PriceChart from "./PriceChart";
 import SegmentedControl from "@/components/SegmentedControl";
 import { isCryptoSymbol } from "@/lib/assets";
+import { estimateSpot,affordableSpotQuantity,type CostProfile } from '@/lib/spot-costs.mjs';
 
 // A beginner thinks "I want to put $500 into Apple", not "I want 1.53971
 // shares". So the amount is entered in dollars by default and converted to a
@@ -26,7 +27,6 @@ function unitDecimals(price: number): number {
   if (!(price > 0)) return 4;
   return Math.min(8, Math.max(2, Math.ceil(Math.log10(price / 0.005))));
 }
-const roundTo = (n: number, dp: number) => Math.round(n * 10 ** dp) / 10 ** dp;
 // Converting an amount always rounds DOWN: "spend $500" must never cost $500.01,
 // which would otherwise put an order for your whole cash balance a hundredth of
 // a cent out of reach and reject it.
@@ -61,7 +61,10 @@ export default function TradeModal({
   const [price, setPrice] = useState(initialPrice);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [done, setDone] = useState<{ price: number; limit?: boolean } | null>(null);
+  const [done, setDone] = useState<{ price: number; limit?: boolean;fee?:number } | null>(null);
+  const [profile,setProfile]=useState<CostProfile|null>(null);
+  const [profileReady,setProfileReady]=useState(false);
+  useEffect(()=>{let active=true;fetch(`/api/execution-profile?accountId=${encodeURIComponent(accountId)}`).then(r=>r.ok?r.json():Promise.reject()).then(j=>{if(active){setProfile(j.profile);setProfileReady(true);}}).catch(()=>{if(active)setError('Execution assumptions could not be loaded. Reopen the ticket to retry.');});return()=>{active=false;};},[accountId]);
   const [review, setReview] = useState(false);
   const [orderType, setOrderType] = useState<"MARKET" | "LIMIT">("MARKET");
   const [limitPrice, setLimitPrice] = useState("");
@@ -86,13 +89,12 @@ export default function TradeModal({
 
   const isLimit = orderType === "LIMIT";
   const limit = Number(limitPrice) || 0;
-  // A limit order will fill at the limit, so that is the price a dollar amount
-  // must be divided by — not the market price.
+  // Use the limit as the worst permitted fill; actual fills may be better.
   const execPrice = isLimit ? limit : price;
   const dp = unitDecimals(execPrice);
   const entered = Number(amount) || 0;
   const inDollars = mode === "DOLLARS";
-  let quantity = inDollars ? (execPrice > 0 ? floorTo(entered / execPrice, dp) : 0) : entered;
+  let quantity = inDollars ? (execPrice > 0 ? floorTo(side==='BUY'?affordableSpotQuantity(profile,entered,execPrice,isLimit):entered/execPrice, dp) : 0) : entered;
   // Selling the whole position in dollars: the amount was itself rounded to a
   // cent, so dividing back lands a hair short. Within that margin it means "all
   // of it" — snap, or a full exit leaves an unsellable speck behind forever.
@@ -100,7 +102,8 @@ export default function TradeModal({
     const tolerance = 2 * Math.max(10 ** -dp, execPrice > 0 ? 0.005 / execPrice : 0);
     if (Math.abs(quantity - maxShares) <= tolerance) quantity = maxShares;
   }
-  const estimate = quantity * execPrice;
+  const preview=estimateSpot(profile,side,quantity,execPrice,isLimit);
+  const estimate = preview.cash;
   const affordable = side === "BUY" ? estimate <= cash : true;
   const enoughShares = side === "SELL" ? quantity <= (maxShares ?? 0) : true;
   const unitWord = isCryptoSymbol(symbol) ? symbol.split("-")[0] : quantity === 1 ? "share" : "shares";
@@ -117,8 +120,8 @@ export default function TradeModal({
     if (entered > 0 && execPrice > 0) {
       setAmount(
         next === "UNITS"
-          ? fmtUnits(roundTo(entered / execPrice, dp), dp)
-          : (entered * execPrice).toFixed(2)
+          ? fmtUnits(quantity, dp)
+          : estimateSpot(profile,side,entered,execPrice,isLimit).cash.toFixed(2)
       );
     }
     setMode(next);
@@ -133,12 +136,13 @@ export default function TradeModal({
     // Buying: fill from the real cash balance, not the figure on screen. Cash
     // is displayed rounded to the cent, so typing what you can see can ask for
     // a fraction more than you hold and quietly disable the button.
-    setAmount(inDollars ? floorTo(cash, 2).toFixed(2) : fmtUnits(floorTo(execPrice > 0 ? cash / execPrice : 0, dp), dp));
+    setAmount(inDollars ? floorTo(cash, 2).toFixed(2) : fmtUnits(floorTo(affordableSpotQuantity(profile,cash,execPrice,isLimit), dp), dp));
   }
 
   function goReview(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    if(!profileReady)return setError('Wait for execution assumptions to load.');
     if (isLimit && limit <= 0) return setError("Enter a limit price.");
     if (quantity <= 0) return setError(inDollars ? "Enter an amount to spend." : "Enter a quantity.");
     if (!affordable) return setError("Not enough cash for this order.");
@@ -167,7 +171,7 @@ export default function TradeModal({
     const result = await executeTradeAction(requestFor({ accountId, symbol, side, quantity }));
     setLoading(false);
     if (result.error) return setError(result.error);
-    setDone({ price: result.price ?? price });
+    setDone({ price: result.price ?? price,fee:result.fee });
     router.refresh();
   }
 
@@ -185,13 +189,13 @@ export default function TradeModal({
                 <strong>
                   {side === "BUY" ? "Buy" : "Sell"} {fmtUnits(quantity, dp)} {symbol}
                 </strong>{" "}
-                at <strong>{formatCurrency(done.price)}</strong> or better. It fills automatically
-                when the price is reached (while this account is open).
+                at <strong>{formatCurrency(done.price)}</strong> or better, plus explicit fees. It fills
+                when a later fresh quote satisfies the limit after modeled price costs. Background timing varies.
               </>
             ) : (
               <>
                 {side === "BUY" ? "Bought" : "Sold"} <strong>{fmtUnits(quantity, dp)}</strong> {symbol} at{" "}
-                <strong>{formatCurrency(done.price)}</strong>.
+                <strong>{formatCurrency(done.price)}</strong>. Explicit fee {formatCurrency(done.fee??0)}.
               </>
             )}
           </p>
@@ -219,13 +223,14 @@ export default function TradeModal({
             <ReviewRow label="Quantity" value={`${fmtUnits(quantity, dp)} ${unitWord}`} />
             <ReviewRow
               label={isLimit ? "Limit price" : "Market price"}
-              value={formatCurrency(execPrice)}
+              value={formatCurrency(preview.price)}
             />
             <ReviewRow
               label={`Estimated ${side === "BUY" ? "cost" : "proceeds"}`}
               value={formatCurrency(estimate)}
               bold
             />
+            <ReviewRow label="Explicit fee included" value={formatCurrency(preview.fee)}/>
             {side === "BUY" && <ReviewRow label="Cash after" value={formatCurrency(cash - estimate)} />}
           </div>
 
@@ -251,7 +256,7 @@ export default function TradeModal({
           <p className="text-center text-xs text-muted">
             {isLimit
               ? "Placed now; fills automatically when the market reaches your limit."
-              : "Order fills at the live market price at execution."}
+              : "Paper fills use a fresh server quote plus modeled spread/slippage; fees are separate. Quotes may be delayed."}
           </p>
         </div>
       ) : (
@@ -379,6 +384,7 @@ export default function TradeModal({
             <span className="text-muted">Estimated {side === "BUY" ? "cost" : "proceeds"}</span>
             <span className="font-semibold">{formatCurrency(estimate)}</span>
           </div>
+          <p className="text-xs text-muted">Explicit fee included: {formatCurrency(preview.fee)}. {isLimit?'Limit bounds the fill price; fees are additional.':'Spread and adverse slippage are included in the estimate.'} Future spot assumptions follow Research &amp; review settings. Leveraged trades retain the existing model.</p>
           {side === "BUY" && (
             <div className="flex justify-between text-xs text-muted">
               <span>Available cash</span>
@@ -388,7 +394,7 @@ export default function TradeModal({
 
           <button
             type="submit"
-            disabled={quantity <= 0 || !affordable || !enoughShares}
+            disabled={!profileReady || quantity <= 0 || !affordable || !enoughShares}
             className={`w-full rounded-lg py-2.5 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-50 ${
               side === "BUY" ? "bg-positive" : "bg-negative"
             }`}
